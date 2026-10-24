@@ -2,8 +2,7 @@
 
 ## Quy tắc bắt buộc cho AI Agent
 
-Tài liệu này là quy chuẩn bắt buộc cho mọi AI Agent và lập trình viên khi tham gia đọc, thiết kế, viết code, sửa đổi hoặc kiểm thử trong repository **VeganFoodShop** (`D:\Quan\VeganFoodShop`).
-Trước khi thực hiện bất kỳ thay đổi nào, Agent phải đọc kỹ tài liệu này cùng tài liệu thiết kế nghiệp vụ [Mô-hình-và-giải-pháp-đặt-chỗ-quán-chay.md](Mô-hình-và-giải-pháp-đặt-chỗ-quán-chay.md).
+Trước khi sửa code hoặc chạy test, Agent phải đọc kỹ [AGENT_RULES.md](AGENT_RULES.md) và tuân thủ các quy tắc kiến trúc, quy tắc kiểm thử và checklist tại đó. Tài liệu này đóng vai trò bổ sung quy trình vận hành và tiêu chuẩn chi tiết cho repo. Ngoài ra, Agent phải tham khảo tài liệu thiết kế nghiệp vụ [Mô-hình-và-giải-pháp-đặt-chỗ-quán-chay.md](Mô-hình-và-giải-pháp-đặt-chỗ-quán-chay.md).
 
 ---
 
@@ -209,7 +208,7 @@ sudo systemctl reload nginx
 ## 9. Kiểm tra bắt buộc sau khi sửa code
 
 Trước khi bàn giao hoặc commit bất kỳ thay đổi nào:
-1. **Kiểm tra cú pháp PHP:**
+1. **Kiểm tra cú pháp PHP (PHP Syntax Lint):**
    ```powershell
    php -l index.php
    php -l process_order.php
@@ -220,7 +219,12 @@ Trước khi bàn giao hoặc commit bất kỳ thay đổi nào:
    ```powershell
    node --check assets/js/app.js
    ```
-3. **Kiểm tra trải nghiệm di động:**
+3. **Chạy bộ kiểm thử tự động (Unit / Integration Test):**
+   ```powershell
+   vendor/bin/phpunit
+   ```
+   *Lưu ý quan trọng:* Tuân thủ quy định tại [AGENT_RULES.md](AGENT_RULES.md) - toàn bộ test phải chạy trên CSDL tạm hoặc `:memory:`, **tuyệt đối không chạy test ghi đè vào `bep_an_yen.db`**.
+4. **Kiểm tra trải nghiệm di động:**
    - Thao tác thử trên viewport mobile (375px - 430px).
    - Kiểm tra hiển thị bàn phím ảo không che khuất nút gửi đơn.
    - Kiểm tra luồng AJAX kiểm tra số điện thoại khách quen phản hồi nhanh, mượt mà.

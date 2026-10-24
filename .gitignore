@@ -1,0 +1,22 @@
+# Composer & Dependencies
+/vendor/
+composer.lock
+
+# SQLite runtime artifacts
+*.db-journal
+*.db-wal
+*.db-shm
+
+# PHPUnit & Testing cache
+.phpunit.cache/
+.phpunit.result.cache
+
+# Logs
+logs/
+*.log
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -20,6 +20,8 @@ class Connection
             $config = require __DIR__ . '/../../config/config.php';
             $dbPath = $config['database']['path'] ?? __DIR__ . '/../../database/bep_an_yen.db';
             self::$instance = self::createConnection($dbPath);
+            // Tự động kiểm tra và áp dụng migrations mới nhất khi kết nối
+            \App\Services\MigrationService::runAutoMigrations(self::$instance);
         }
 
         return self::$instance;

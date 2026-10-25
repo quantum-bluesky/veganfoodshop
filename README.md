@@ -36,6 +36,11 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
    - Tự động kích hoạt kiểm tra khách quen khi nhận diện SĐT từ Zalo.
    - Sau khi gửi đơn: Nút mở Zalo Bếp (`seller_zalo_url`) kèm nút sao chép nhanh mẫu tin nhắn xác nhận đơn (`zalo_confirm_template`).
    - Hiển thị ghi chú vận chuyển (`order_note_shipping`) rõ ràng, minh bạch.
+7. **Hệ thống Auto-Migration Tinh Gọn (Zero-Dependency v1.2.0):**
+   - Tự động quét và áp dụng mọi thay đổi schema SQL (`database/migrations/*.sql`) ngay khi ứng dụng khởi động hoặc kết nối CSDL lần đầu.
+   - Quản lý phiên bản chặt chẽ qua bảng `migrations` trong SQLite, đảm bảo tính lũy kế (idempotent), không bao giờ chạy lại file đã áp dụng.
+   - Hỗ trợ công cụ dòng lệnh (CLI): `php bin/migrate.php` (thực thi) và `php bin/migrate.php status` (kiểm tra trạng thái).
+   - Đảm bảo đồng bộ cấu trúc CSDL 100% tự động trên mọi server (Local, WSL, VPS DuckDNS, staging, production) mà không cần framework cồng kềnh.
 
 ---
 
@@ -53,6 +58,8 @@ D:\Quan\VeganFoodShop\
 ├── api.php                                     # AJAX endpoint: kiểm tra SĐT khách quen, lấy ca
 ├── zalo_callback.php                           # Endpoint tiếp nhận Zalo OAuth callback & đồng bộ
 ├── phpunit.xml                                 # Cấu hình test PHPUnit
+├── bin/
+│   └── migrate.php                             # CLI runner áp dụng & xem trạng thái Migration
 ├── config/
 │   ├── config.php                              # Cấu hình cơ sở mặc định (môi trường dev/test)
 │   ├── config.example.php                      # File mẫu cấu hình môi trường Production
@@ -60,11 +67,14 @@ D:\Quan\VeganFoodShop\
 ├── database/
 │   ├── bep_an_yen.db                           # CSDL SQLite3 chính (chế độ WAL)
 │   ├── schema.sql                              # Cấu trúc 6 bảng CSDL & chỉ mục
-│   └── seed.sql                                # Dữ liệu mẫu (món ăn, ca mẫu, khách mẫu)
+│   ├── seed.sql                                # Dữ liệu mẫu (món ăn, ca mẫu, khách mẫu)
+│   └── migrations/                             # Thư mục lưu trữ các file migration tuần tự
+│       ├── 001_initial_schema.sql
+│       └── 002_add_zalo_to_customers.sql
 ├── src/
 │   ├── autoload.php                            # Bộ nạp lớp tự động PSR-4 thuần
 │   ├── Database/
-│   │   └── Connection.php                      # Quản lý kết nối PDO SQLite singleton
+│   │   └── Connection.php                      # Quản lý kết nối PDO SQLite singleton & auto-migration
 │   ├── Exceptions/                             # Custom Domain Exceptions
 │   │   ├── DomainException.php
 │   │   ├── SlotFullException.php
@@ -76,7 +86,8 @@ D:\Quan\VeganFoodShop\
 │       ├── OrderService.php
 │       ├── VietQrService.php
 │       ├── ConfigService.php
-│       └── ZaloAuthService.php
+│       ├── ZaloAuthService.php
+│       └── MigrationService.php                # Quản lý & tự động thực thi Auto-Migration CSDL
 ├── assets/
 │   ├── css/
 │   │   └── style.css                           # Bảng màu Washi, xanh trà, bo góc Ghibli
@@ -94,7 +105,9 @@ D:\Quan\VeganFoodShop\
     ├── Unit/                                   # Kiểm thử đơn vị
     │   ├── CustomerServiceTest.php
     │   ├── SlotCapacityTest.php
-    │   └── OrderCalculationTest.php
+    │   ├── OrderCalculationTest.php
+    │   ├── ZaloAuthServiceTest.php
+    │   └── MigrationServiceTest.php
     └── Integration/                            # Kiểm thử tích hợp
         ├── CreateOrderTransactionTest.php
         └── SlotConcurrencyTest.php

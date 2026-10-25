@@ -25,10 +25,19 @@ class ZaloAuthService
         $fileConfig = require __DIR__ . '/../../config/config.php';
         $zaloConfig = $fileConfig['zalo_login'] ?? [];
 
+        $dbAppId = $this->configService->get('zalo_app_id');
+        $dbSecret = $this->configService->get('zalo_secret_key');
+        $resolvedAppId = ($dbAppId !== null && $dbAppId !== '' && $dbAppId !== '123')
+            ? $dbAppId
+            : (string)($zaloConfig['app_id'] ?? '123');
+        $resolvedSecret = ($dbSecret !== null && $dbSecret !== '' && $dbSecret !== '123')
+            ? $dbSecret
+            : (string)($zaloConfig['secret_key'] ?? '123');
+
         // Hỗ trợ ghi đè cấu hình runtime từ bảng system_config (nếu có)
         $this->config = [
-            'app_id' => $this->configService->get('zalo_app_id', (string)($zaloConfig['app_id'] ?? '123')),
-            'secret_key' => $this->configService->get('zalo_secret_key', (string)($zaloConfig['secret_key'] ?? '123')),
+            'app_id' => $resolvedAppId,
+            'secret_key' => $resolvedSecret,
             'mock_test_mode' => filter_var($this->configService->get('zalo_mock_test_mode', (string)($zaloConfig['mock_test_mode'] ? '1' : '0')), FILTER_VALIDATE_BOOLEAN),
             'require_zalo_login' => filter_var($this->configService->get('zalo_require_login', (string)($zaloConfig['require_zalo_login'] ? '1' : '0')), FILTER_VALIDATE_BOOLEAN),
             'require_zalo_group_to_order' => filter_var($this->configService->get('zalo_require_group', (string)($zaloConfig['require_zalo_group_to_order'] ? '1' : '0')), FILTER_VALIDATE_BOOLEAN),

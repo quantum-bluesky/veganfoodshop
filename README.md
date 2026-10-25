@@ -96,6 +96,17 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Thống kê thời gian thực: Chờ duyệt (`pending`), Đang hiển thị (`approved`), Đã ẩn (`hidden`).
       - Nút Duyệt hiển thị, Ẩn đánh giá hoặc Xóa nhanh gọn.
       - Khung phản hồi trực tiếp: Bếp có thể gửi lời cảm ơn hoặc giải đáp thắc mắc, hiển thị ngay bên dưới đánh giá của khách trên web.
+14. **Lịch Âm Mùng 1 & Rằm, Trung Tâm Thông Báo & Tối Ưu Bố Cục Frontend (v1.8.0 - Issue #19):**
+    - **Thuật Toán Âm Lịch Thuần PHP (Zero-Dependency):**
+      - Tích hợp `LunarCalendarService` dựa trên thuật toán thiên văn Hồ Ngọc Đức, tự động tính chính xác ngày âm, tháng âm, tháng nhuận và các ngày sóc (Mùng 1), vọng (Rằm 15) và đại lễ chay (Vu Lan, Phật Đản, Nguyên Tiêu, Hạ Nguyên...).
+    - **Notice & Event Hub (Trung Tâm Thông Báo & Sự Kiện Chay):**
+      - Thẻ thông tin nổi bật đầu trang hiển thị ngày âm hôm nay kèm huy hiệu trăng non (`🌑 Mùng 1`) hoặc trăng tròn (`🌕 Rằm 15`).
+      - Nhắc nhở đếm ngược các ngày Sóc/Vọng kế tiếp (còn bao nhiêu ngày) để khách hàng chủ động lên kế hoạch đặt mâm cỗ hoặc ghé quán dùng bữa chay.
+    - **Thanh Lịch Ngang Trượt (Horizontal Date Strip):**
+      - Thay thế hoàn toàn dropdown chọn ngày ẩn hẹp bằng thanh ngày trượt ngang trực quan (Thứ, Ngày dương, Ngày âm, Huy hiệu M1/Rằm), chạm chọn tức thì.
+    - **Tối Ưu Trải Nghiệm Di Động & Chống Dàn Trải Dọc:**
+      - **Category Pills (Bộ lọc danh mục):** Dải nút bấm lọc nhanh `Tất cả`, `Món chính`, `Đồ uống`, `Mâm cỗ` giúp khách không phải cuộn trang dài.
+      - **Floating Bottom Summary Bar:** Thanh đáy nổi mềm mại hiển thị số lượng món đã chọn, tạm tính tiền và nút "Xem đơn & Đặt ngay ➔" tự động trượt mượt xuống Bước 4, giải phóng hoàn toàn trải nghiệm cuộn mỏi tay trên điện thoại.
 
 ---
 

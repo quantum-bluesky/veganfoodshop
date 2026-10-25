@@ -275,3 +275,259 @@ body {
         padding: 16px;
     }
 }
+
+/* ====================================================================
+   ISSUE #19: Thanh Lịch Ngang, Huy Hiệu Âm Lịch, Category Pills, Floating Bar
+   ==================================================================== */
+
+/* Notice & Event Hub (Trung tâm thông báo & sự kiện chay) */
+.zen-hub-card {
+    background: #FFFFFF;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--brand-border-soft);
+    padding: 14px 16px;
+    box-shadow: var(--shadow-zen);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.zen-hub-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px dashed var(--brand-border-soft);
+    padding-bottom: 8px;
+}
+
+.zen-lunar-today {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--brand-tea-dark);
+}
+
+.zen-hub-events {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-charcoal);
+}
+
+.zen-event-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: #FAF7F2;
+}
+
+/* Thanh Lịch Ngang (Horizontal Date Strip) */
+.date-strip-container {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 2px 10px 2px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.date-strip-container::-webkit-scrollbar {
+    display: none;
+}
+
+.date-chip {
+    flex: 0 0 auto;
+    min-width: 68px;
+    padding: 8px 6px;
+    border-radius: 14px;
+    text-align: center;
+    border: 1.5px solid var(--brand-border-soft);
+    background: #FFFFFF;
+    color: var(--text-charcoal);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.date-chip:hover {
+    border-color: var(--brand-tea-green);
+    transform: translateY(-1px);
+}
+
+.date-chip.is-active {
+    background: var(--brand-tea-green);
+    color: #FFFFFF !important;
+    border-color: var(--brand-tea-green);
+    box-shadow: 0 4px 14px rgba(91, 112, 101, 0.3);
+}
+
+.date-chip.is-active .date-chip-dow,
+.date-chip.is-active .date-chip-solar,
+.date-chip.is-active .date-chip-lunar {
+    color: #FFFFFF !important;
+}
+
+.date-chip-dow {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted-warm);
+}
+
+.date-chip-solar {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--brand-tea-dark);
+}
+
+.date-chip-lunar {
+    font-size: 0.66rem;
+    color: var(--accent-wood);
+    opacity: 0.9;
+}
+
+/* Huy hiệu Âm lịch Mùng 1 & Rằm */
+.badge-lunar-chip {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
+.badge-lunar-first {
+    background: #1E293B;
+    color: #FEF08A;
+}
+
+.badge-lunar-full {
+    background: #FEF3C7;
+    color: #92400E;
+}
+
+.badge-lunar-event {
+    background: #F3E8FF;
+    color: #6B21A8;
+}
+
+/* Category Pills (Bộ lọc danh mục) */
+.category-pills-bar {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 2px 2px 8px 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.category-pills-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.category-pill {
+    flex: 0 0 auto;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    border: 1px solid var(--brand-border-soft);
+    background: #FFFFFF;
+    color: var(--text-muted-warm);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.category-pill:hover {
+    color: var(--brand-tea-green);
+    border-color: var(--brand-tea-green);
+}
+
+.category-pill.is-active {
+    background: var(--brand-sage-light);
+    color: var(--brand-tea-green);
+    border-color: var(--brand-tea-green);
+    font-weight: 700;
+}
+
+/* Floating Bottom Summary Bar (Thanh tóm tắt đơn nổi ở đáy mobile) */
+.floating-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    padding: 10px 14px 18px 14px;
+    pointer-events: none;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.floating-bottom-bar.is-hidden {
+    transform: translateY(120%);
+    opacity: 0;
+}
+
+.floating-bottom-content {
+    width: 100%;
+    max-width: 448px;
+    background: #2C2A29;
+    color: #FFFFFF;
+    border-radius: 20px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    pointer-events: auto;
+    backdrop-filter: blur(10px);
+}
+
+.floating-summary-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.floating-summary-qty {
+    font-size: 0.72rem;
+    color: #D1D5DB;
+}
+
+.floating-summary-price {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #FCD34D;
+}
+
+.btn-floating-view {
+    background: var(--brand-tea-green);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.2s ease;
+}
+
+.btn-floating-view:hover {
+    background: var(--brand-tea-hover);
+}

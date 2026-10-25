@@ -12,6 +12,7 @@ header('Content-Type: text/html; charset=UTF-8');
 require_once __DIR__ . '/src/autoload.php';
 
 use App\Services\ConfigService;
+use App\Services\LunarCalendarService;
 use App\Services\MenuService;
 use App\Services\SlotService;
 
@@ -62,10 +63,20 @@ $advanceBookingDays = (int)$configService->get('advance_booking_days', '7');
 $requireZaloLogin = (bool)($zaloConfig['require_zalo_login'] ?? false);
 
 $today = date('Y-m-d');
+$todayLunarInfo = LunarCalendarService::getLunarInfoForDate($today);
+$upcomingVeganDays = LunarCalendarService::getUpcomingSpecialVeganDays($today, 2);
+
 $shopClosedStatusToday = $configService->getShopClosedStatus($today);
 $availableDates = $slotService->getAvailableDates($advanceBookingDays);
 $reqDate = (string)($_GET['date'] ?? '');
 $selectedDate = ($reqDate !== '' && in_array($reqDate, $availableDates, true)) ? $reqDate : (!empty($availableDates) ? $availableDates[0] : $today);
+
+$datesWithLunar = [];
+foreach ($availableDates as $d) {
+    $datesWithLunar[$d] = LunarCalendarService::getLunarInfoForDate($d);
+}
+$selectedDateLunar = $datesWithLunar[$selectedDate] ?? LunarCalendarService::getLunarInfoForDate($selectedDate);
+
 $slots = !empty($availableDates) ? $slotService->getSlotsByDate($selectedDate, true, $minLeadTimeHours) : [];
 $isBookingDisabled = empty($availableDates) || empty($slots);
 $scheduledSuite = $menuService->getScheduledSuiteForDate($selectedDate);
@@ -156,12 +167,51 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
             </p>
         </header>
 
-        <!-- Thông báo lịch bếp hôm nay -->
-        <section class="notice-banner" aria-label="Lịch bếp">
-            <div class="pulse-dot" aria-hidden="true"></div>
-            <div>
-                <p style="font-weight: 600; margin-bottom: 1px;">Lịch bếp phục vụ:</p>
-                <p style="opacity: 0.9;"><?= htmlspecialchars($noticeText, ENT_QUOTES, 'UTF-8') ?></p>
+        <!-- Notice & Event Hub (Trung tâm thông báo & lịch âm chay - Issue #19) -->
+        <section class="zen-hub-card" aria-label="Thông báo & Lịch âm">
+            <div class="zen-hub-header">
+                <div class="zen-lunar-today">
+                    <span style="font-size: 1.1rem;"><?= $todayLunarInfo['is_vegan_day'] ? '🌕' : '🗓️' ?></span>
+                    <span>Hôm nay: <?= date('d/m') ?> • <?= htmlspecialchars($todayLunarInfo['lunar_text'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php if (!empty($todayLunarInfo['badge'])): ?>
+                        <span class="badge-lunar-chip <?= htmlspecialchars($todayLunarInfo['badge']['class'], ENT_QUOTES, 'UTF-8') ?>">
+                            <?= htmlspecialchars($todayLunarInfo['badge']['icon'] . ' ' . $todayLunarInfo['badge']['label'], ENT_QUOTES, 'UTF-8') ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+                <div style="font-size: 0.72rem; color: var(--brand-tea-green); font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                    <span class="pulse-dot" style="width: 7px; height: 7px;" aria-hidden="true"></span>
+                    <span><?= $shopClosedStatusToday['is_closed'] ? 'Tạm nghỉ' : 'Đang mở ca' ?></span>
+                </div>
+            </div>
+
+            <div class="zen-hub-events">
+                <!-- Thông báo chung từ bếp -->
+                <div class="zen-event-item">
+                    <span style="font-size: 0.9rem;">🌿</span>
+                    <span style="flex: 1; line-height: 1.4;"><?= htmlspecialchars($noticeText, ENT_QUOTES, 'UTF-8') ?></span>
+                </div>
+
+                <!-- Lịch ngày Mùng 1 & Rằm sắp tới (Issue #19) -->
+                <?php if (!empty($upcomingVeganDays)): ?>
+                    <?php foreach ($upcomingVeganDays as $uvd): ?>
+                        <div class="zen-event-item" style="background: <?= $uvd['is_full_moon'] ? '#FFFBEB' : '#F8FAFC' ?>; border-left: 3px solid <?= $uvd['is_full_moon'] ? '#F59E0B' : '#475569' ?>;">
+                            <span style="font-size: 0.9rem;"><?= $uvd['is_full_moon'] ? '🌕' : '🌑' ?></span>
+                            <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
+                                <span>
+                                    <strong><?= htmlspecialchars($uvd['badge']['label'] ?? $uvd['lunar_text'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                    (<?= date('d/m', strtotime($uvd['solar_date'])) ?> Dương lịch)
+                                    <?php if (!empty($uvd['special_event'])): ?>
+                                        • <em><?= htmlspecialchars($uvd['special_event'], ENT_QUOTES, 'UTF-8') ?></em>
+                                    <?php endif; ?>
+                                </span>
+                                <span style="font-size: 0.7rem; color: var(--accent-wood); font-weight: 600;">
+                                    <?= $uvd['days_away'] === 0 ? 'Hôm nay' : ($uvd['days_away'] === 1 ? 'Ngày mai' : 'Còn ' . $uvd['days_away'] . ' ngày') ?>
+                                </span>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </section>
 
@@ -243,20 +293,54 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
 
             <!-- BƯỚC 2: Chọn ngày & Khung giờ phục vụ (Time Slots) -->
             <section class="zen-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <h2 class="zen-label" style="margin-bottom: 0;">
-                        <span class="badge-step">2</span> Khung giờ bạn ghé / nhận món
+                        <span class="badge-step">2</span> Chọn ngày & Khung giờ phục vụ
                     </h2>
-                    <?php if (count($availableDates) > 1): ?>
-                    <select id="dateSelector" name="order_date" onchange="window.location.href='index.php?date='+encodeURIComponent(this.value)" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--brand-border-soft); background: #FAF7F2; color: var(--brand-tea-dark); outline: none;">
-                        <?php foreach ($availableDates as $d): ?>
-                            <option value="<?= htmlspecialchars($d, ENT_QUOTES, 'UTF-8') ?>" <?= $d === $selectedDate ? 'selected' : '' ?>>
-                                <?= date('d/m/Y', strtotime($d)) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <?php endif; ?>
+                    <span style="font-size: 0.72rem; color: var(--accent-wood);">
+                        Âm lịch: <strong><?= htmlspecialchars($selectedDateLunar['lunar_text'] ?? '', ENT_QUOTES, 'UTF-8') ?></strong>
+                    </span>
                 </div>
+
+                <!-- Thanh Lịch Ngang Trượt (Horizontal Date Strip - Issue #19) -->
+                <?php if (count($availableDates) > 1): ?>
+                    <div class="date-strip-container" role="tablist" aria-label="Chọn ngày phục vụ">
+                        <?php foreach ($availableDates as $d): 
+                            $lunar = $datesWithLunar[$d] ?? null;
+                            $ts = strtotime($d);
+                            $dow = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][(int)date('w', $ts)];
+                            if ($d === $today) {
+                                $dow = 'Hôm nay';
+                            } elseif ($d === date('Y-m-d', strtotime('+1 day'))) {
+                                $dow = 'Ngày mai';
+                            }
+                            $isActive = ($d === $selectedDate);
+                        ?>
+                            <a href="index.php?date=<?= urlencode($d) ?>" 
+                               class="date-chip <?= $isActive ? 'is-active' : '' ?>"
+                               role="tab" 
+                               aria-selected="<?= $isActive ? 'true' : 'false' ?>">
+                                <span class="date-chip-dow"><?= $dow ?></span>
+                                <span class="date-chip-solar"><?= date('d/m', $ts) ?></span>
+                                <span class="date-chip-lunar"><?= $lunar ? $lunar['lunar_text'] : '' ?></span>
+                                <?php if ($lunar && !empty($lunar['badge'])): ?>
+                                    <span class="badge-lunar-chip <?= htmlspecialchars($lunar['badge']['class'], ENT_QUOTES, 'UTF-8') ?>">
+                                        <?= htmlspecialchars($lunar['badge']['icon'] . ' ' . ($lunar['is_first_day'] ? 'M1' : ($lunar['is_full_moon'] ? 'Rằm' : 'Lễ')), ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                <?php endif; ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Select ẩn để giữ tương thích form -->
+                <select id="dateSelector" name="order_date" class="hidden">
+                    <?php foreach ($availableDates as $d): ?>
+                        <option value="<?= htmlspecialchars($d, ENT_QUOTES, 'UTF-8') ?>" <?= $d === $selectedDate ? 'selected' : '' ?>>
+                            <?= date('d/m/Y', strtotime($d)) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
 
                 <div id="slotContainer" class="zen-radio-group">
                     <?php if (empty($slots)): ?>
@@ -323,15 +407,24 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                 </div>
             </section>
 
-            <!-- BƯỚC 3: Chọn món thanh tịnh tinh tuyển (Issue #17) -->
+            <!-- BƯỚC 3: Chọn món thanh tịnh tinh tuyển (Issue #17 & #19) -->
             <section class="zen-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                     <h2 class="zen-label" style="margin-bottom: 0;">
                         <span class="badge-step">3</span> Món lành hôm nay
                     </h2>
                     <span id="menuSuiteBadge" style="font-size: 0.72rem; background: #EEF2E6; color: var(--brand-tea-green); padding: 3px 8px; border-radius: 6px; font-weight: 600;">
                         🍱 <?= htmlspecialchars($scheduledSuite['name'] ?? 'Thực đơn Bếp An Yên', ENT_QUOTES, 'UTF-8') ?>
                     </span>
+                </div>
+
+                <!-- Category Pills (Bộ lọc nhóm món tiện lợi - Issue #19) -->
+                <div class="category-pills-bar" role="tablist" aria-label="Lọc nhóm món">
+                    <button type="button" class="category-pill is-active" data-category="all">✨ Tất cả món</button>
+                    <button type="button" class="category-pill" data-category="food">🍜 Món chính</button>
+                    <button type="button" class="category-pill" data-category="drink">🍵 Đồ uống</button>
+                    <button type="button" class="category-pill" data-category="feast">🍱 Mâm cỗ</button>
+                    <button type="button" class="category-pill" data-category="promo" style="display: none;" id="promoCategoryPill">🔥 Khuyến mại</button>
                 </div>
                 
                 <div id="menuItemsContainer" style="display: flex; flex-direction: column;">
@@ -387,7 +480,7 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
             </section>
 
             <!-- BƯỚC 4: Thông tin & Thanh toán linh hoạt -->
-            <section class="zen-card" style="display: flex; flex-direction: column; gap: 14px;">
+            <section class="zen-card" id="step4CustomerInfo" style="display: flex; flex-direction: column; gap: 14px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h2 class="zen-label" style="margin-bottom: 0;">
                         <span class="badge-step">4</span> Người thương gửi đơn
@@ -537,6 +630,19 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                 <span>🌸</span> Góc Cảm Nhận & Đánh Giá
             </a>
         </footer>
+
+        <!-- Floating Bottom Summary Bar (Thanh tóm tắt đơn nổi ở đáy mobile - Issue #19) -->
+        <div id="floatingBottomBar" class="floating-bottom-bar is-hidden">
+            <div class="floating-bottom-content">
+                <div class="floating-summary-text">
+                    <span id="floatingQtyText" class="floating-summary-qty">0 món đã chọn</span>
+                    <span id="floatingPriceText" class="floating-summary-price">0đ</span>
+                </div>
+                <button type="button" id="btnFloatingView" class="btn-floating-view">
+                    <span>Xem đơn & Đặt</span> <span>➔</span>
+                </button>
+            </div>
+        </div>
 
     </main>
 

@@ -40,25 +40,9 @@ document.addEventListener('DOMContentLoaded', function () {
     setupRadioGroup('slot_id');
     setupRadioGroup('payment_method');
 
-    // Lọc món theo hình thức nhận (Tại chỗ vs Mang về) (Issue #17)
+    // Lọc món theo hình thức nhận (Tại chỗ vs Mang về) kết hợp bộ lọc danh mục (Issue #17 & #19)
     function filterMenuByOrderType(orderType) {
-        const rows = document.querySelectorAll('.menu-item-row');
-        rows.forEach(row => {
-            const scope = row.dataset.scope || 'both';
-            if (scope === 'both') {
-                row.style.display = 'flex';
-            } else if (orderType === 'dine_in' && scope === 'dine_in_only') {
-                row.style.display = 'flex';
-            } else if (orderType === 'takeaway' && scope === 'takeaway_only') {
-                row.style.display = 'flex';
-            } else {
-                row.style.display = 'none';
-                const input = row.querySelector('.qty-input');
-                if (input && parseInt(input.value || '0', 10) > 0) {
-                    input.value = '0';
-                }
-            }
-        });
+        applyCategoryAndOrderTypeFilter();
         calculateTotal();
     }
 
@@ -97,8 +81,107 @@ document.addEventListener('DOMContentLoaded', function () {
             btnTotalText.textContent = total > 0 ? ` (${formattedTotal})` : '';
         }
 
+        // Cập nhật Floating Bottom Summary Bar (Issue #19)
+        updateFloatingBottomBar(total, totalItems, formattedTotal);
+
         return { total, totalItems };
     }
+
+    // Quản lý Floating Bottom Bar
+    const floatingBottomBar = document.getElementById('floatingBottomBar');
+    const floatingQtyText = document.getElementById('floatingQtyText');
+    const floatingPriceText = document.getElementById('floatingPriceText');
+    const btnFloatingView = document.getElementById('btnFloatingView');
+
+    function updateFloatingBottomBar(total, totalItems, formattedTotal) {
+        if (!floatingBottomBar) return;
+        if (totalItems > 0) {
+            if (floatingQtyText) floatingQtyText.textContent = `${totalItems} món đã chọn`;
+            if (floatingPriceText) floatingPriceText.textContent = formattedTotal;
+            floatingBottomBar.classList.remove('is-hidden');
+        } else {
+            floatingBottomBar.classList.add('is-hidden');
+        }
+    }
+
+    if (btnFloatingView) {
+        btnFloatingView.addEventListener('click', function () {
+            const step4 = document.getElementById('step4CustomerInfo');
+            if (step4) {
+                step4.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (custName) {
+                custName.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                custName.focus();
+            }
+        });
+    }
+
+    // Tự động ẩn Floating Bar khi người dùng cuộn đến Bước 4 để không che khuất nút gửi
+    const step4CustomerInfo = document.getElementById('step4CustomerInfo');
+    if (step4CustomerInfo && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!floatingBottomBar) return;
+                if (entry.isIntersecting) {
+                    floatingBottomBar.classList.add('is-hidden');
+                } else {
+                    const { totalItems } = calculateTotal();
+                    if (totalItems > 0) {
+                        floatingBottomBar.classList.remove('is-hidden');
+                    }
+                }
+            });
+        }, { threshold: 0.15 });
+        observer.observe(step4CustomerInfo);
+    }
+
+    // Xử lý Category Pills (Bộ lọc danh mục món - Issue #19)
+    let currentCategoryFilter = 'all';
+    const categoryPills = document.querySelectorAll('.category-pill');
+
+    function applyCategoryAndOrderTypeFilter() {
+        const currentOrderType = document.querySelector('input[name="order_type"]:checked')?.value || 'dine_in';
+        const rows = document.querySelectorAll('.menu-item-row');
+
+        rows.forEach(row => {
+            const scope = row.dataset.scope || 'both';
+            const cat = row.dataset.category || 'food';
+            const isCombo = row.dataset.combo === '1';
+            const isPromo = row.dataset.hasPromo === '1';
+
+            // 1. Kiểm tra hình thức dùng món (Tại quán / Mang về)
+            let matchScope = (scope === 'both') || 
+                             (currentOrderType === 'dine_in' && scope === 'dine_in_only') ||
+                             (currentOrderType === 'takeaway' && scope === 'takeaway_only');
+
+            // 2. Kiểm tra danh mục
+            let matchCategory = true;
+            if (currentCategoryFilter === 'food') {
+                matchCategory = (cat === 'food' && !isCombo);
+            } else if (currentCategoryFilter === 'drink') {
+                matchCategory = (cat === 'drink');
+            } else if (currentCategoryFilter === 'feast') {
+                matchCategory = isCombo;
+            } else if (currentCategoryFilter === 'promo') {
+                matchCategory = isPromo;
+            }
+
+            if (matchScope && matchCategory) {
+                row.style.display = 'flex';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    categoryPills.forEach(pill => {
+        pill.addEventListener('click', function () {
+            categoryPills.forEach(p => p.classList.remove('is-active'));
+            this.classList.add('is-active');
+            currentCategoryFilter = this.dataset.category || 'all';
+            applyCategoryAndOrderTypeFilter();
+        });
+    });
 
     // 3. Tăng giảm số lượng món
     document.querySelectorAll('.qty-control').forEach(control => {

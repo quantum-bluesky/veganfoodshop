@@ -6,13 +6,13 @@ declare(strict_types=1);
  * Chuẩn PHP 8.4+, mã hóa UTF-8 No BOM
  */
 
-return [
+$baseConfig = [
     'app' => [
         'name' => 'Bếp Chay An Yên',
-        'env' => 'production',
-        'debug' => false,
+        'env' => 'development',
+        'debug' => true,
         'timezone' => 'Asia/Ho_Chi_Minh',
-        'version' => '1.1.1',
+        'version' => '1.1.2',
     ],
     'database' => [
         'path' => __DIR__ . '/../database/bep_an_yen.db',
@@ -20,7 +20,7 @@ return [
     ],
     'admin' => [
         'session_key' => 'bep_an_yen_admin_auth',
-        'default_password' => 'mai@2026',
+        'default_password' => 'AnYen@2026',
     ],
     'vietqr' => [
         'api_url' => 'https://img.vietqr.io/image',
@@ -29,8 +29,8 @@ return [
     'zalo_login' => [
         'app_id' => '123',
         'secret_key' => '123',
-        'mock_test_mode' => false,
-        'require_zalo_login' => true, // Option cho User đăng nhập Zalo để tự động điền
+        'mock_test_mode' => true,
+        'require_zalo_login' => false, // Mặc định dev/test: false, cấu hình thật trong config.local.php
         'require_zalo_group_to_order' => false,
         'callback_url' => '', // Để trống sẽ tự động nhận diện clean URL (vd: https://qts-home.duckdns.org/chaytt/api/public/zalo-callback)
         'seller_zalo_url' => 'https://zalo.me/0987862241',
@@ -38,3 +38,14 @@ return [
         'zalo_confirm_template' => 'Chào shop, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!',
     ],
 ];
+
+// Nạp cấu hình môi trường ghi đè (config.local.php hoặc file chỉ định qua APP_CONFIG_FILE)
+$envConfigFile = getenv('APP_CONFIG_FILE') ?: (__DIR__ . '/config.local.php');
+if (file_exists($envConfigFile)) {
+    $localConfig = require $envConfigFile;
+    if (is_array($localConfig)) {
+        $baseConfig = array_replace_recursive($baseConfig, $localConfig);
+    }
+}
+
+return $baseConfig;

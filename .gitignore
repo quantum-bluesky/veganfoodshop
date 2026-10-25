@@ -2,6 +2,13 @@
 /vendor/
 composer.lock
 
+# Environment & Local Configurations (DO NOT COMMIT)
+config/config.local.php
+config/config.*.local.php
+config/config.prod.php
+.env
+.env.*
+
 # SQLite runtime artifacts
 *.db
 *.db-journal

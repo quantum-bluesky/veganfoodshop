@@ -54,7 +54,9 @@ D:\Quan\VeganFoodShop\
 ├── zalo_callback.php                           # Endpoint tiếp nhận Zalo OAuth callback & đồng bộ
 ├── phpunit.xml                                 # Cấu hình test PHPUnit
 ├── config/
-│   └── config.php                              # Cấu hình hệ thống (VietQR, Zalo Login, admin, CSDL)
+│   ├── config.php                              # Cấu hình cơ sở mặc định (môi trường dev/test)
+│   ├── config.example.php                      # File mẫu cấu hình môi trường Production
+│   └── config.local.php                        # Cấu hình môi trường thực tế (bảo mật, không commit Git)
 ├── database/
 │   ├── bep_an_yen.db                           # CSDL SQLite3 chính (chế độ WAL)
 │   ├── schema.sql                              # Cấu trúc 6 bảng CSDL & chỉ mục

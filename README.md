@@ -127,6 +127,27 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Thao tác 1-chạm bật/tắt kích hoạt (`toggle`) hoặc xóa bỏ chương trình.
     - **Tích Hợp Chặt Chẽ Vào Đơn Hàng:**
       - `PromotionService` và `OrderService` tự động tính toán chiết khấu đơn, ưu tiên chương trình có lợi nhất cho khách khi có nhiều khuyến mại cùng thỏa mãn, trừ tiền chuẩn xác và ghi nhận chi tiết chương trình vào dữ liệu đơn hàng.
+16. **Cảm Nhận Đặc Biệt, Lời Đề Tặng & Kỷ Niệm (Testimonials) với UI Trầm Mặc Sâu Lắng (v1.10.0 - Issue #21):**
+    - **Không Gian Lưu Bút An Lành (Testimonials Gallery):**
+      - Hiển thị những dòng lưu bút, cảm nhận sâu sắc, lời cảm ơn và kỷ niệm thiêng liêng từ thực khách ghé thăm quán.
+      - Thiết kế giao diện đậm chất **Thiền Vị & Hơi thở Ghibli**: thẻ Washi ngà ấm, dấu ngoặc kép cổ điển lớn `“ ... ”`, font chữ *Lora* in nghiêng thanh thoát, khoảng cách dòng thênh thang tạo cảm giác bình yên và lắng đọng.
+      - Huy hiệu bối cảnh mộc mạc: *`📌 Lưu bút bàn trà số 3 • Ngày Rằm tháng Bảy`*, *`Kỷ niệm mùa Vu Lan`*, cùng lời tri ân chân thành từ người đứng bếp.
+      - Khu vực Testimonials luôn mở để khách ghé đọc kể cả khi tính năng nhận đánh giá mới đang ở chế độ tạm đóng.
+    - **Công Cụ Quản Trị Đề Tặng & Kỷ Niệm (`admin.php?tab=reviews`):**
+      - Nút bấm 1-chạm ⭐ Ghim Kỷ Niệm / Testimonial để tuyển chọn những cảm nhận hay nhất lên trang chủ.
+      - Form ghi lại lời đề tặng, lưu bút kỷ niệm chép trực tiếp từ sổ tay quán.
+      - Tùy chỉnh lời đề tựa bối cảnh cho từng bài viết.
+17. **Trang Giới Thiệu Nguồn Gốc & Bốn Tôn Chỉ Thuần Chay (`/about` - Issue #22):**
+    - **Khởi Nguồn & Sự Hình Thành:**
+      - Câu chuyện ra đời từ một góc bếp nhỏ ấm cúng, hành trình tìm về vị ngọt nguyên bản từ thảo mộc để vỗ về những bộn bề sau cánh cửa gỗ.
+    - **Bốn Tôn Chỉ Cốt Lõi (The 4 Zen Principles):**
+      1. 🌿 *Thuần khiết tự nhiên (Pure & Wholesome):* 100% nguyên liệu thảo mộc tươi trong ngày. Tuyệt đối không mì chính/bột ngọt hóa học, chất bảo quản. Nước dùng ninh ngọt lành từ củ cải trắng, bắp ngọt, mía lau và nấm rừng.
+      2. ⏱️ *Nấu theo ca, giới hạn số suất (Slot & Batch Pre-order):* Không nhận đơn quá tải, nấu đúng số suất đặt trước để từng bát phở, tô bún luôn nóng hổi và trọn vẹn tâm ý.
+      3. 🕊️ *Nuôi dưỡng lòng từ & An yên (Compassion & Mindful Living):* Mỗi bữa ăn chay là một nhịp thở chậm, tri ân đất mẹ và thương yêu muôn loài.
+      4. 🍵 *Đón tiếp như người thân quen trở về (Warm & Welcoming):* Tạo cảm giác thân thuộc, không gian trà thơm chuông gió, tin cậy tuyệt đối.
+    - **Điều Hướng Xuyên Suốt Hệ Thống:**
+      - Thanh điều hướng tối giản kết nối mượt mà giữa **Đặt Chỗ (`index.php`)** • **Về Bếp An Yên (`about.php`)** • **Cảm Nhận (`reviews.php`)**.
+      - Hỗ trợ Clean URL chuẩn (`/about`, `/reviews`, `/admin`).
 
 ---
 
@@ -139,6 +160,8 @@ D:\Quan\VeganFoodShop\
 ├── Mô-hình-và-giải-pháp-đặt-chỗ-quán-chay.md  # Tài liệu giải pháp & thiết kế gốc
 ├── README.md                                   # Tài liệu hướng dẫn hệ thống
 ├── index.php                                   # Màn hình đặt món / booking chính cho khách
+├── about.php                                   # Trang giới thiệu nguồn gốc & 4 tôn chỉ bếp
+├── reviews.php                                 # Trang cảm nhận & góc lưu bút kỷ niệm (Testimonials)
 ├── process_order.php                           # Xử lý tiếp nhận đơn & sinh mã VietQR
 ├── admin.php                                   # Trang quản trị: lịch ca, bếp, đơn hàng, khách quen
 ├── api.php                                     # AJAX endpoint: kiểm tra SĐT khách quen, lấy ca

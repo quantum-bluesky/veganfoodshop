@@ -170,6 +170,21 @@ foreach ($menuItems as $it) {
 
     <main class="page-container">
 
+        <!-- Thanh điều hướng tối giản kết nối các trang -->
+        <nav class="zen-nav-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 14px; background: #FAF7F2; border: 1px solid var(--brand-border-soft); border-radius: 999px; font-size: 0.76rem; margin-bottom: 8px;">
+            <span style="font-weight: 700; color: var(--brand-tea-green);">
+                🍲 Đặt Chỗ
+            </span>
+            <span style="color: #D1D5DB;">•</span>
+            <a href="about.php" style="text-decoration: none; color: var(--brand-tea-dark); font-weight: 600;">
+                🌿 Về Bếp An Yên
+            </a>
+            <span style="color: #D1D5DB;">•</span>
+            <a href="reviews.php" style="text-decoration: none; color: var(--brand-tea-dark); font-weight: 600;">
+                🌸 Cảm Nhận & Kỷ Niệm
+            </a>
+        </nav>
+
         <!-- Header: Không gian an yên mộc mạc -->
         <header style="text-align: center; margin-bottom: 6px;">
             <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--brand-tea-green); font-weight: 700; margin-bottom: 4px;">
@@ -684,10 +699,16 @@ foreach ($menuItems as $it) {
         </div>
 
         <footer style="text-align: center; font-size: 0.72rem; color: var(--text-muted-warm); margin-top: 10px; display: flex; flex-direction: column; gap: 6px; align-items: center;">
-            <p>Bếp Chay An Yên • Bình an trong từng bát bún phở</p>
-            <a href="reviews.php" style="color: var(--brand-tea-green); text-decoration: none; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;">
-                <span>🌸</span> Góc Cảm Nhận & Đánh Giá
-            </a>
+            <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 2px;">
+                <a href="about.php" style="color: var(--brand-tea-green); text-decoration: none; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;">
+                    <span>🌿</span> Về Bếp An Yên
+                </a>
+                <span>•</span>
+                <a href="reviews.php" style="color: var(--brand-tea-green); text-decoration: none; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;">
+                    <span>🌸</span> Góc Cảm Nhận & Kỷ Niệm
+                </a>
+            </div>
+            <p style="margin: 0;">Bếp Chay An Yên • Bình an trong từng bát bún phở</p>
         </footer>
 
         <!-- Floating Bottom Summary Bar (Thanh tóm tắt đơn nổi ở đáy mobile - Issue #19) -->

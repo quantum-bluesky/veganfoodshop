@@ -259,8 +259,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
         checkZaloSession();
 
-        // 7. Kiểm tra validation trước khi gửi form
+        let isSubmitting = false;
+
+        // Khôi phục trạng thái nút gửi nếu người dùng quay lại trang bằng nút Back của trình duyệt
+        window.addEventListener('pageshow', function () {
+            isSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                calculateTotal();
+            }
+        });
+
+        // 7. Kiểm tra validation trước khi gửi form (chống submit 2 lần liên tiếp)
         orderForm.addEventListener('submit', function (e) {
+            if (isSubmitting) {
+                e.preventDefault();
+                return false;
+            }
+
             const { totalItems } = calculateTotal();
 
             if (totalItems <= 0) {
@@ -275,6 +291,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 alert('Xin bạn chọn một khung giờ để bếp kịp chuẩn bị nước dùng nhé.');
                 return false;
             }
+
+            isSubmitting = true;
 
             // Hiệu ứng loading trên nút
             if (submitBtn) {

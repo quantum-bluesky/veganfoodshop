@@ -59,10 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'items' => $items,
         ]);
 
-        if ($order['payment_method'] === 'vietqr') {
-            $vietQrService = new VietQrService($bankId, $accountNo, $accountName);
-            $qrUrl = $vietQrService->generateQrUrl((int)$order['total_amount'], (string)$order['order_code']);
-        }
+        // Áp dụng mô hình Post/Redirect/Get (PRG): Chuyển hướng sang GET với mã đơn để tránh submit lại khi refresh
+        header('Location: process_order.php?code=' . urlencode((string)$order['order_code']), true, 303);
+        exit;
 
     } catch (SlotFullException $e) {
         $error = $e->getMessage();
@@ -78,9 +77,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $orderCode = (string)($_GET['code'] ?? '');
     if ($orderCode !== '') {
         $order = $orderService->getOrderByCode($orderCode);
-        if ($order && $order['payment_method'] === 'vietqr') {
-            $vietQrService = new VietQrService($bankId, $accountNo, $accountName);
-            $qrUrl = $vietQrService->generateQrUrl((int)$order['total_amount'], (string)$order['order_code']);
+        if ($order) {
+            if ($order['payment_method'] === 'vietqr') {
+                $vietQrService = new VietQrService($bankId, $accountNo, $accountName);
+                $qrUrl = $vietQrService->generateQrUrl((int)$order['total_amount'], (string)$order['order_code']);
+            }
+        } else {
+            $error = 'Không tìm thấy thông tin đơn hàng hoặc mã đơn không hợp lệ.';
         }
     } else {
         header('Location: index.php');

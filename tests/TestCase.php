@@ -86,4 +86,18 @@ abstract class TestCase
             throw new \AssertionError($message ?: "Failed asserting that condition is false");
         }
     }
+
+    protected function assertNotNull(mixed $actual, string $message = ''): void
+    {
+        if ($actual === null) {
+            throw new \AssertionError($message ?: "Failed asserting that value is not null");
+        }
+    }
+
+    protected function assertNotEmpty(mixed $actual, string $message = ''): void
+    {
+        if (empty($actual)) {
+            throw new \AssertionError($message ?: "Failed asserting that value is not empty");
+        }
+    }
 }

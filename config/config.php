@@ -12,7 +12,7 @@ $baseConfig = [
         'env' => 'development',
         'debug' => true,
         'timezone' => 'Asia/Ho_Chi_Minh',
-        'version' => '1.2.0',
+        'version' => '1.2.1',
     ],
     'database' => [
         'path' => __DIR__ . '/../database/bep_an_yen.db',
@@ -35,7 +35,7 @@ $baseConfig = [
         'callback_url' => '', // Để trống sẽ tự động nhận diện clean URL (vd: https://qts-home.duckdns.org/chaytt/api/public/zalo-callback)
         'seller_zalo_url' => 'https://zalo.me/0987862241',
         'order_note_shipping' => 'Chưa bao gồm chi phí vận chuyển',
-        'zalo_confirm_template' => 'Chào shop, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!',
+        'zalo_confirm_template' => 'Chào Bếp, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!',
     ],
 ];
 

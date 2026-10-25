@@ -44,6 +44,7 @@ use Tests\Unit\Issue24_CustomerFlowAcceptanceTest;
 use Tests\Unit\Issue26_27_PromotionsAndZaloProfileTest;
 use Tests\Unit\Issue29_30_SlotOverdueAndFontSizeTest;
 use Tests\Unit\Issue31_IconAndOpenGraphPreviewTest;
+use Tests\Unit\Issue32_NoticeUiAndTakeawayFlowTest;
 use Tests\Integration\CreateOrderTransactionTest;
 use Tests\Integration\SlotConcurrencyTest;
 
@@ -66,6 +67,7 @@ $testSuites = [
     'Unit Tests - Issue 26 & 27 Khuyến Mại Đa Chiều & Zalo Profile' => new Issue26_27_PromotionsAndZaloProfileTest(),
     'Unit Tests - Issue 29 & 30 Quá Giờ Đặt 3p & Cỡ Chữ A+/A-' => new Issue29_30_SlotOverdueAndFontSizeTest(),
     'Unit Tests - Issue 31 Thay Icon 🪷 & Open Graph Preview' => new Issue31_IconAndOpenGraphPreviewTest(),
+    'Unit Tests - Issue 32 UI Thông Báo Góc Phải & Takeaway' => new Issue32_NoticeUiAndTakeawayFlowTest(),
     'Integration Tests - Transaction An Toàn' => new CreateOrderTransactionTest(),
     'Integration Tests - Khóa Suất Biên' => new SlotConcurrencyTest(),
 ];

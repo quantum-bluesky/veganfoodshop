@@ -88,6 +88,7 @@ $selectedDateLunar = $datesWithLunar[$selectedDate] ?? LunarCalendarService::get
 $activePromosForSelectedDate = $datesWithPromos[$selectedDate] ?? $promotionService->getActivePromotionsForDate($selectedDate);
 
 $slots = !empty($availableDates) ? $slotService->getSlotsByDate($selectedDate, true, $minLeadTimeHours) : [];
+$slotNoticeContext = $slotService->getSlotNoticeContext($selectedDate, 'dine_in', null, $minLeadTimeHours, $sellerZaloUrl);
 $isBookingDisabled = empty($availableDates) || empty($slots);
 $scheduledSuite = $menuService->getScheduledSuiteForDate($selectedDate);
 $rawMenuItems = $menuService->getMenuItemsForDate($selectedDate);
@@ -475,12 +476,13 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                         <?php 
                         $hasPastCutoff = false;
                         $firstChecked = false;
+                        $isAllSlotsDisabledByNotice = !empty($slotNoticeContext['disable_all_slots']);
                         foreach ($slots as $slot): 
                             $isFull = (bool)($slot['is_full'] ?? false);
                             $isPastSlot = (bool)($slot['is_past_slot'] ?? false);
                             $isPastCutoff = (bool)($slot['is_past_cutoff'] ?? false);
                             $isExceeded3M = (bool)($slot['is_exceeded_3m'] ?? false);
-                            $isUnavailable = ($isFull || $isPastCutoff);
+                            $isUnavailable = ($isFull || $isPastCutoff || $isAllSlotsDisabledByNotice);
 
                             if ($isPastCutoff) {
                                 $hasPastCutoff = true;
@@ -517,15 +519,15 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                     <?php endif; ?>
                 </div>
 
-                <!-- Thông báo lịch sự khi vượt quá thời gian đặt lịch hoặc cần đặt gấp (Issue #29) -->
-                <div id="urgentZaloNote" style="display: <?= !empty($hasPastCutoff) ? 'block' : 'none' ?>; background: #FAF7F2; border: 1.5px dashed var(--brand-border-soft); border-radius: 14px; padding: 12px 14px; margin-top: 12px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                        <div style="font-size: 0.76rem; color: var(--text-charcoal); line-height: 1.5; flex: 1;">
-                            🌿 <strong>Thông báo từ Bếp:</strong> Khung giờ cần đặt trước <?= $minLeadTimeHours ?>h để bếp kịp ninh nước dùng tươi mới. Nếu thời gian thực tế đã vượt quá giờ đặt lịch hơn 3 phút, bạn thương vui lòng <strong>lựa chọn đặt vào ca tiếp theo</strong> hoặc <strong>liên hệ trực tiếp với chủ bếp</strong> qua Zalo/Hotline để được hỗ trợ nhé.
-                        </div>
+                <!-- Khung thông báo Bếp: layout text ở trước, button góc dưới bên phải (Issue #32) -->
+                <div id="urgentZaloNote" style="display: <?= !empty($slotNoticeContext['show_notice']) ? 'block' : 'none' ?>; background: #FAF7F2; border: 1.5px dashed var(--brand-border-soft); border-radius: 14px; padding: 12px 14px; margin-top: 12px;">
+                    <div id="urgentZaloNoteText" style="font-size: 0.78rem; color: var(--text-charcoal); line-height: 1.55;">
+                        <?= $slotNoticeContext['notice_html'] ?: '🌿 <strong>Thông báo từ Bếp:</strong> Khung giờ cần đặt trước ' . $minLeadTimeHours . 'h để bếp kịp ninh nước dùng tươi mới.' ?>
+                    </div>
+                    <div id="urgentZaloBtnWrapper" style="display: <?= !empty($sellerZaloUrl) ? 'flex' : 'none' ?>; justify-content: flex-end; margin-top: 8px;">
                         <?php if (!empty($sellerZaloUrl)): ?>
-                            <a href="<?= htmlspecialchars($sellerZaloUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
-                               style="flex-shrink: 0; background: #0068FF; color: #FFFFFF; font-size: 0.72rem; padding: 7px 12px; border-radius: 8px; text-decoration: none; font-weight: 600; white-space: nowrap; box-shadow: 0 1px 4px rgba(0, 104, 255, 0.2);">
+                            <a id="btnUrgentZalo" href="<?= htmlspecialchars($sellerZaloUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
+                               style="background: #0068FF; color: #FFFFFF; font-size: 0.72rem; padding: 7px 12px; border-radius: 8px; text-decoration: none; font-weight: 600; white-space: nowrap; box-shadow: 0 1px 4px rgba(0, 104, 255, 0.2); display: inline-flex; align-items: center; gap: 4px;">
                                 💬 Nhắn Zalo Bếp ↗
                             </a>
                         <?php endif; ?>
@@ -734,6 +736,16 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                     </div>
                 </div>
             </section>
+
+            <!-- Khối xác nhận thời gian chuẩn bị & ship cho đơn chỉ lấy mang đi (Issue #32) -->
+            <div id="takeawayConfirmBox" style="display: none; background: #FFFDF9; border: 1.5px dashed var(--brand-border-soft); border-radius: 14px; padding: 12px 14px;">
+                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.78rem; color: var(--text-charcoal); line-height: 1.45;">
+                    <input type="checkbox" name="takeaway_time_confirmed" id="takeawayConfirmCheck" value="1" style="margin-top: 2px; width: 16px; height: 16px; accent-color: var(--brand-tea-green); flex-shrink: 0; cursor: pointer;">
+                    <span id="takeawayConfirmLabelText">
+                        Tôi đồng ý với thời gian chuẩn bị món & ship của bếp (khoảng 30 - 45 phút).
+                    </span>
+                </label>
+            </div>
 
             <!-- Nút gửi đơn to bản cố định trải nghiệm di động -->
             <?php if ($isBookingDisabled): ?>

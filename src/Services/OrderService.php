@@ -142,55 +142,75 @@ class OrderService
                 throw new ValidationException($closedStatus['reason'] ?: 'Bếp An Yên hiện đang tạm nghỉ vào ngày này. Mong bạn thông cảm nhé.');
             }
 
-            // Kiểm tra thời gian đặt trước tối thiểu (Cut-off lead time)
+            // Kiểm tra thời gian đặt trước tối thiểu (Cut-off lead time & Giờ nhận đơn Issue #32)
             $currentTime = isset($data['current_time']) ? (int)$data['current_time'] : time();
             $minLeadTimeHours = (int)$this->configService->get('min_lead_time_hours', '3');
             $slotStart = $this->slotService->parseSlotStartTime((string)$slot['slot_date'], (string)$slot['slot_time']);
             $cutoff = $slotStart - ($minLeadTimeHours * 3600);
+            $isToday = ((string)$slot['slot_date'] === date('Y-m-d', $currentTime));
 
-            if ($currentTime > $cutoff) {
-                // Kiểm tra vượt quá khoảng thời gian đặt lịch từ 3 phút trở lên (Issue #29)
-                $isExceeded3M = ($currentTime >= ($cutoff + 180)) || ($currentTime >= ($slotStart + 180));
-
-                // Tìm ca tiếp theo khả dụng để gợi ý lịch sự cho khách
-                $nextSlot = $this->slotService->getNextAvailableSlot((string)$slot['slot_date'], (int)$slot['id'], $currentTime);
-                $sellerPhone = (string)$this->configService->get('seller_phone', '0901 234 567');
-
-                $nextSuggestion = '';
-                if ($nextSlot) {
-                    $dateText = ($nextSlot['slot_date'] === $slot['slot_date']) ? 'cùng ngày' : 'ngày ' . date('d/m', strtotime($nextSlot['slot_date']));
-                    $nextSuggestion = sprintf('đặt vào ca tiếp theo (%s, %s)', $nextSlot['slot_time'], $dateText);
-                } else {
-                    $nextSuggestion = 'lựa chọn đặt vào ca tiếp theo ở các ngày tới';
+            if ($orderType === 'takeaway') {
+                // Đơn mang về: Kiểm tra giờ đóng cửa buổi đêm (sau 22:00) nếu giao trong ngày hôm nay
+                if ($isToday) {
+                    $minuteOfDay = (int)date('G', $currentTime) * 60 + (int)date('i', $currentTime);
+                    if ($minuteOfDay >= 1320) {
+                        throw new ValidationException('Dạ Bếp An Yên xin thông báo: Sau 22:00 bếp đã vào giờ nghỉ ngơi và không giao ngay trong đêm. Bạn thương vui lòng đặt trước để giao vào ngày mai nhé.');
+                    }
                 }
-
-                if ($isExceeded3M) {
+                // Chỉ chặn đơn mang về khi ca đã qua thời gian bắt đầu hơn 30 phút
+                if ($currentTime >= ($slotStart + 1800)) {
                     throw new ValidationException(sprintf(
-                        'Dạ Bếp An Yên xin thông báo: Khung giờ %s (%s) đã vượt quá thời gian nhận đặt lịch hơn 3 phút để bếp kịp ninh nước dùng và chuẩn bị chu đáo. Bạn thương vui lòng %s hoặc liên hệ trực tiếp với chủ bếp qua số %s / Zalo để được hỗ trợ nhé.',
+                        'Khung giờ %s (%s) đã qua rồi. Bạn thương vui lòng lựa chọn khung giờ tiếp theo hoặc đặt vào ngày mai nhé.',
                         $slot['slot_time'],
-                        date('d/m/Y', strtotime((string)$slot['slot_date'])),
+                        date('d/m/Y', strtotime((string)$slot['slot_date']))
+                    ));
+                }
+            } else {
+                // Đơn dùng tại quán (dine_in): Bắt buộc đặt trước 3h để ninh nước dùng và giữ bàn
+                if ($currentTime > $cutoff) {
+                    // Kiểm tra vượt quá khoảng thời gian đặt lịch từ 3 phút trở lên (Issue #29)
+                    $isExceeded3M = ($currentTime >= ($cutoff + 180)) || ($currentTime >= ($slotStart + 180));
+
+                    // Tìm ca tiếp theo khả dụng để gợi ý lịch sự cho khách
+                    $nextSlot = $this->slotService->getNextAvailableSlot((string)$slot['slot_date'], (int)$slot['id'], $currentTime);
+                    $sellerPhone = (string)$this->configService->get('seller_phone', '0901 234 567');
+
+                    $nextSuggestion = '';
+                    if ($nextSlot) {
+                        $dateText = ($nextSlot['slot_date'] === $slot['slot_date']) ? 'cùng ngày' : 'ngày ' . date('d/m', strtotime($nextSlot['slot_date']));
+                        $nextSuggestion = sprintf('đặt vào ca tiếp theo (%s, %s)', $nextSlot['slot_time'], $dateText);
+                    } else {
+                        $nextSuggestion = 'lựa chọn đặt vào ca tiếp theo ở các ngày tới';
+                    }
+
+                    if ($isExceeded3M) {
+                        throw new ValidationException(sprintf(
+                            'Dạ Bếp An Yên xin thông báo: Khung giờ %s (%s) đã vượt quá thời gian nhận đặt lịch hơn 3 phút để bếp kịp ninh nước dùng và chuẩn bị chu đáo. Bạn thương vui lòng %s hoặc liên hệ trực tiếp với chủ bếp qua số %s / Zalo để được hỗ trợ nhé.',
+                            $slot['slot_time'],
+                            date('d/m/Y', strtotime((string)$slot['slot_date'])),
+                            $nextSuggestion,
+                            $sellerPhone
+                        ));
+                    }
+
+                    if ($currentTime >= $slotStart) {
+                        throw new ValidationException(sprintf(
+                            'Khung giờ %s (%s) đã qua rồi. Bạn thương vui lòng %s hoặc liên hệ trực tiếp với chủ bếp qua số %s / Zalo nhé.',
+                            $slot['slot_time'],
+                            date('d/m/Y', strtotime((string)$slot['slot_date'])),
+                            $nextSuggestion,
+                            $sellerPhone
+                        ));
+                    }
+
+                    throw new ValidationException(sprintf(
+                        'Khung giờ %s cần đặt trước ít nhất %d tiếng để bếp kịp ninh nước dùng. Bạn thương vui lòng %s hoặc liên hệ trực tiếp với chủ bếp qua số %s / Zalo nhé.',
+                        $slot['slot_time'],
+                        $minLeadTimeHours,
                         $nextSuggestion,
                         $sellerPhone
                     ));
                 }
-
-                if ($currentTime >= $slotStart) {
-                    throw new ValidationException(sprintf(
-                        'Khung giờ %s (%s) đã qua rồi. Bạn thương vui lòng %s hoặc liên hệ trực tiếp với chủ bếp qua số %s / Zalo nhé.',
-                        $slot['slot_time'],
-                        date('d/m/Y', strtotime((string)$slot['slot_date'])),
-                        $nextSuggestion,
-                        $sellerPhone
-                    ));
-                }
-
-                throw new ValidationException(sprintf(
-                    'Khung giờ %s cần đặt trước ít nhất %d tiếng để bếp kịp ninh nước dùng. Bạn thương vui lòng %s hoặc liên hệ trực tiếp với chủ bếp qua số %s / Zalo nhé.',
-                    $slot['slot_time'],
-                    $minLeadTimeHours,
-                    $nextSuggestion,
-                    $sellerPhone
-                ));
             }
 
             $maxCapacity = (int)$slot['max_capacity'];

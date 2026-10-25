@@ -223,6 +223,20 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Tích hợp toàn diện các thẻ `og:type`, `og:url`, `og:site_name`, `og:title`, `og:description`, `og:image` cùng thẻ Twitter Card `twitter:card = 'summary_large_image'`, `twitter:title`, `twitter:description`, `twitter:image` trên toàn bộ các trang công khai (`index.php`, `about.php`, `reviews.php`, `process_order.php`).
       - Tự động nhận diện động `og:url` và `og:image` theo tên miền và đường dẫn thực tế của server (hỗ trợ cả đường dẫn gốc `/assets/images/preview.jpg` lẫn thư mục `/images/preview.jpg`).
       - Khi copy và gửi liên kết website qua các ứng dụng chat (Zalo, Messenger, Telegram, Viber, Facebook, Skype, Twitter/X), khung chat sẽ tự động hiển thị card preview đẹp mắt với hình ảnh minh họa ấm cúng phong cách Ghibli và mô tả mộc mạc của quán chay.
+25. **Tối Ưu UI Khung Thông Báo Góc Phải & Logic Đặt Mang Về Takeaway Đa Khung Giờ (v1.15.0 - Issue #32):**
+    - **Chỉnh Sửa Layout Khung Thông Báo Bếp (`#urgentZaloNote`):**
+      - Tối ưu lại kiến trúc giao diện: Đưa nội dung chữ lên trước (`#urgentZaloNoteText`), trải rộng 100% bề ngang tự nhiên, không bị bóp nghẹt.
+      - Chuyển nút bấm `[💬 Nhắn Zalo Bếp ↗]` xuống góc dưới cùng bên phải (`#urgentZaloBtnWrapper` với `display: flex; justify-content: flex-end; margin-top: 8px`), loại bỏ hoàn toàn khoảng trống màu kem thừa phía dưới nút.
+    - **Logic Nội Dung Thông Báo 3 Trường Hợp Cho Dùng Tại Chỗ (`dine_in`):**
+      - *Trường hợp 1 (Chưa quá giờ đặt ca ban ngày & còn ca sau):* Hiển thị Thông báo 1: `🌿 Thông báo từ Bếp: Khung giờ cần đặt trước 3h để bếp kịp ninh nước dùng tươi mới.`
+      - *Trường hợp 2 (Quá giờ đặt ca ban ngày & còn ca sau):* Hiển thị Thông báo 2: `🌿 Thông báo từ Bếp: Khung giờ cần đặt trước 3h để bếp kịp ninh nước dùng tươi mới. Nếu thời gian thực tế đã vượt quá giờ đặt lịch, bạn thương vui lòng lựa chọn đặt vào ca tiếp theo hoặc click liên hệ trực tiếp` (kèm liên kết/nút Zalo mở nhanh).
+      - *Trường hợp 3 (Vượt quá giờ đặt ca cuối cùng trong ngày < 30p & còn chỗ):* Tự động vô hiệu hóa toàn bộ slot trong ngày hôm nay và hiển thị Thông báo 3: `🌿 Thông báo từ Bếp: Khung giờ cần đặt trước 3h để bếp kịp ninh nước dùng tươi mới. Bạn thương vui lòng liên hệ trực tiếp.`
+    - **Mở Rộng Quy Tắc Riêng Biệt Cho Đặt Hàng Mang Đi (`takeaway`):**
+      - Không chiếm chỗ bàn tại quán nên **vẫn có thể đặt tiếp được khi còn món ăn**, không bị khóa ca bởi quy tắc ninh nước dùng 3h của khách ngồi tại quán.
+      - *Quá muộn (sau 22:00 hôm nay):* Bếp vào giờ nghỉ ngơi, không giao ngay trong đêm. Hệ thống hướng dẫn khách chọn nhận vào hôm sau hoặc nhắn Zalo trực tiếp, tự động chặn gửi đơn giao đêm nay.
+      - *Giờ muộn sắp đóng cửa (21:00 - 22:00):* Cảnh báo bếp chuẩn bị đóng cửa (nhận đơn trước 22:00). Món cần 30 - 45 phút chuẩn bị & ship. Bắt buộc khách tick xác nhận: `Tôi xác nhận có thể nhận món trước 22:00 và đồng ý thời gian chuẩn bị & ship của bếp (30 - 45 phút).`
+      - *Giờ bình thường ban ngày (trước 21:00):* Thông báo thời gian chuẩn bị & ship 30 - 45 phút, kèm hộp checkbox xác nhận: `Tôi đồng ý với thời gian chuẩn bị món & ship của bếp (khoảng 30 - 45 phút).`
+      - Client-side (`app.js`) và backend (`OrderService.php`) kiểm tra đồng bộ, đảm bảo khách luôn xác nhận trước khi gửi đơn mang về.
 
 ---
 

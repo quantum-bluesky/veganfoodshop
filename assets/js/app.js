@@ -16,6 +16,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const dateSelector = document.getElementById('dateSelector');
     const slotContainer = document.getElementById('slotContainer');
 
+    // Quản lý thông báo và xác nhận Takeaway (Issue #32)
+    const urgentZaloNote = document.getElementById('urgentZaloNote');
+    const urgentZaloNoteText = document.getElementById('urgentZaloNoteText');
+    const urgentZaloBtnWrapper = document.getElementById('urgentZaloBtnWrapper');
+    const takeawayConfirmBox = document.getElementById('takeawayConfirmBox');
+    const takeawayConfirmCheck = document.getElementById('takeawayConfirmCheck');
+    const takeawayConfirmLabelText = document.getElementById('takeawayConfirmLabelText');
+
     // State & Bộ lọc danh mục món (Issue #19 & #28)
     let currentCategoryFilter = 'all';
     const categoryPills = document.querySelectorAll('.category-pill');
@@ -181,15 +189,29 @@ document.addEventListener('DOMContentLoaded', function () {
     setupRadioGroup('slot_id');
     setupRadioGroup('payment_method');
 
-    // Lắng nghe thay đổi hình thức nhận (Tại chỗ vs Mang về)
+    // Lắng nghe thay đổi hình thức nhận (Tại chỗ vs Mang về) (Issue #32)
     const orderTypeRadios = document.querySelectorAll('input[name="order_type"]');
     orderTypeRadios.forEach(radio => {
         radio.addEventListener('change', function () {
             if (this.checked) {
                 filterMenuByOrderType(this.value);
+                updateNoticeAndSlotsForOrderType(this.value);
             }
         });
     });
+
+    function updateNoticeAndSlotsForOrderType(orderType) {
+        const selectedDate = dateSelector ? dateSelector.value : '';
+        if (!selectedDate) return;
+        fetch(`api.php?action=get_slots&date=${encodeURIComponent(selectedDate)}&order_type=${encodeURIComponent(orderType)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success) {
+                    renderSlots(data.slots, Boolean(data.is_closed), data.closed_reason || '', data.notice);
+                }
+            })
+            .catch(err => console.error('Lỗi cập nhật ca theo loại đơn:', err));
+    }
 
     // Lắng nghe click chọn danh mục Category Pills
     categoryPills.forEach(pill => {
@@ -312,28 +334,53 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 5. Thay đổi ngày mở ca (nếu có selector ngày)
+    // 5. Thay đổi ngày mở ca (nếu có selector ngày) (Issue #32)
     if (dateSelector && slotContainer) {
         dateSelector.addEventListener('change', function () {
             const selectedDate = this.value;
-            fetch(`api.php?action=get_slots&date=${encodeURIComponent(selectedDate)}`)
+            const currentOrderType = document.querySelector('input[name="order_type"]:checked')?.value || 'dine_in';
+            fetch(`api.php?action=get_slots&date=${encodeURIComponent(selectedDate)}&order_type=${encodeURIComponent(currentOrderType)}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.success) {
-                        renderSlots(data.slots, Boolean(data.is_closed), data.closed_reason || '');
+                        renderSlots(data.slots, Boolean(data.is_closed), data.closed_reason || '', data.notice);
                     }
                 })
                 .catch(err => console.error('Lỗi tải ca:', err));
         });
     }
 
-    function renderSlots(slots, isClosed = false, closedReason = '') {
+    function renderSlots(slots, isClosed = false, closedReason = '', notice = null) {
         if (!slotContainer) return;
         slotContainer.innerHTML = '';
 
-        const urgentZaloNote = document.getElementById('urgentZaloNote');
+        const currentOrderType = document.querySelector('input[name="order_type"]:checked')?.value || 'dine_in';
         let hasPastCutoff = false;
         let firstChecked = false;
+
+        // Cập nhật notice và takeawayConfirmBox từ notice object (Issue #32)
+        if (notice) {
+            if (urgentZaloNoteText && notice.notice_html) {
+                urgentZaloNoteText.innerHTML = notice.notice_html;
+            }
+            if (urgentZaloNote) {
+                urgentZaloNote.style.display = notice.show_notice ? 'block' : 'none';
+            }
+            if (takeawayConfirmBox) {
+                if (currentOrderType === 'takeaway') {
+                    takeawayConfirmBox.style.display = notice.require_takeaway_confirm ? 'block' : 'none';
+                    if (takeawayConfirmLabelText && notice.takeaway_confirm_label) {
+                        takeawayConfirmLabelText.textContent = notice.takeaway_confirm_label;
+                    }
+                } else {
+                    takeawayConfirmBox.style.display = 'none';
+                }
+            }
+        } else {
+            if (takeawayConfirmBox) {
+                takeawayConfirmBox.style.display = (currentOrderType === 'takeaway') ? 'block' : 'none';
+            }
+        }
 
         if (isClosed) {
             slotContainer.innerHTML = `
@@ -354,26 +401,42 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        const isAllDisabledByNotice = Boolean(notice && notice.disable_all_slots);
+
         slots.forEach((slot) => {
             const isFull = Boolean(slot.is_full);
             const isPastSlot = Boolean(slot.is_past_slot);
             const isPastCutoff = Boolean(slot.is_past_cutoff);
             const isExceeded3M = Boolean(slot.is_exceeded_3m);
-            const isUnavailable = isFull || isPastCutoff;
+
+            let isUnavailable = false;
+            let statusText = `Còn ${slot.remaining_capacity} chỗ`;
+
+            if (currentOrderType === 'takeaway') {
+                // Với đơn mang đi: Vẫn có thể đặt tiếp khi còn hàng, không bị chặn bởi cutoff 3h tại bàn
+                if (isPastSlot || isAllDisabledByNotice) {
+                    isUnavailable = true;
+                    statusText = isAllDisabledByNotice ? 'Đã ngưng nhận' : 'Đã qua giờ';
+                } else {
+                    isUnavailable = false;
+                    statusText = 'Đặt mang về';
+                }
+            } else {
+                // Với đơn dùng tại chỗ (dine_in): Bị chặn bởi cutoff 3h ninh nước dùng hoặc hết chỗ hoặc case 3
+                isUnavailable = isFull || isPastCutoff || isAllDisabledByNotice;
+                if (isPastSlot) {
+                    statusText = 'Đã qua giờ';
+                } else if (isExceeded3M) {
+                    statusText = 'Quá giờ đặt (>3p)';
+                } else if (isPastCutoff) {
+                    statusText = `Quá giờ đặt (trước ${slot.cutoff_hours || 3}h)`;
+                } else if (isFull) {
+                    statusText = 'Đã hết suất';
+                }
+            }
 
             if (isPastCutoff) {
                 hasPastCutoff = true;
-            }
-
-            let statusText = `Còn ${slot.remaining_capacity} chỗ`;
-            if (isPastSlot) {
-                statusText = 'Đã qua giờ';
-            } else if (isExceeded3M) {
-                statusText = 'Quá giờ đặt (>3p)';
-            } else if (isPastCutoff) {
-                statusText = `Quá giờ đặt (trước ${slot.cutoff_hours || 3}h)`;
-            } else if (isFull) {
-                statusText = 'Đã hết suất';
             }
 
             const shouldCheck = !firstChecked && !isUnavailable;
@@ -399,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function () {
             slotContainer.appendChild(label);
         });
 
-        if (urgentZaloNote) {
+        if (!notice && urgentZaloNote) {
             urgentZaloNote.style.display = hasPastCutoff ? 'block' : 'none';
         }
 
@@ -775,6 +838,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 e.preventDefault();
                 alert('Xin bạn chọn một khung giờ để bếp kịp chuẩn bị nước dùng nhé.');
                 return false;
+            }
+
+            // Kiểm tra xác nhận thời gian chuẩn bị & ship cho takeaway (Issue #32)
+            const currentOrderType = document.querySelector('input[name="order_type"]:checked')?.value || 'dine_in';
+            if (currentOrderType === 'takeaway') {
+                const nowObj = new Date();
+                const curMins = nowObj.getHours() * 60 + nowObj.getMinutes();
+                const todayStr = `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}-${String(nowObj.getDate()).padStart(2, '0')}`;
+                const selDate = dateSelector ? dateSelector.value : todayStr;
+
+                if (selDate === todayStr && curMins >= 1320) {
+                    e.preventDefault();
+                    alert('Dạ Bếp An Yên xin thông báo: Sau 22:00 bếp đã vào giờ nghỉ ngơi và không giao ngay trong đêm. Bạn thương vui lòng lựa chọn nhận món vào hôm sau hoặc nhắn Zalo trực tiếp với bếp nhé.');
+                    return false;
+                }
+
+                if (takeawayConfirmBox && takeawayConfirmBox.style.display !== 'none') {
+                    if (takeawayConfirmCheck && !takeawayConfirmCheck.checked) {
+                        e.preventDefault();
+                        alert('Bạn thương ơi, xin vui lòng tick xác nhận đồng ý với thời gian chuẩn bị món & ship của bếp để bếp kịp chuẩn bị chu đáo nhé.');
+                        takeawayConfirmBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        takeawayConfirmCheck.focus();
+                        return false;
+                    }
+                }
             }
 
             isSubmitting = true;

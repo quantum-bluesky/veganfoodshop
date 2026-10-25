@@ -127,6 +127,168 @@ class SlotService
     }
 
     /**
+     * Xác định ngữ cảnh thông báo và trạng thái slot cho Dine-in & Takeaway (Issue #32)
+     */
+    public function getSlotNoticeContext(
+        string $date,
+        string $orderType = 'dine_in',
+        ?int $currentTime = null,
+        ?int $minLeadTimeHours = null,
+        string $sellerZaloUrl = ''
+    ): array {
+        $leadHours = $minLeadTimeHours ?? (int)$this->configService->get('min_lead_time_hours', '3');
+        $now = $currentTime ?? time();
+        $today = date('Y-m-d', $now);
+
+        $slots = $this->getSlotsByDate($date, true, $leadHours, $now);
+
+        // Khởi tạo context mặc định
+        $context = [
+            'order_type' => $orderType,
+            'date' => $date,
+            'is_today' => ($date === $today),
+            'case' => 'none',
+            'show_notice' => false,
+            'disable_all_slots' => false,
+            'can_submit' => true,
+            'require_takeaway_confirm' => false,
+            'takeaway_confirm_label' => '',
+            'notice_title' => '🌿 Thông báo từ Bếp:',
+            'notice_text' => '',
+            'notice_html' => '',
+            'show_zalo_button' => true,
+        ];
+
+        if (empty($slots)) {
+            return $context;
+        }
+
+        $linkZaloHtml = !empty($sellerZaloUrl)
+            ? '<a href="' . htmlspecialchars($sellerZaloUrl, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer" style="color: #0068FF; font-weight: 600; text-decoration: underline;">click liên hệ trực tiếp</a>'
+            : 'click liên hệ trực tiếp';
+
+        $linkDirectHtml = !empty($sellerZaloUrl)
+            ? '<a href="' . htmlspecialchars($sellerZaloUrl, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer" style="color: #0068FF; font-weight: 600; text-decoration: underline;">liên hệ trực tiếp</a>'
+            : 'liên hệ trực tiếp';
+
+        // 1. Nếu là đơn DÙNG TẠI CHỖ (dine_in)
+        if ($orderType === 'dine_in') {
+            $context['show_notice'] = true;
+
+            // Nếu ngày đặt là ngày tương lai: Chưa quá giờ ca nào, còn các ca trong ngày
+            if ($date > $today) {
+                $context['case'] = 'dine_in_case_1';
+                $context['notice_text'] = "🌿 Thông báo từ Bếp: Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới.";
+                $context['notice_html'] = "🌿 <strong>Thông báo từ Bếp:</strong> Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới.";
+                return $context;
+            }
+
+            // Với ngày hôm nay
+            $lastSlot = end($slots);
+            $lastSlotStart = $this->parseSlotStartTime((string)$lastSlot['slot_date'], (string)$lastSlot['slot_time']);
+            $lastSlotCutoff = $lastSlotStart - ($leadHours * 3600);
+            $lastSlotRemaining = (int)($lastSlot['remaining_capacity'] ?? 0);
+
+            // Case 3: Vượt quá giờ đặt ca cuối cùng trong ngày < 30p & vẫn còn chỗ trống
+            // (now > cutoff ca cuối và now < cutoff ca cuối + 1800s, và còn chỗ trống)
+            if ($now > $lastSlotCutoff && $now < ($lastSlotCutoff + 1800) && $lastSlotRemaining > 0) {
+                $context['case'] = 'dine_in_case_3';
+                $context['disable_all_slots'] = true;
+                $context['notice_text'] = "🌿 Thông báo từ Bếp: Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới. Bạn thương vui lòng liên hệ trực tiếp.";
+                $context['notice_html'] = "🌿 <strong>Thông báo từ Bếp:</strong> Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới. Bạn thương vui lòng {$linkDirectHtml}.";
+                return $context;
+            }
+
+            // Kiểm tra các ca ban ngày và ca sau trong ngày
+            $hasPastDaySlot = false;
+            $hasFutureAvailableSlot = false;
+
+            foreach ($slots as $s) {
+                $isOverdue = !empty($s['is_past_cutoff']) || !empty($s['is_past_slot']);
+                if ($isOverdue) {
+                    $hasPastDaySlot = true;
+                } else {
+                    $hasFutureAvailableSlot = true;
+                }
+            }
+
+            // Case 2: Vượt quá giờ đặt ca ban ngày & vẫn còn ca sau trong ngày
+            if ($hasPastDaySlot && $hasFutureAvailableSlot) {
+                $context['case'] = 'dine_in_case_2';
+                $context['notice_text'] = "🌿 Thông báo từ Bếp: Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới. Nếu thời gian thực tế đã vượt quá giờ đặt lịch, bạn thương vui lòng lựa chọn đặt vào ca tiếp theo hoặc click liên hệ trực tiếp";
+                $context['notice_html'] = "🌿 <strong>Thông báo từ Bếp:</strong> Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới. Nếu thời gian thực tế đã vượt quá giờ đặt lịch, bạn thương vui lòng <strong>lựa chọn đặt vào ca tiếp theo</strong> hoặc {$linkZaloHtml}";
+                return $context;
+            }
+
+            // Case 1: Không vượt quá giờ đặt ca ban ngày & vẫn còn ca sau trong ngày
+            if (!$hasPastDaySlot && $hasFutureAvailableSlot) {
+                $context['case'] = 'dine_in_case_1';
+                $context['notice_text'] = "🌿 Thông báo từ Bếp: Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới.";
+                $context['notice_html'] = "🌿 <strong>Thông báo từ Bếp:</strong> Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới.";
+                return $context;
+            }
+
+            // Nếu toàn bộ ca trong ngày đã qua giờ (và đã quá 30p sau ca cuối)
+            if (!$hasFutureAvailableSlot) {
+                $context['case'] = 'dine_in_all_past';
+                $context['disable_all_slots'] = true;
+                $context['notice_text'] = "🌿 Thông báo từ Bếp: Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới. Các ca hôm nay đã qua thời gian nhận đặt trước, bạn thương vui lòng lựa chọn ngày kế tiếp hoặc liên hệ trực tiếp nhé.";
+                $context['notice_html'] = "🌿 <strong>Thông báo từ Bếp:</strong> Khung giờ cần đặt trước {$leadHours}h để bếp kịp ninh nước dùng tươi mới. Các ca hôm nay đã qua thời gian nhận đặt trước, bạn thương vui lòng <strong>lựa chọn ngày kế tiếp</strong> hoặc {$linkDirectHtml} nhé.";
+                return $context;
+            }
+        }
+
+        // 2. Nếu là đơn CHỈ MANG ĐI (takeaway)
+        if ($orderType === 'takeaway') {
+            $context['show_notice'] = true;
+            $context['require_takeaway_confirm'] = true;
+
+            // Nếu là ngày tương lai
+            if ($date > $today) {
+                $context['case'] = 'takeaway_normal';
+                $context['takeaway_confirm_label'] = 'Tôi đồng ý với thời gian chuẩn bị & ship món của bếp (khoảng 30 - 45 phút).';
+                $context['notice_text'] = '🌿 Thông báo từ Bếp: Đơn mang về được bếp chuẩn bị tươi mới theo từng mẻ (thời gian chuẩn bị & ship khoảng 30 - 45 phút).';
+                $context['notice_html'] = '🌿 <strong>Thông báo từ Bếp:</strong> Đơn mang về được bếp chuẩn bị tươi mới theo từng mẻ (thời gian chuẩn bị & ship khoảng 30 - 45 phút).';
+                return $context;
+            }
+
+            // Ngày hôm nay: Phân theo mốc thời gian thực tế
+            $hour = (int)date('G', $now);
+            $min = (int)date('i', $now);
+            $minuteOfDay = $hour * 60 + $min;
+
+            // Mốc 1: Quá muộn (sau 22:00)
+            if ($minuteOfDay >= 1320) {
+                $context['case'] = 'takeaway_late_night';
+                $context['disable_all_slots'] = true;
+                $context['can_submit'] = false;
+                $context['require_takeaway_confirm'] = false;
+                $context['notice_text'] = '🌿 Thông báo từ Bếp: Bếp đã vào giờ nghỉ ngơi (sau 22:00), không giao ngay trong đêm. Bạn thương vui lòng lựa chọn nhận món vào hôm sau hoặc nhắn Zalo trực tiếp với bếp nhé.';
+                $context['notice_html'] = "🌿 <strong>Thông báo từ Bếp:</strong> Bếp đã vào giờ nghỉ ngơi (sau 22:00), không giao ngay trong đêm. Bạn thương vui lòng lựa chọn nhận món vào hôm sau hoặc {$linkDirectHtml} nhé.";
+                return $context;
+            }
+
+            // Mốc 2: Giờ muộn sắp đóng cửa (từ 21:00 đến 22:00)
+            if ($minuteOfDay >= 1260 && $minuteOfDay < 1320) {
+                $context['case'] = 'takeaway_closing_soon';
+                $context['takeaway_confirm_label'] = 'Tôi xác nhận có thể nhận món trước 22:00 và đồng ý thời gian chuẩn bị & ship của bếp (30 - 45 phút).';
+                $context['notice_text'] = '🌿 Thông báo từ Bếp: Bếp chuẩn bị đóng cửa (nhận đơn mang đi trước 22:00). Món cần 30 - 45 phút chuẩn bị & giao hàng, bạn thương vui lòng xác nhận có thể nhận kịp trước 22:00 hoặc liên hệ trực tiếp nhé.';
+                $context['notice_html'] = "🌿 <strong>Thông báo từ Bếp:</strong> Bếp chuẩn bị đóng cửa (nhận đơn mang đi trước 22:00). Món cần 30 - 45 phút chuẩn bị & giao hàng, bạn thương vui lòng xác nhận có thể nhận kịp trước 22:00 hoặc {$linkDirectHtml} nhé.";
+                return $context;
+            }
+
+            // Mốc 3: Ban ngày / Giờ bình thường (trước 21:00)
+            $context['case'] = 'takeaway_normal';
+            $context['takeaway_confirm_label'] = 'Tôi đồng ý với thời gian chuẩn bị & ship món của bếp (khoảng 30 - 45 phút).';
+            $context['notice_text'] = '🌿 Thông báo từ Bếp: Đơn mang về được bếp chuẩn bị tươi mới theo từng mẻ (thời gian chuẩn bị & ship khoảng 30 - 45 phút).';
+            $context['notice_html'] = '🌿 <strong>Thông báo từ Bếp:</strong> Đơn mang về được bếp chuẩn bị tươi mới theo từng mẻ (thời gian chuẩn bị & ship khoảng 30 - 45 phút).';
+            return $context;
+        }
+
+        return $context;
+    }
+
+    /**
      * Tìm ca phục vụ khả dụng tiếp theo để gợi ý cho khách khi ca hiện tại bị đầy hoặc quá hạn đặt
      * (Issue #29)
      */

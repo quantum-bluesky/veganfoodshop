@@ -178,8 +178,10 @@ class OrderService
                 );
             }
 
-            // 3. Thêm hoặc cập nhật khách hàng
-            $this->customerService->saveOrUpdate($customerPhone, $customerName);
+            // 3. Thêm hoặc cập nhật khách hàng (kèm Zalo ID nếu có)
+            $zaloId = !empty($data['zalo_id']) ? trim((string)$data['zalo_id']) : null;
+            $avatarUrl = !empty($data['avatar_url']) ? trim((string)$data['avatar_url']) : null;
+            $this->customerService->saveOrUpdate($customerPhone, $customerName, null, $zaloId, $avatarUrl);
 
             // 4. Sinh mã đơn hàng và chèn vào bảng orders
             $orderCode = $this->generateOrderCode();

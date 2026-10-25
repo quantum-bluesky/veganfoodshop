@@ -21,6 +21,10 @@ class CustomerServiceTest extends TestCase
         $this->setUp();
         $this->testCustomerPhoneNormalization();
         $this->tearDown();
+
+        $this->setUp();
+        $this->testZaloCustomerIntegration();
+        $this->tearDown();
     }
 
     /**
@@ -67,4 +71,42 @@ class CustomerServiceTest extends TestCase
         $customer = $service->findByPhone('0912-345-678');
         $this->assertTrue($customer !== null, 'Tìm kiếm thành công kể cả khi có dấu gạch ngang');
     }
+
+    /**
+     * TC-UNIT-04: Lưu trữ và tìm kiếm khách hàng bằng Zalo ID
+     */
+    public function testZaloCustomerIntegration(): void
+    {
+        $service = new CustomerService($this->db);
+
+        // Lưu khách hàng kèm zalo_id và avatar_url
+        $customer = $service->saveOrUpdate(
+            '0933112233',
+            'Thanh Trúc',
+            null,
+            'zalo_user_999',
+            'https://example.com/avatar.jpg'
+        );
+
+        $this->assertEquals('0933112233', $customer['phone']);
+        $this->assertEquals('Thanh Trúc', $customer['name']);
+        $this->assertEquals('zalo_user_999', $customer['zalo_id']);
+        $this->assertEquals('https://example.com/avatar.jpg', $customer['avatar_url']);
+
+        // Tìm bằng Zalo ID
+        $byZalo = $service->findByZaloId('zalo_user_999');
+        $this->assertTrue($byZalo !== null, 'Phải tìm thấy khách hàng bằng zalo_id');
+        $this->assertEquals('0933112233', $byZalo['phone']);
+
+        // Upsert cập nhật thông tin qua Zalo
+        $upserted = $service->upsertZaloCustomer(
+            'zalo_user_999',
+            'Thanh Trúc (Đã đổi tên)',
+            '0933112233',
+            'https://example.com/new_avatar.jpg'
+        );
+        $this->assertEquals('Thanh Trúc (Đã đổi tên)', $upserted['name']);
+        $this->assertEquals('https://example.com/new_avatar.jpg', $upserted['avatar_url']);
+    }
 }
+

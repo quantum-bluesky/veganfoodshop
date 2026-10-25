@@ -179,6 +179,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $accNo = (string)$_POST['account_no'];
             $accName = (string)$_POST['account_name'];
 
+            // Zalo Config
+            $zaloAppId = (string)($_POST['zalo_app_id'] ?? '123');
+            $zaloSecretKey = (string)($_POST['zalo_secret_key'] ?? '123');
+            $zaloMockMode = isset($_POST['zalo_mock_test_mode']) ? '1' : '0';
+            $zaloRequireLogin = isset($_POST['zalo_require_login']) ? '1' : '0';
+            $zaloRequireGroup = isset($_POST['zalo_require_group']) ? '1' : '0';
+            $zaloSellerUrl = (string)($_POST['zalo_seller_url'] ?? 'https://zalo.me/0987862241');
+            $orderNoteShipping = (string)($_POST['order_note_shipping'] ?? 'Chưa bao gồm chi phí vận chuyển');
+            $zaloConfirmTemplate = (string)($_POST['zalo_confirm_template'] ?? 'Chào shop, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!');
+
             $configService->set('shop_name', $shopName);
             $configService->set('shop_quote', $shopQuote);
             $configService->set('notice_text', $noticeText);
@@ -186,7 +196,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $configService->set('bank_name', $bankName);
             $configService->set('account_no', $accNo);
             $configService->set('account_name', $accName);
-            $message = 'Đã lưu cấu hình hệ thống.';
+
+            $configService->set('zalo_app_id', $zaloAppId);
+            $configService->set('zalo_secret_key', $zaloSecretKey);
+            $configService->set('zalo_mock_test_mode', $zaloMockMode);
+            $configService->set('zalo_require_login', $zaloRequireLogin);
+            $configService->set('zalo_require_group', $zaloRequireGroup);
+            $configService->set('zalo_seller_url', $zaloSellerUrl);
+            $configService->set('order_note_shipping', $orderNoteShipping);
+            $configService->set('zalo_confirm_template', $zaloConfirmTemplate);
+
+            $message = 'Đã lưu cấu hình hệ thống & Zalo Login thành công.';
             break;
     }
 }
@@ -507,17 +527,33 @@ $currentConfig = $configService->getAll();
                         <tr>
                             <th>Số Điện Thoại</th>
                             <th>Tên Khách Hàng</th>
+                            <th>Zalo</th>
                             <th>Khách Quen (Trả Sau)</th>
                             <th>Ghi Chú</th>
                             <th>Ngày Đăng Ký</th>
-                            <th>Thao Tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($customerList as $c): ?>
                             <tr>
                                 <td><strong><?= htmlspecialchars($c['phone'], ENT_QUOTES, 'UTF-8') ?></strong></td>
-                                <td><?= htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <?php if (!empty($c['avatar_url'])): ?>
+                                            <img src="<?= htmlspecialchars($c['avatar_url'], ENT_QUOTES, 'UTF-8') ?>" alt="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+                                        <?php endif; ?>
+                                        <span><?= htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <?php if (!empty($c['zalo_id'])): ?>
+                                        <span style="font-size: 0.72rem; color: #1E40AF; background: #DBEAFE; padding: 2px 6px; border-radius: 6px; font-weight: 600;">
+                                            <?= htmlspecialchars(substr((string)$c['zalo_id'], 0, 10), ENT_QUOTES, 'UTF-8') ?>...
+                                        </span>
+                                    <?php else: ?>
+                                        <span style="font-size: 0.72rem; color: #9CA3AF;">Chưa liên kết</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <form method="POST">
                                         <input type="hidden" name="admin_action" value="toggle_trusted">
@@ -530,9 +566,6 @@ $currentConfig = $configService->getAll();
                                 </td>
                                 <td><span style="font-size: 0.75rem; color: var(--text-muted-warm);"><?= htmlspecialchars((string)($c['note'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span></td>
                                 <td><?= date('d/m/Y', strtotime($c['created_at'])) ?></td>
-                                <td>
-                                    <span style="font-size: 0.75rem; color: var(--brand-tea-green);">Tự cập nhật khi đặt</span>
-                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -658,6 +691,53 @@ $currentConfig = $configService->getAll();
                                 <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Tên chủ tài khoản (In hoa không dấu):</label>
                                 <input type="text" name="account_name" class="zen-input" value="<?= htmlspecialchars($currentConfig['account_name'] ?? 'BEP CHAY AN YEN', ENT_QUOTES, 'UTF-8') ?>">
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Cấu hình Zalo Login & Xác nhận đơn -->
+                    <div style="border-top: 1px dashed var(--brand-border-soft); margin-top: 10px; padding-top: 14px;">
+                        <h3 style="font-size: 0.88rem; font-weight: 700; color: #0068FF; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                            <svg width="18" height="18" viewBox="0 0 48 48" fill="none"><path fill="#0068FF" d="M24 4C12.95 4 4 12.95 4 24c0 3.73 1.02 7.22 2.79 10.22L4 44l10.15-2.67C17.06 43.04 20.44 44 24 44c11.05 0 20-8.95 20-20S35.05 4 24 4z"/></svg>
+                            <span>Cấu hình Zalo Login (OAuth2) & Chăm sóc khách</span>
+                        </h3>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Zalo App ID:</label>
+                                <input type="text" name="zalo_app_id" class="zen-input" value="<?= htmlspecialchars($currentConfig['zalo_app_id'] ?? '123', ENT_QUOTES, 'UTF-8') ?>">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Zalo Secret Key:</label>
+                                <input type="password" name="zalo_secret_key" class="zen-input" value="<?= htmlspecialchars($currentConfig['zalo_secret_key'] ?? '123', ENT_QUOTES, 'UTF-8') ?>">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Link Zalo Người Bán / Hotline:</label>
+                                <input type="text" name="zalo_seller_url" class="zen-input" value="<?= htmlspecialchars($currentConfig['zalo_seller_url'] ?? 'https://zalo.me/0987862241', ENT_QUOTES, 'UTF-8') ?>">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Ghi chú vận chuyển (shipping note):</label>
+                                <input type="text" name="order_note_shipping" class="zen-input" value="<?= htmlspecialchars($currentConfig['order_note_shipping'] ?? 'Chưa bao gồm chi phí vận chuyển', ENT_QUOTES, 'UTF-8') ?>">
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px;">
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Mẫu tin nhắn gửi xác nhận đơn qua Zalo ({order_id} sẽ tự thay thế):</label>
+                            <input type="text" name="zalo_confirm_template" class="zen-input" value="<?= htmlspecialchars($currentConfig['zalo_confirm_template'] ?? 'Chào shop, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!', ENT_QUOTES, 'UTF-8') ?>">
+                        </div>
+
+                        <div style="display: flex; flex-wrap: wrap; gap: 16px; background: #F8FAFC; padding: 12px; border-radius: 12px; font-size: 0.8rem;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" name="zalo_mock_test_mode" value="1" <?= (!isset($currentConfig['zalo_mock_test_mode']) || $currentConfig['zalo_mock_test_mode'] === '1') ? 'checked' : '' ?>>
+                                <span>Bật chế độ thử nghiệm (Mock Test Mode)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" name="zalo_require_login" value="1" <?= (isset($currentConfig['zalo_require_login']) && $currentConfig['zalo_require_login'] === '1') ? 'checked' : '' ?>>
+                                <span>Bắt buộc đăng nhập Zalo mới được đặt</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" name="zalo_require_group" value="1" <?= (isset($currentConfig['zalo_require_group']) && $currentConfig['zalo_require_group'] === '1') ? 'checked' : '' ?>>
+                                <span>Bắt buộc tham gia nhóm Zalo</span>
+                            </label>
                         </div>
                     </div>
 

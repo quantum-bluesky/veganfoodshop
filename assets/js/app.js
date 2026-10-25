@@ -187,6 +187,79 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 6. Kiểm tra validation trước khi gửi form
     if (orderForm) {
+        // 6. Xử lý thông tin đăng nhập Zalo (Option tự động điền)
+        const zaloLoginSection = document.getElementById('zaloLoginSection');
+        const zaloProfileSection = document.getElementById('zaloProfileSection');
+        const zaloAvatarWrapper = document.getElementById('zaloAvatarWrapper');
+        const zaloProfileName = document.getElementById('zaloProfileName');
+        const zaloProfilePhone = document.getElementById('zaloProfilePhone');
+        const zaloLogoutBtn = document.getElementById('zaloLogoutBtn');
+        const custZaloId = document.getElementById('custZaloId');
+        const custAvatarUrl = document.getElementById('custAvatarUrl');
+
+        function checkZaloSession() {
+            let savedZalo = null;
+            try {
+                const raw = localStorage.getItem('public_customer_info');
+                if (raw) savedZalo = JSON.parse(raw);
+            } catch (e) {
+                savedZalo = null;
+            }
+
+            if (savedZalo && (savedZalo.zalo_id || savedZalo.name)) {
+                // Hiển thị phần profile Zalo
+                if (zaloLoginSection) zaloLoginSection.classList.add('hidden');
+                if (zaloProfileSection) {
+                    zaloProfileSection.classList.remove('hidden');
+                    zaloProfileSection.style.display = 'flex';
+                }
+
+                if (zaloProfileName) zaloProfileName.textContent = savedZalo.name || 'Khách Zalo';
+                if (zaloProfilePhone) zaloProfilePhone.textContent = savedZalo.phone ? `SĐT: ${savedZalo.phone}` : '';
+
+                // Avatar
+                if (zaloAvatarWrapper) {
+                    if (savedZalo.avatar_url) {
+                        zaloAvatarWrapper.innerHTML = `<img src="${savedZalo.avatar_url}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='${(savedZalo.name || 'Z').charAt(0).toUpperCase()}';">`;
+                    } else {
+                        zaloAvatarWrapper.textContent = (savedZalo.name || 'Z').charAt(0).toUpperCase();
+                    }
+                }
+
+                // Tự động điền Form nếu form đang trống hoặc có dữ liệu mới
+                if (custName && savedZalo.name && !custName.value.trim()) {
+                    custName.value = savedZalo.name;
+                }
+                if (custPhone && savedZalo.phone && !savedZalo.phone.startsWith('Zalo:') && !custPhone.value.trim()) {
+                    custPhone.value = savedZalo.phone;
+                    // Kích hoạt blur để kiểm tra trạng thái khách quen
+                    custPhone.dispatchEvent(new Event('blur'));
+                }
+
+                if (custZaloId) custZaloId.value = savedZalo.zalo_id || '';
+                if (custAvatarUrl) custAvatarUrl.value = savedZalo.avatar_url || '';
+            } else {
+                // Chưa đăng nhập Zalo
+                if (zaloLoginSection) zaloLoginSection.classList.remove('hidden');
+                if (zaloProfileSection) {
+                    zaloProfileSection.classList.add('hidden');
+                    zaloProfileSection.style.display = 'none';
+                }
+                if (custZaloId) custZaloId.value = '';
+                if (custAvatarUrl) custAvatarUrl.value = '';
+            }
+        }
+
+        if (zaloLogoutBtn) {
+            zaloLogoutBtn.addEventListener('click', function () {
+                localStorage.removeItem('public_customer_info');
+                checkZaloSession();
+            });
+        }
+
+        checkZaloSession();
+
+        // 7. Kiểm tra validation trước khi gửi form
         orderForm.addEventListener('submit', function (e) {
             const { totalItems } = calculateTotal();
 
@@ -214,3 +287,4 @@ document.addEventListener('DOMContentLoaded', function () {
     // Tính toán ban đầu
     calculateTotal();
 });
+

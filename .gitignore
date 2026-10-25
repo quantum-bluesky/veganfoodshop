@@ -3,6 +3,7 @@
 composer.lock
 
 # SQLite runtime artifacts
+*.db
 *.db-journal
 *.db-wal
 *.db-shm

@@ -32,8 +32,25 @@ class CustomerService
             return null;
         }
 
-        $stmt = $this->db->prepare('SELECT phone, name, is_trusted, note, created_at, updated_at FROM customers WHERE phone = :phone LIMIT 1');
+        $stmt = $this->db->prepare('SELECT phone, name, is_trusted, note, zalo_id, avatar_url, created_at, updated_at FROM customers WHERE phone = :phone LIMIT 1');
         $stmt->execute([':phone' => $cleanPhone]);
+        $row = $stmt->fetch();
+
+        return $row ?: null;
+    }
+
+    /**
+     * Tìm khách hàng theo Zalo ID
+     */
+    public function findByZaloId(string $zaloId): ?array
+    {
+        $zaloId = trim($zaloId);
+        if ($zaloId === '') {
+            return null;
+        }
+
+        $stmt = $this->db->prepare('SELECT phone, name, is_trusted, note, zalo_id, avatar_url, created_at, updated_at FROM customers WHERE zalo_id = :zalo_id LIMIT 1');
+        $stmt->execute([':zalo_id' => $zaloId]);
         $row = $stmt->fetch();
 
         return $row ?: null;
@@ -51,7 +68,7 @@ class CustomerService
     /**
      * Lưu hoặc cập nhật thông tin khách hàng khi đặt đơn
      */
-    public function saveOrUpdate(string $phone, string $name, ?string $note = null): array
+    public function saveOrUpdate(string $phone, string $name, ?string $note = null, ?string $zaloId = null, ?string $avatarUrl = null): array
     {
         $cleanPhone = $this->normalizePhone($phone);
         $cleanName = trim($name);
@@ -62,24 +79,75 @@ class CustomerService
             $stmt = $this->db->prepare('
                 UPDATE customers 
                 SET name = :name, 
+                    zalo_id = COALESCE(:zalo_id, zalo_id),
+                    avatar_url = COALESCE(:avatar_url, avatar_url),
                     updated_at = CURRENT_TIMESTAMP 
                 WHERE phone = :phone
             ');
             $stmt->execute([
                 ':name' => $cleanName !== '' ? $cleanName : $existing['name'],
+                ':zalo_id' => $zaloId,
+                ':avatar_url' => $avatarUrl,
                 ':phone' => $cleanPhone,
             ]);
             return $this->findByPhone($cleanPhone) ?? [];
         }
 
         $stmt = $this->db->prepare('
-            INSERT INTO customers (phone, name, is_trusted, note, created_at, updated_at) 
-            VALUES (:phone, :name, 0, :note, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO customers (phone, name, is_trusted, note, zalo_id, avatar_url, created_at, updated_at) 
+            VALUES (:phone, :name, 0, :note, :zalo_id, :avatar_url, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ');
         $stmt->execute([
             ':phone' => $cleanPhone,
             ':name' => $cleanName,
             ':note' => $note,
+            ':zalo_id' => $zaloId,
+            ':avatar_url' => $avatarUrl,
+        ]);
+
+        return $this->findByPhone($cleanPhone) ?? [];
+    }
+
+    /**
+     * Lưu hoặc cập nhật thông tin khách hàng từ Zalo OAuth
+     */
+    public function upsertZaloCustomer(string $zaloId, string $name, string $phone = '', ?string $avatarUrl = null): array
+    {
+        $cleanPhone = $this->normalizePhone($phone);
+        if ($cleanPhone === '') {
+            $cleanPhone = 'Zalo:' . $zaloId;
+        }
+
+        // Tìm xem đã có theo phone hoặc theo zalo_id chưa
+        $existing = $this->findByPhone($cleanPhone) ?? $this->findByZaloId($zaloId);
+
+        if ($existing) {
+            $stmt = $this->db->prepare('
+                UPDATE customers 
+                SET name = :name, 
+                    zalo_id = :zalo_id, 
+                    avatar_url = :avatar_url, 
+                    updated_at = CURRENT_TIMESTAMP 
+                WHERE phone = :existing_phone
+            ');
+            $stmt->execute([
+                ':name' => $name !== '' ? $name : $existing['name'],
+                ':zalo_id' => $zaloId,
+                ':avatar_url' => $avatarUrl,
+                ':existing_phone' => $existing['phone'],
+            ]);
+            return $this->findByPhone($existing['phone']) ?? [];
+        }
+
+        $stmt = $this->db->prepare('
+            INSERT INTO customers (phone, name, is_trusted, note, zalo_id, avatar_url, created_at, updated_at) 
+            VALUES (:phone, :name, 0, \'Đăng nhập qua Zalo\', :zalo_id, :avatar_url, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ');
+        $stmt->execute([
+            ':phone' => $cleanPhone,
+            ':name' => $name,
+            ':zalo_id' => $zaloId,
+            ':avatar_url' => $avatarUrl,
         ]);
 
         return $this->findByPhone($cleanPhone) ?? [];
@@ -106,9 +174,9 @@ class CustomerService
         if ($search !== null && trim($search) !== '') {
             $term = '%' . trim($search) . '%';
             $stmt = $this->db->prepare('
-                SELECT phone, name, is_trusted, note, created_at, updated_at 
+                SELECT phone, name, is_trusted, note, zalo_id, avatar_url, created_at, updated_at 
                 FROM customers 
-                WHERE phone LIKE :term OR name LIKE :term 
+                WHERE phone LIKE :term OR name LIKE :term OR zalo_id LIKE :term
                 ORDER BY is_trusted DESC, updated_at DESC
             ');
             $stmt->execute([':term' => $term]);
@@ -116,7 +184,7 @@ class CustomerService
         }
 
         $stmt = $this->db->query('
-            SELECT phone, name, is_trusted, note, created_at, updated_at 
+            SELECT phone, name, is_trusted, note, zalo_id, avatar_url, created_at, updated_at 
             FROM customers 
             ORDER BY is_trusted DESC, updated_at DESC
         ');

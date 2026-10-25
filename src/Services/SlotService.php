@@ -109,18 +109,72 @@ class SlotService
 
             $isPastSlot = ($now >= $slotStart);
             $isPastCutoff = ($now > $cutoff);
+            // Vượt quá thời gian đặt lịch từ 3 phút trở lên (Issue #29)
+            $isExceeded3M = ($now >= ($cutoff + 180)) || ($now >= ($slotStart + 180));
 
             $slot['booked_count'] = $booked;
             $slot['remaining_capacity'] = $remaining;
             $slot['is_full'] = ($remaining <= 0);
             $slot['is_past_slot'] = $isPastSlot;
             $slot['is_past_cutoff'] = $isPastCutoff;
+            $slot['is_exceeded_3m'] = $isExceeded3M;
             $slot['cutoff_hours'] = $leadHours;
             $slot['is_bookable'] = (!$slot['is_full'] && !$isPastCutoff && (int)$slot['is_active'] === 1);
         }
         unset($slot);
 
         return $slots;
+    }
+
+    /**
+     * Tìm ca phục vụ khả dụng tiếp theo để gợi ý cho khách khi ca hiện tại bị đầy hoặc quá hạn đặt
+     * (Issue #29)
+     */
+    public function getNextAvailableSlot(string $slotDate, int $currentSlotId, ?int $currentTime = null): ?array
+    {
+        $now = $currentTime ?? time();
+        $leadHours = (int)$this->configService->get('min_lead_time_hours', '3');
+
+        $currentSlot = $this->getSlot($currentSlotId);
+        $currentStart = 0;
+        if ($currentSlot) {
+            $currentStart = $this->parseSlotStartTime((string)$currentSlot['slot_date'], (string)$currentSlot['slot_time']);
+        }
+
+        // 1. Tìm các ca còn trống trong cùng ngày (ưu tiên ca diễn ra sau ca hiện tại)
+        $sameDaySlots = $this->getSlotsByDate($slotDate, true, $leadHours, $now);
+        foreach ($sameDaySlots as $s) {
+            if ((int)$s['id'] === $currentSlotId) {
+                continue;
+            }
+            $sStart = $this->parseSlotStartTime((string)$s['slot_date'], (string)$s['slot_time']);
+            if ($sStart > $currentStart && !empty($s['is_bookable'])) {
+                return $s;
+            }
+        }
+
+        // Thử bất kỳ ca nào khác còn bookable trong cùng ngày
+        foreach ($sameDaySlots as $s) {
+            if ((int)$s['id'] !== $currentSlotId && !empty($s['is_bookable'])) {
+                return $s;
+            }
+        }
+
+        // 2. Tìm ca khả dụng đầu tiên ở các ngày tiếp theo
+        $availableDates = $this->getAvailableDates();
+        foreach ($availableDates as $nextDate) {
+            if ($nextDate <= $slotDate) {
+                continue;
+            }
+            $nextDaySlots = $this->getSlotsByDate($nextDate, true, $leadHours, $now);
+            foreach ($nextDaySlots as $ns) {
+                if (!empty($ns['is_bookable'])) {
+                    return $ns;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

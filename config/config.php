@@ -12,7 +12,7 @@ $baseConfig = [
         'env' => 'development',
         'debug' => true,
         'timezone' => 'Asia/Ho_Chi_Minh',
-        'version' => '1.13.1',
+        'version' => '1.14.0',
     ],
     'database' => [
         'path' => __DIR__ . '/../database/bep_an_yen.db',

@@ -205,6 +205,18 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
     - **Khắc phục lỗi:** `ReferenceError: Cannot access 'currentCategoryFilter' before initialization` tại `app.js:159`.
     - **Nguyên nhân:** Hàm `filterMenuByOrderType(initialOrderType)` được kích hoạt khi tải trang gọi hàm `applyCategoryAndOrderTypeFilter()`, trong khi biến trạng thái `currentCategoryFilter` và các phần tử DOM của bộ lọc danh mục / thanh nổi (Floating Bar) được khai báo ở phía dưới trong block `DOMContentLoaded`.
     - **Giải pháp:** Tái cấu trúc toàn bộ khai báo biến state và phần tử DOM lên đầu block `DOMContentLoaded` trước khi định nghĩa và thực thi các hàm helper, đảm bảo 100% luồng tương tác trên web hoạt động mượt mà, không còn lỗi console hay bị ngắt flow trên cả local và production.
+23. **Thông Báo Lịch Sự Quá Giờ Đặt 3 Phút & Chế Độ Điều Chỉnh Cỡ Chữ A+/A- Dễ Đọc (v1.14.0 - Issues #29 & #30):**
+    - **Thông Báo Lịch Sự Quá Hạn Đặt Lịch (Issue #29):**
+      - Khi thời gian thực tế vượt quá khoảng thời gian đặt lịch từ 3 phút trở lên (`$isExceeded3M = true`), hệ thống tự động gắn nhãn ca *"Quá giờ đặt (>3p)"*.
+      - Nếu khách nhấn chọn hoặc gửi đơn, hệ thống không chỉ từ chối khô khan mà hiển thị thông báo ấm áp, lịch sự từ bếp (nêu rõ lý do cần thời gian ninh nước dùng tươi mới) và chủ động đưa ra 2 giải pháp tiện lợi:
+        1. **Lựa chọn đặt vào ca tiếp theo** (tự động gợi ý chính xác khung giờ ca tiếp theo còn chỗ trong ngày hoặc ngày tới).
+        2. **Liên hệ trực tiếp với chủ bếp** qua số Hotline hoặc Zalo một chạm.
+      - Giao diện báo lỗi trên `process_order.php` cung cấp sẵn nút *"🌿 Lựa chọn đặt vào ca tiếp theo"*, *"💬 Liên hệ trực tiếp chủ bếp qua Zalo"* và *"📞 Gọi Hotline chủ bếp"*.
+    - **Chế Độ Phóng To Cỡ Chữ Hiển Thị A+/A- (Issue #30):**
+      - Bổ sung nút bấm điều chỉnh cỡ chữ thanh nhã `[ A+ Chữ lớn ]` ngay trên thanh điều hướng đầu trang.
+      - Khi bấm kích hoạt `A+`: Chuyển sang class `.zen-font-large`, toàn bộ các vùng chú ý, ghi chú món ăn, thông báo âm lịch, lưu ý khung giờ và hướng dẫn nhận đơn được tăng kích thước rõ ràng (+25% đến +30%), tăng độ tương phản màu mực sắc nét, chống mỏi mắt cho người lớn tuổi hoặc người mắt kém.
+      - Khi bấm lại `[ A- Cỡ vừa ]`: Tự động khôi phục về kích thước chuẩn ban đầu.
+      - Tự động ghi nhớ lựa chọn của khách qua `localStorage` (`vegan_font_size_large`), đảm bảo trải nghiệm xuyên suốt khi chuyển trang.
 
 ---
 

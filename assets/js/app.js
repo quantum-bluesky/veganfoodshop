@@ -27,6 +27,52 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnFloatingView = document.getElementById('btnFloatingView');
     const step4CustomerInfo = document.getElementById('step4CustomerInfo');
 
+    // Quản lý kích thước chữ A+/A- (Issue #30)
+    const btnToggleFontSize = document.getElementById('btnToggleFontSize');
+    const fsIcon = document.getElementById('fsIcon');
+    const fsLabel = document.getElementById('fsLabel');
+
+    function applyFontSizeMode(isLarge) {
+        if (isLarge) {
+            document.body.classList.add('zen-font-large');
+            if (btnToggleFontSize) {
+                btnToggleFontSize.classList.add('is-active');
+                if (fsIcon) fsIcon.innerHTML = 'A<sup>-</sup>';
+                if (fsLabel) fsLabel.textContent = 'Cỡ vừa';
+                btnToggleFontSize.title = 'Trở về kích thước chữ mặc định (A-)';
+            }
+        } else {
+            document.body.classList.remove('zen-font-large');
+            if (btnToggleFontSize) {
+                btnToggleFontSize.classList.remove('is-active');
+                if (fsIcon) fsIcon.innerHTML = 'A<sup>+</sup>';
+                if (fsLabel) fsLabel.textContent = 'Chữ lớn';
+                btnToggleFontSize.title = 'Tăng kích thước chữ hiển thị dễ đọc (A+)';
+            }
+        }
+    }
+
+    try {
+        const savedFontSizeLarge = localStorage.getItem('vegan_font_size_large') === '1';
+        if (savedFontSizeLarge) {
+            applyFontSizeMode(true);
+        }
+    } catch (e) {}
+
+    if (btnToggleFontSize) {
+        btnToggleFontSize.addEventListener('click', function () {
+            const willBeLarge = !document.body.classList.contains('zen-font-large');
+            applyFontSizeMode(willBeLarge);
+            try {
+                if (willBeLarge) {
+                    localStorage.setItem('vegan_font_size_large', '1');
+                } else {
+                    localStorage.removeItem('vegan_font_size_large');
+                }
+            } catch (e) {}
+        });
+    }
+
     // 1. Cập nhật giao diện radio option khi click
     function setupRadioGroup(groupName) {
         const radios = document.querySelectorAll(`input[name="${groupName}"]`);
@@ -312,6 +358,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const isFull = Boolean(slot.is_full);
             const isPastSlot = Boolean(slot.is_past_slot);
             const isPastCutoff = Boolean(slot.is_past_cutoff);
+            const isExceeded3M = Boolean(slot.is_exceeded_3m);
             const isUnavailable = isFull || isPastCutoff;
 
             if (isPastCutoff) {
@@ -321,6 +368,8 @@ document.addEventListener('DOMContentLoaded', function () {
             let statusText = `Còn ${slot.remaining_capacity} chỗ`;
             if (isPastSlot) {
                 statusText = 'Đã qua giờ';
+            } else if (isExceeded3M) {
+                statusText = 'Quá giờ đặt (>3p)';
             } else if (isPastCutoff) {
                 statusText = `Quá giờ đặt (trước ${slot.cutoff_hours || 3}h)`;
             } else if (isFull) {
@@ -334,6 +383,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const label = document.createElement('label');
             label.className = `zen-option ${isUnavailable ? 'is-disabled' : ''} ${shouldCheck ? 'is-checked' : ''}`;
+            label.setAttribute('data-is-overdue', (isPastCutoff || isPastSlot) ? '1' : '0');
+            label.setAttribute('data-is-exceeded-3m', isExceeded3M ? '1' : '0');
+            label.setAttribute('data-slot-time', slot.slot_time || '');
+            label.setAttribute('data-slot-date', slot.slot_date || '');
 
             label.innerHTML = `
                 <input type="radio" name="slot_id" value="${slot.id}" ${shouldCheck ? 'checked' : ''} ${isUnavailable ? 'disabled' : ''}>
@@ -351,6 +404,27 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         setupRadioGroup('slot_id');
+    }
+
+    // Xử lý khi khách bấm vào ca đã quá hạn đặt lịch (Issue #29)
+    if (slotContainer) {
+        slotContainer.addEventListener('click', function (e) {
+            const opt = e.target.closest('.zen-option');
+            if (!opt) return;
+            const isOverdue = opt.getAttribute('data-is-overdue') === '1';
+            const isExceeded3M = opt.getAttribute('data-is-exceeded-3m') === '1';
+            const slotTime = opt.getAttribute('data-slot-time') || '';
+            if (isOverdue) {
+                const sellerPhone = window.SELLER_PHONE || '0901 234 567';
+                const reason = isExceeded3M ? 'đã vượt quá thời gian nhận đặt lịch hơn 3 phút' : 'đã qua thời gian nhận đặt trước';
+                alert(`Dạ Bếp An Yên xin thông báo:\n\nKhung giờ ${slotTime} ${reason} để bếp kịp ninh nước dùng và chuẩn bị chu đáo.\n\nBạn thương có thể:\n1. Lựa chọn đặt vào ca tiếp theo còn trống\n2. Hoặc liên hệ trực tiếp với chủ bếp qua số ${sellerPhone} / Zalo để được hỗ trợ nhé.`);
+                const urgentZaloNote = document.getElementById('urgentZaloNote');
+                if (urgentZaloNote) {
+                    urgentZaloNote.style.display = 'block';
+                    urgentZaloNote.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
     }
 
     // 6. Kiểm tra validation trước khi gửi form

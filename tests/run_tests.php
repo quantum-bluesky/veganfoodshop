@@ -42,6 +42,7 @@ use Tests\Unit\Issue22_AboutPageTest;
 use Tests\Unit\Issue23_MobilePaymentQrTest;
 use Tests\Unit\Issue24_CustomerFlowAcceptanceTest;
 use Tests\Unit\Issue26_27_PromotionsAndZaloProfileTest;
+use Tests\Unit\Issue29_30_SlotOverdueAndFontSizeTest;
 use Tests\Integration\CreateOrderTransactionTest;
 use Tests\Integration\SlotConcurrencyTest;
 
@@ -62,6 +63,7 @@ $testSuites = [
     'Unit Tests - Issue 23 Thanh Toán Mobile QR Deeplink & Tải Ảnh' => new Issue23_MobilePaymentQrTest(),
     'Acceptance Tests - Issue 24 & 25 Luồng Nghiệp Vụ Khách Hàng' => new Issue24_CustomerFlowAcceptanceTest(),
     'Unit Tests - Issue 26 & 27 Khuyến Mại Đa Chiều & Zalo Profile' => new Issue26_27_PromotionsAndZaloProfileTest(),
+    'Unit Tests - Issue 29 & 30 Quá Giờ Đặt 3p & Cỡ Chữ A+/A-' => new Issue29_30_SlotOverdueAndFontSizeTest(),
     'Integration Tests - Transaction An Toàn' => new CreateOrderTransactionTest(),
     'Integration Tests - Khóa Suất Biên' => new SlotConcurrencyTest(),
 ];

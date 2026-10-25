@@ -28,6 +28,7 @@ $bankName = $configService->get('bank_name', 'MBBank');
 $accountNo = $configService->get('account_no', '0987654321');
 $accountName = $configService->get('account_name', 'BEP CHAY AN YEN');
 $sellerZaloUrl = (string)($zaloConfig['seller_zalo_url'] ?? 'https://zalo.me/0987862241');
+$sellerPhone = (string)$configService->get('seller_phone', '0901 234 567');
 $orderNoteShipping = (string)($zaloConfig['order_note_shipping'] ?? '');
 $zaloConfirmTemplate = (string)($zaloConfig['zalo_confirm_template'] ?? '');
 
@@ -142,18 +143,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <main class="page-container">
 
         <?php if ($error !== null): ?>
-            <!-- Màn hình thông báo lỗi / hết ca mộc mạc -->
+            <!-- Màn hình thông báo lỗi / hết ca mộc mạc (Issue #29) -->
             <div class="zen-card" style="text-align: center; padding: 32px 20px;">
                 <div style="font-size: 2.5rem; margin-bottom: 12px;">🌱</div>
-                <h2 class="font-serif-zen" style="font-size: 1.4rem; color: var(--brand-tea-dark); margin-bottom: 8px;">
+                <h2 class="font-serif-zen" style="font-size: 1.4rem; color: var(--brand-tea-dark); margin-bottom: 12px;">
                     Thông báo từ Bếp
                 </h2>
-                <p style="font-size: 0.88rem; color: var(--text-muted-warm); margin-bottom: 24px; line-height: 1.5;">
-                    <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
-                </p>
-                <a href="index.php" class="zen-btn-primary" style="text-decoration: none;">
-                    Quay lại chọn ca khác
-                </a>
+                <div style="font-size: 0.9rem; color: var(--text-charcoal); margin-bottom: 24px; line-height: 1.6; background: #FAF7F2; padding: 16px 18px; border-radius: 14px; border: 1px dashed var(--brand-border-soft); text-align: left;">
+                    <?= nl2br(htmlspecialchars($error, ENT_QUOTES, 'UTF-8')) ?>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="index.php" class="zen-btn-primary" style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <span>🌿</span>
+                        <span>Lựa chọn đặt vào ca tiếp theo</span>
+                    </a>
+                    <?php if (!empty($sellerZaloUrl)): ?>
+                        <a href="<?= htmlspecialchars($sellerZaloUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
+                           style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #0068FF; color: #FFFFFF; font-size: 0.88rem; font-weight: 600; padding: 12px 18px; border-radius: 999px; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 104, 255, 0.25);">
+                            <span>💬 Liên hệ trực tiếp chủ bếp qua Zalo</span> ↗
+                        </a>
+                    <?php endif; ?>
+                    <?php if (!empty($sellerPhone)): ?>
+                        <a href="tel:<?= preg_replace('/[^0-9]/', '', $sellerPhone) ?>" 
+                           style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #FAF7F2; color: var(--brand-tea-dark); border: 1px solid var(--brand-border-soft); font-size: 0.85rem; font-weight: 600; padding: 10px 18px; border-radius: 999px; text-decoration: none;">
+                            <span>📞 Gọi Hotline chủ bếp: <?= htmlspecialchars($sellerPhone, ENT_QUOTES, 'UTF-8') ?></span>
+                        </a>
+                    <?php endif; ?>
+                </div>
             </div>
 
         <?php elseif ($order !== null): ?>

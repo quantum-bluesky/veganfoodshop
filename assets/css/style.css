@@ -531,3 +531,136 @@ body {
 .btn-floating-view:hover {
     background: var(--brand-tea-hover);
 }
+
+/* ====================================================================
+   Issue #30: Chuyển đổi kích thước chữ hiển thị dễ đọc (A+ / A-)
+   Áp dụng cho toàn bộ flow đặt món & các vị trí hiển thị chú ý
+   ==================================================================== */
+
+.font-size-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #FAF7F2;
+    border: 1px solid var(--brand-border-soft);
+    color: var(--brand-tea-dark);
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.font-size-toggle-btn:hover {
+    background: var(--brand-sage-light);
+    border-color: var(--brand-tea-green);
+}
+
+.font-size-toggle-btn .fs-icon {
+    font-weight: 800;
+    font-size: 0.8rem;
+    color: var(--brand-tea-green);
+    letter-spacing: -0.5px;
+}
+
+.font-size-toggle-btn.is-active {
+    background: var(--brand-tea-green);
+    color: #FFFFFF;
+    border-color: var(--brand-tea-dark);
+}
+
+.font-size-toggle-btn.is-active .fs-icon {
+    color: #FCD34D;
+}
+
+/* Chế độ chữ lớn dễ đọc cho người dùng */
+body.zen-font-large {
+    font-size: 1.05rem;
+}
+
+/* Tăng kích thước và độ tương phản các vùng chú ý, ghi chú, thông báo */
+body.zen-font-large .zen-notice,
+body.zen-font-large .zen-event-item,
+body.zen-font-large #urgentZaloNote,
+body.zen-font-large #urgentZaloNote div,
+body.zen-font-large #upcomingBookingBanner,
+body.zen-font-large #upcomingBookingText,
+body.zen-font-large .zen-card p,
+body.zen-font-large .zen-card span,
+body.zen-font-large .zen-option p,
+body.zen-font-large .zen-option span {
+    font-size: max(0.85rem, 1.15em) !important;
+    line-height: 1.55 !important;
+}
+
+body.zen-font-large .zen-label {
+    font-size: 1.08rem !important;
+}
+
+body.zen-font-large .zen-label .badge-step {
+    width: 26px;
+    height: 26px;
+    font-size: 0.88rem;
+}
+
+/* Tăng độ tương phản màu chữ các dòng chú ý */
+body.zen-font-large [style*="color: var(--text-muted-warm)"],
+body.zen-font-large [style*="color: #7D7871"],
+body.zen-font-large [style*="color: #5C4033"],
+body.zen-font-large [style*="color: #8C6A50"] {
+    color: #2C2A29 !important;
+    font-weight: 500;
+}
+
+body.zen-font-large #urgentZaloNote {
+    padding: 14px 16px !important;
+    border-width: 1.5px !important;
+    border-color: var(--brand-tea-green) !important;
+}
+
+body.zen-font-large #urgentZaloNote a {
+    font-size: 0.85rem !important;
+    padding: 8px 14px !important;
+}
+
+body.zen-font-large .zen-hub-card {
+    padding: 16px !important;
+}
+
+body.zen-font-large .zen-hub-events .zen-event-item {
+    padding: 10px 14px !important;
+}
+
+body.zen-font-large .date-chip-dow {
+    font-size: 0.82rem !important;
+}
+body.zen-font-large .date-chip-solar {
+    font-size: 0.95rem !important;
+}
+body.zen-font-large .date-chip-lunar {
+    font-size: 0.78rem !important;
+}
+
+body.zen-font-large .menu-item-price {
+    font-size: 1.05rem !important;
+}
+
+body.zen-font-large .menu-item-desc {
+    font-size: 0.88rem !important;
+    line-height: 1.5 !important;
+    color: #374151 !important;
+}
+
+body.zen-font-large .zen-input {
+    font-size: 1rem !important;
+    padding: 14px !important;
+}
+
+body.zen-font-large .zen-btn-primary {
+    font-size: 1.05rem !important;
+    padding: 16px 20px !important;
+}
+

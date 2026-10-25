@@ -61,6 +61,7 @@ $shopQuote = $configService->get('shop_quote', 'Một bát canh thanh ngọt, v�
 $noticeText = $configService->get('notice_text', 'Lịch bếp hôm nay: Ca trưa 11:30 - 13:30 (Chỉ nhận tối đa 12 suất)');
 $orderNoteShipping = (string)($zaloConfig['order_note_shipping'] ?? '');
 $sellerZaloUrl = (string)($zaloConfig['seller_zalo_url'] ?? 'https://zalo.me/0987862241');
+$sellerPhone = (string)$configService->get('seller_phone', '0901 234 567');
 $minLeadTimeHours = (int)$configService->get('min_lead_time_hours', '3');
 $advanceBookingDays = (int)$configService->get('advance_booking_days', '7');
 $requireZaloLogin = (bool)($zaloConfig['require_zalo_login'] ?? false);
@@ -171,19 +172,26 @@ foreach ($menuItems as $it) {
 
     <main class="page-container">
 
-        <!-- Thanh điều hướng tối giản kết nối các trang -->
+        <!-- Thanh điều hướng tối giản kết nối các trang & Nút cỡ chữ A+/A- (Issue #30) -->
         <nav class="zen-nav-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 14px; background: #FAF7F2; border: 1px solid var(--brand-border-soft); border-radius: 999px; font-size: 0.76rem; margin-bottom: 8px;">
-            <span style="font-weight: 700; color: var(--brand-tea-green);">
-                🍲 Đặt Chỗ
-            </span>
-            <span style="color: #D1D5DB;">•</span>
-            <a href="about.php" style="text-decoration: none; color: var(--brand-tea-dark); font-weight: 600;">
-                🌿 Về Bếp An Yên
-            </a>
-            <span style="color: #D1D5DB;">•</span>
-            <a href="reviews.php" style="text-decoration: none; color: var(--brand-tea-dark); font-weight: 600;">
-                🌸 Cảm Nhận & Kỷ Niệm
-            </a>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: 700; color: var(--brand-tea-green);">
+                    🍲 Đặt Chỗ
+                </span>
+                <span style="color: #D1D5DB;">•</span>
+                <a href="about.php" style="text-decoration: none; color: var(--brand-tea-dark); font-weight: 600;">
+                    🌿 Về Bếp An Yên
+                </a>
+                <span style="color: #D1D5DB;">•</span>
+                <a href="reviews.php" style="text-decoration: none; color: var(--brand-tea-dark); font-weight: 600;">
+                    🌸 Cảm Nhận
+                </a>
+            </div>
+            <!-- Nút điều chỉnh kích thước chữ A+/A- (Issue #30) -->
+            <button type="button" id="btnToggleFontSize" class="font-size-toggle-btn" title="Tăng cỡ chữ để đọc rõ hơn / Về cỡ chữ mặc định" aria-label="Điều chỉnh cỡ chữ">
+                <span class="fs-icon" id="fsIcon">A<sup>+</sup></span>
+                <span class="fs-label" id="fsLabel">Chữ lớn</span>
+            </button>
         </nav>
 
         <!-- Top Zalo Profile / Connection Pill (Issue #27) -->
@@ -448,6 +456,7 @@ foreach ($menuItems as $it) {
                             $isFull = (bool)($slot['is_full'] ?? false);
                             $isPastSlot = (bool)($slot['is_past_slot'] ?? false);
                             $isPastCutoff = (bool)($slot['is_past_cutoff'] ?? false);
+                            $isExceeded3M = (bool)($slot['is_exceeded_3m'] ?? false);
                             $isUnavailable = ($isFull || $isPastCutoff);
 
                             if ($isPastCutoff) {
@@ -457,6 +466,8 @@ foreach ($menuItems as $it) {
                             $statusText = 'Còn ' . (int)$slot['remaining_capacity'] . ' chỗ';
                             if ($isPastSlot) {
                                 $statusText = 'Đã qua giờ';
+                            } elseif ($isExceeded3M) {
+                                $statusText = 'Quá giờ đặt (>3p)';
                             } elseif ($isPastCutoff) {
                                 $statusText = 'Quá giờ đặt (trước ' . (int)($slot['cutoff_hours'] ?? $minLeadTimeHours) . 'h)';
                             } elseif ($isFull) {
@@ -468,7 +479,11 @@ foreach ($menuItems as $it) {
                                 $firstChecked = true;
                             }
                         ?>
-                            <label class="zen-option <?= $shouldCheck ? 'is-checked' : '' ?> <?= $isUnavailable ? 'is-disabled' : '' ?>">
+                            <label class="zen-option <?= $shouldCheck ? 'is-checked' : '' ?> <?= $isUnavailable ? 'is-disabled' : '' ?>"
+                                   data-is-overdue="<?= ($isPastCutoff || $isPastSlot) ? '1' : '0' ?>"
+                                   data-is-exceeded-3m="<?= $isExceeded3M ? '1' : '0' ?>"
+                                   data-slot-time="<?= htmlspecialchars($slot['slot_time'], ENT_QUOTES, 'UTF-8') ?>"
+                                   data-slot-date="<?= htmlspecialchars($slot['slot_date'], ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="radio" name="slot_id" value="<?= (int)$slot['id'] ?>" <?= $shouldCheck ? 'checked' : '' ?> <?= $isUnavailable ? 'disabled' : '' ?>>
                                 <p style="font-weight: 600; font-size: 0.85rem;"><?= htmlspecialchars($slot['slot_time'], ENT_QUOTES, 'UTF-8') ?></p>
                                 <p style="font-size: 0.7rem; opacity: 0.8; margin-top: 2px;">
@@ -479,16 +494,16 @@ foreach ($menuItems as $it) {
                     <?php endif; ?>
                 </div>
 
-                <!-- Thông báo liên hệ Zalo khi không kịp giờ đặt trước -->
-                <div id="urgentZaloNote" style="display: <?= !empty($hasPastCutoff) ? 'block' : 'none' ?>; background: #FAF7F2; border: 1px dashed var(--brand-border-soft); border-radius: 12px; padding: 10px 14px; margin-top: 12px;">
+                <!-- Thông báo lịch sự khi vượt quá thời gian đặt lịch hoặc cần đặt gấp (Issue #29) -->
+                <div id="urgentZaloNote" style="display: <?= !empty($hasPastCutoff) ? 'block' : 'none' ?>; background: #FAF7F2; border: 1.5px dashed var(--brand-border-soft); border-radius: 14px; padding: 12px 14px; margin-top: 12px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                        <div style="font-size: 0.74rem; color: var(--text-muted-warm); line-height: 1.45;">
-                            🌿 Ca cần đặt trước <?= $minLeadTimeHours ?>h để bếp kịp ninh nước dùng. Bạn cần đặt gấp xin vui lòng nhắn Zalo Bếp nhé.
+                        <div style="font-size: 0.76rem; color: var(--text-charcoal); line-height: 1.5; flex: 1;">
+                            🌿 <strong>Thông báo từ Bếp:</strong> Khung giờ cần đặt trước <?= $minLeadTimeHours ?>h để bếp kịp ninh nước dùng tươi mới. Nếu thời gian thực tế đã vượt quá giờ đặt lịch hơn 3 phút, bạn thương vui lòng <strong>lựa chọn đặt vào ca tiếp theo</strong> hoặc <strong>liên hệ trực tiếp với chủ bếp</strong> qua Zalo/Hotline để được hỗ trợ nhé.
                         </div>
                         <?php if (!empty($sellerZaloUrl)): ?>
                             <a href="<?= htmlspecialchars($sellerZaloUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
-                               style="flex-shrink: 0; background: #0068FF; color: #FFFFFF; font-size: 0.72rem; padding: 6px 10px; border-radius: 8px; text-decoration: none; font-weight: 600; white-space: nowrap;">
-                                Nhắn Zalo ↗
+                               style="flex-shrink: 0; background: #0068FF; color: #FFFFFF; font-size: 0.72rem; padding: 7px 12px; border-radius: 8px; text-decoration: none; font-weight: 600; white-space: nowrap; box-shadow: 0 1px 4px rgba(0, 104, 255, 0.2);">
+                                💬 Nhắn Zalo Bếp ↗
                             </a>
                         <?php endif; ?>
                     </div>
@@ -767,6 +782,8 @@ foreach ($menuItems as $it) {
     <!-- Client Script & Config -->
     <script>
         window.REQUIRE_ZALO_LOGIN = <?= $requireZaloLogin ? 'true' : 'false' ?>;
+        window.SELLER_PHONE = <?= json_encode($sellerPhone, JSON_UNESCAPED_UNICODE) ?>;
+        window.SELLER_ZALO_URL = <?= json_encode($sellerZaloUrl, JSON_UNESCAPED_UNICODE) ?>;
     </script>
     <script src="assets/js/app.js"></script>
 </body>

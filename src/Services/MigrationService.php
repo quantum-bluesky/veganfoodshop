@@ -175,7 +175,7 @@ class MigrationService
                 if (str_contains(strtolower($e->getMessage()), 'duplicate column name')) {
                     continue;
                 }
-                throw $e;
+                throw new PDOException($e->getMessage() . " | Error on SQL: [" . $stmt . "]", (int)$e->getCode(), $e);
             }
         }
     }

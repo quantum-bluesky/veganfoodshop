@@ -165,9 +165,119 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $desc = trim((string)$_POST['description']);
             $price = (int)$_POST['price'];
             $cat = (string)$_POST['category'];
+            $serviceScope = (string)($_POST['service_scope'] ?? 'both');
+            $isFeastCombo = !empty($_POST['is_feast_combo']) ? 1 : 0;
             if ($name && $price >= 0) {
-                $menuService->createItem($name, $desc, $price, $cat);
-                $message = 'Đã thêm món mới vào thực đơn.';
+                $menuService->createItem($name, $desc, $price, $cat, $serviceScope, $isFeastCombo);
+                $message = 'Đã thêm món/mâm cỗ mới vào thực đơn.';
+            }
+            break;
+
+        case 'update_menu_item':
+            $itemId = (int)$_POST['item_id'];
+            $name = trim((string)$_POST['name']);
+            $desc = trim((string)$_POST['description']);
+            $price = (int)$_POST['price'];
+            $cat = (string)$_POST['category'];
+            $serviceScope = (string)($_POST['service_scope'] ?? 'both');
+            $isFeastCombo = !empty($_POST['is_feast_combo']) ? 1 : 0;
+            if ($itemId > 0 && $name && $price >= 0) {
+                $menuService->updateItem($itemId, $name, $desc, $price, $cat, $serviceScope, $isFeastCombo);
+                $message = 'Đã cập nhật thông tin món ăn.';
+            }
+            break;
+
+        case 'delete_menu_item':
+            $itemId = (int)$_POST['item_id'];
+            if ($itemId > 0) {
+                if ($menuService->deleteItem($itemId)) {
+                    $message = 'Đã xóa món khỏi thực đơn.';
+                } else {
+                    $message = 'Món này đã có trong đơn đặt của khách, không thể xóa vĩnh viễn (bếp có thể bấm Tắt món).';
+                }
+            }
+            break;
+
+        case 'create_menu_suite':
+            $name = trim((string)($_POST['name'] ?? ''));
+            $desc = trim((string)($_POST['description'] ?? ''));
+            $isDefault = !empty($_POST['is_default']) ? 1 : 0;
+            $itemIds = !empty($_POST['item_ids']) && is_array($_POST['item_ids']) ? array_map('intval', $_POST['item_ids']) : [];
+            if ($name !== '') {
+                $menuService->createSuite($name, $desc, $isDefault, $itemIds);
+                $message = 'Đã tạo bộ thực đơn mẫu mới.';
+            }
+            break;
+
+        case 'update_menu_suite':
+            $suiteId = (int)($_POST['suite_id'] ?? 0);
+            $name = trim((string)($_POST['name'] ?? ''));
+            $desc = trim((string)($_POST['description'] ?? ''));
+            $isDefault = !empty($_POST['is_default']) ? 1 : 0;
+            $itemIds = !empty($_POST['item_ids']) && is_array($_POST['item_ids']) ? array_map('intval', $_POST['item_ids']) : [];
+            if ($suiteId > 0 && $name !== '') {
+                $menuService->updateSuite($suiteId, $name, $desc, $isDefault, $itemIds);
+                $message = 'Đã cập nhật bộ thực đơn mẫu.';
+            }
+            break;
+
+        case 'delete_menu_suite':
+            $suiteId = (int)($_POST['suite_id'] ?? 0);
+            if ($suiteId > 0) {
+                $menuService->deleteSuite($suiteId);
+                $message = 'Đã xóa bộ thực đơn mẫu.';
+            }
+            break;
+
+        case 'assign_menu_schedule':
+            $date = trim((string)($_POST['schedule_date'] ?? ''));
+            $suiteId = (int)($_POST['suite_id'] ?? 0);
+            $note = trim((string)($_POST['note'] ?? ''));
+            if ($date && $suiteId > 0) {
+                $menuService->assignSuiteToDate($date, $suiteId, $note);
+                $message = 'Đã lên lịch thực đơn cho ngày ' . date('d/m/Y', strtotime($date));
+            }
+            break;
+
+        case 'replicate_menu_schedule':
+            $suiteId = (int)($_POST['suite_id'] ?? 0);
+            $startDate = trim((string)($_POST['start_date'] ?? ''));
+            $endDate = trim((string)($_POST['end_date'] ?? ''));
+            $daysOfWeek = !empty($_POST['days_of_week']) && is_array($_POST['days_of_week']) ? array_map('intval', $_POST['days_of_week']) : [];
+            if ($suiteId > 0 && $startDate && $endDate) {
+                $count = $menuService->replicateSchedule($suiteId, $startDate, $endDate, $daysOfWeek);
+                $message = "Đã áp dụng bộ thực đơn cho {$count} ngày trong khoảng từ {$startDate} đến {$endDate}.";
+            }
+            break;
+
+        case 'remove_menu_schedule':
+            $date = trim((string)($_POST['schedule_date'] ?? ''));
+            if ($date) {
+                $menuService->removeScheduleForDate($date);
+                $message = 'Đã hủy lịch chỉ định riêng cho ngày ' . date('d/m/Y', strtotime($date)) . ' (ngày này sẽ xoay tua theo quy tắc chung).';
+            }
+            break;
+
+        case 'update_menu_rules':
+            $rule = (string)($_POST['menu_schedule_rule'] ?? 'default');
+            $evenSuiteId = (int)($_POST['menu_even_suite_id'] ?? 2);
+            $oddSuiteId = (int)($_POST['menu_odd_suite_id'] ?? 3);
+            $defaultSuiteId = (int)($_POST['menu_default_suite_id'] ?? 1);
+            $configService->set('menu_schedule_rule', $rule);
+            $configService->set('menu_even_suite_id', (string)$evenSuiteId);
+            $configService->set('menu_odd_suite_id', (string)$oddSuiteId);
+            $configService->set('menu_default_suite_id', (string)$defaultSuiteId);
+            $message = 'Đã lưu quy tắc xoay tua thực đơn tự động.';
+            break;
+
+        case 'notify_menu_change':
+            $itemId = (int)($_POST['item_id'] ?? 0);
+            $changeTitle = trim((string)($_POST['change_title'] ?? 'Thông báo thay đổi món'));
+            $changeMsg = trim((string)($_POST['change_message'] ?? ''));
+            $fromDate = trim((string)($_POST['from_date'] ?? date('Y-m-d')));
+            if ($itemId > 0 && $changeMsg !== '') {
+                $res = $menuService->notifyCustomersOnItemChange($itemId, $changeTitle, $changeMsg, $fromDate);
+                $message = "Đã tạo thông báo gửi đến {$res['enqueued_count']} khách có đơn đặt món bị ảnh hưởng.";
             }
             break;
 
@@ -410,8 +520,21 @@ $pendingReconcileCount = count($allPendingReconcile);
 $customerSearch = (string)($_GET['search_cust'] ?? '');
 $customerList = $customerService->getAllCustomers($customerSearch);
 
-// Tab Menu
+// Tab Menu (Issue #17)
+$menuSubtab = (string)($_GET['menu_subtab'] ?? 'items');
 $menuList = $menuService->getAllMenu();
+$allSuites = $menuService->getAllSuites();
+$menuScheduleRule = $configService->get('menu_schedule_rule', 'default');
+$menuEvenSuiteId = (int)$configService->get('menu_even_suite_id', '2');
+$menuOddSuiteId = (int)$configService->get('menu_odd_suite_id', '3');
+$menuDefaultSuiteId = (int)$configService->get('menu_default_suite_id', '1');
+$upcomingSchedules = $menuService->getSchedulesBetween(date('Y-m-d'), date('Y-m-d', strtotime('+30 days')));
+
+$impactItemId = !empty($_GET['check_impact_item_id']) ? (int)$_GET['check_impact_item_id'] : 0;
+$impactData = null;
+if ($impactItemId > 0) {
+    $impactData = $menuService->checkItemBookedImpact($impactItemId);
+}
 
 // Tab Config
 $currentConfig = $configService->getAll();
@@ -1250,77 +1373,535 @@ $notifStats = $notificationService->getStats();
             </div>
 
         <?php elseif ($currentTab === 'menu'): ?>
-            <!-- TAB 4: Thực đơn -->
-            <div class="zen-card" style="margin-bottom: 16px;">
-                <h3 style="font-size: 0.9rem; font-weight: 700; color: var(--brand-tea-green); margin-bottom: 12px;">+ Thêm Món Mới</h3>
-                <form method="POST" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) 120px; gap: 10px; align-items: flex-end;">
-                    <input type="hidden" name="admin_action" value="create_menu_item">
-                    <div>
-                        <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block;">Tên món:</label>
-                        <input type="text" name="name" class="zen-input" placeholder="Tên món ăn/thức uống" required>
-                    </div>
-                    <div>
-                        <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block;">Đơn giá (VND):</label>
-                        <input type="number" name="price" class="zen-input" value="45000" min="0" required>
-                    </div>
-                    <div>
-                        <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block;">Phân loại:</label>
-                        <select name="category" class="zen-input">
-                            <option value="food">Món ăn chính (food)</option>
-                            <option value="drink">Thức uống thanh nhiệt (drink)</option>
-                            <option value="extra">Món thêm (extra)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <button type="submit" class="zen-btn-primary" style="padding: 11px 14px; border-radius: 12px; font-size: 0.85rem;">+ Thêm Món</button>
-                    </div>
-                </form>
+            <!-- TAB 4: Quản Lý Thực Đơn Nâng Cao (Issue #17) -->
+            
+            <!-- Thanh Subtab Thực Đơn -->
+            <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1.5px solid var(--brand-border-soft); padding-bottom: 10px; flex-wrap: wrap;">
+                <a href="admin.php?tab=menu&menu_subtab=items" class="action-btn" style="<?= $menuSubtab === 'items' ? 'background: var(--brand-tea-green); color: #FFF; font-weight: 700; border-color: var(--brand-tea-green);' : '' ?>">🥢 Danh Sách Món & Mâm Cỗ</a>
+                <a href="admin.php?tab=menu&menu_subtab=suites" class="action-btn" style="<?= $menuSubtab === 'suites' ? 'background: var(--brand-tea-green); color: #FFF; font-weight: 700; border-color: var(--brand-tea-green);' : '' ?>">🍱 Bộ Thực Đơn Mẫu (<?= count($allSuites) ?>)</a>
+                <a href="admin.php?tab=menu&menu_subtab=schedule" class="action-btn" style="<?= $menuSubtab === 'schedule' ? 'background: var(--brand-tea-green); color: #FFF; font-weight: 700; border-color: var(--brand-tea-green);' : '' ?>">📅 Lên Lịch & Xoay Tua</a>
+                <a href="admin.php?tab=menu&menu_subtab=impact" class="action-btn" style="<?= $menuSubtab === 'impact' ? 'background: #DC2626; color: #FFF; font-weight: 700; border-color: #DC2626;' : ($impactItemId > 0 ? 'background: #FEE2E2; color: #B91C1C; font-weight: 600;' : '') ?>">
+                    ⚠️ Cảnh Báo Sửa Món <?= $impactItemId > 0 ? '(Đang soi món #' . $impactItemId . ')' : '' ?>
+                </a>
             </div>
 
-            <div class="zen-card" style="padding: 0; overflow-x: auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Tên Món</th>
-                            <th>Mô Tả</th>
-                            <th>Phân Loại</th>
-                            <th>Đơn Giá</th>
-                            <th>Trạng Thái</th>
-                            <th>Thao Tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($menuList as $m): ?>
+            <?php if ($menuSubtab === 'items'): ?>
+                <!-- SUBTAB 1: Danh Sách Món & Mâm Cỗ -->
+                <div class="zen-card" style="margin-bottom: 16px;">
+                    <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--brand-tea-green); margin-bottom: 12px;">+ Thêm Món / Mâm Cỗ Mới</h3>
+                    <form method="POST" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: flex-end;">
+                        <input type="hidden" name="admin_action" value="create_menu_item">
+                        <div>
+                            <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Tên món / Tên mâm cỗ:</label>
+                            <input type="text" name="name" class="zen-input" placeholder="Ví dụ: Mâm Cỗ An Lạc, Phở nấm..." required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Đơn giá (VND):</label>
+                            <input type="number" name="price" class="zen-input" value="45000" min="0" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Phân loại:</label>
+                            <select name="category" class="zen-input">
+                                <option value="food">Món ăn chính (food)</option>
+                                <option value="drink">Thức uống thanh nhiệt (drink)</option>
+                                <option value="extra">Món thêm / Tráng miệng (extra)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Phạm vi phục vụ:</label>
+                            <select name="service_scope" class="zen-input">
+                                <option value="both">🌿 Cả tại quán & Mang đi</option>
+                                <option value="dine_in_only">🍵 Chỉ dùng tại quán</option>
+                                <option value="takeaway_only">🥡 Chỉ giao mang về</option>
+                            </select>
+                        </div>
+                        <div style="grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 250px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Mô tả / Các món trong mâm cỗ:</label>
+                                <input type="text" name="description" class="zen-input" placeholder="Ghi chú thành phần món hoặc số người phù hợp...">
+                            </div>
+                            <div style="padding-top: 18px;">
+                                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: #92400E; background: #FEF3C7; padding: 7px 12px; border-radius: 8px;">
+                                    <input type="checkbox" name="is_feast_combo" value="1">
+                                    🍱 Là Mâm Cỗ Chay Trọn Vị
+                                </label>
+                            </div>
+                            <div style="padding-top: 18px;">
+                                <button type="submit" class="zen-btn-primary" style="padding: 10px 18px; border-radius: 10px; font-size: 0.85rem; white-space: nowrap;">
+                                    + Lưu Món
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="zen-card" style="padding: 0; overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
                             <tr>
-                                <td><strong><?= htmlspecialchars($m['name'], ENT_QUOTES, 'UTF-8') ?></strong></td>
-                                <td style="font-size: 0.75rem; color: var(--text-muted-warm); max-width: 250px;"><?= htmlspecialchars((string)($m['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($m['category'], ENT_QUOTES, 'UTF-8') ?></td>
-                                <td>
-                                    <form method="POST" style="display: flex; gap: 4px; align-items: center;">
-                                        <input type="hidden" name="admin_action" value="update_price">
-                                        <input type="hidden" name="item_id" value="<?= (int)$m['id'] ?>">
-                                        <input type="number" name="price" value="<?= (int)$m['price'] ?>" style="width: 75px; font-size: 0.8rem; padding: 3px 6px; border: 1px solid var(--brand-border-soft); border-radius: 6px;">
-                                        <button type="submit" class="action-btn">Lưu</button>
-                                    </form>
-                                </td>
-                                <td>
-                                    <?= (int)$m['is_available'] === 1 ? '<span style="color:#059669;">Đang phục vụ</span>' : '<span style="color:#DC2626;">Tạm hết</span>' ?>
-                                </td>
-                                <td>
-                                    <form method="POST">
-                                        <input type="hidden" name="admin_action" value="toggle_menu">
-                                        <input type="hidden" name="item_id" value="<?= (int)$m['id'] ?>">
-                                        <input type="hidden" name="is_available" value="<?= (int)$m['is_available'] === 1 ? '0' : '1' ?>">
-                                        <button type="submit" class="action-btn">
-                                            <?= (int)$m['is_available'] === 1 ? 'Tắt món' : 'Bật phục vụ' ?>
-                                        </button>
-                                    </form>
-                                </td>
+                                <th>Tên Món & Phân Loại</th>
+                                <th>Mô Tả Chi Tiết</th>
+                                <th>Phục Vụ</th>
+                                <th>Đơn Giá</th>
+                                <th>Trạng Thái</th>
+                                <th>Thao Tác & Cảnh Báo</th>
                             </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($menuList as $m): ?>
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 700; color: var(--brand-tea-dark);">
+                                            <?= htmlspecialchars($m['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </div>
+                                        <div style="display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap;">
+                                            <?php if (!empty($m['is_feast_combo'])): ?>
+                                                <span style="background: #FEF3C7; color: #92400E; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">🍱 Mâm Cỗ</span>
+                                            <?php endif; ?>
+                                            <?php if ($m['category'] === 'drink'): ?>
+                                                <span style="background: #E0F2FE; color: #0369A1; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">🍹 Đồ Uống</span>
+                                            <?php elseif ($m['category'] === 'food'): ?>
+                                                <span style="background: #ECFDF5; color: #047857; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">🍲 Món Ăn</span>
+                                            <?php else: ?>
+                                                <span style="background: #F3F4F6; color: #4B5563; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;">Thêm</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td style="font-size: 0.75rem; color: var(--text-muted-warm); max-width: 240px;">
+                                        <?= htmlspecialchars((string)($m['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                    </td>
+                                    <td>
+                                        <?php 
+                                        $scope = (string)($m['service_scope'] ?? 'both');
+                                        if ($scope === 'dine_in_only') {
+                                            echo '<span style="font-size: 0.72rem; color: #2563EB; font-weight: 600;">🍵 Chỉ tại quán</span>';
+                                        } elseif ($scope === 'takeaway_only') {
+                                            echo '<span style="font-size: 0.72rem; color: #D97706; font-weight: 600;">🥡 Chỉ mang đi</span>';
+                                        } else {
+                                            echo '<span style="font-size: 0.72rem; color: #059669;">🌿 Cả hai</span>';
+                                        }
+                                        ?>
+                                    </td>
+                                    <td>
+                                        <form method="POST" style="display: flex; gap: 4px; align-items: center;">
+                                            <input type="hidden" name="admin_action" value="update_price">
+                                            <input type="hidden" name="item_id" value="<?= (int)$m['id'] ?>">
+                                            <input type="number" name="price" value="<?= (int)$m['price'] ?>" style="width: 78px; font-size: 0.8rem; padding: 4px 6px; border: 1px solid var(--brand-border-soft); border-radius: 6px;">
+                                            <button type="submit" class="action-btn" title="Cập nhật giá">Lưu</button>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <?= (int)$m['is_available'] === 1 ? '<span style="color:#059669; font-weight:600;">Đang phục vụ</span>' : '<span style="color:#DC2626; font-weight:600;">Tạm hết</span>' ?>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                            <form method="POST" style="display: inline;">
+                                                <input type="hidden" name="admin_action" value="toggle_menu">
+                                                <input type="hidden" name="item_id" value="<?= (int)$m['id'] ?>">
+                                                <input type="hidden" name="is_available" value="<?= (int)$m['is_available'] === 1 ? '0' : '1' ?>">
+                                                <button type="submit" class="action-btn">
+                                                    <?= (int)$m['is_available'] === 1 ? 'Tắt món' : 'Bật phục vụ' ?>
+                                                </button>
+                                            </form>
+                                            <a href="admin.php?tab=menu&menu_subtab=impact&check_impact_item_id=<?= (int)$m['id'] ?>" class="action-btn" style="color: #B91C1C; border-color: #FCA5A5; text-decoration: none;" title="Kiểm tra xem đã có khách nào đặt món này cho các ca sắp tới chưa">
+                                                ⚠️ Soi đơn đặt
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+            <?php elseif ($menuSubtab === 'suites'): ?>
+                <!-- SUBTAB 2: Bộ Thực Đơn Mẫu (Menu Suites) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                    <!-- Form tạo Suite mới -->
+                    <div class="zen-card">
+                        <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--brand-tea-green); margin-bottom: 12px;">+ Tạo Bộ Thực Đơn Mẫu Mới</h3>
+                        <form method="POST">
+                            <input type="hidden" name="admin_action" value="create_menu_suite">
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Tên bộ thực đơn:</label>
+                                <input type="text" name="name" class="zen-input" placeholder="Ví dụ: Thực Đơn Ngày Rằm, Thực Đơn Mùa Vu Lan..." required>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Ghi chú / Mô tả:</label>
+                                <input type="text" name="description" class="zen-input" placeholder="Mô tả tóm tắt phong vị ẩm thực...">
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+                                    <input type="checkbox" name="is_default" value="1">
+                                    Đặt làm bộ thực đơn mặc định của quán
+                                </label>
+                            </div>
+                            <div style="margin-bottom: 14px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 6px; font-weight: 700;">Chọn các món & mâm cỗ thuộc bộ này:</label>
+                                <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--brand-border-soft); border-radius: 8px; padding: 8px; display: grid; grid-template-columns: 1fr; gap: 6px; background: #FAF8F5;">
+                                    <?php foreach ($menuList as $m): ?>
+                                        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; cursor: pointer; padding: 2px 4px;">
+                                            <input type="checkbox" name="item_ids[]" value="<?= (int)$m['id'] ?>">
+                                            <span>
+                                                <strong><?= htmlspecialchars($m['name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                                <span style="color: var(--text-muted-warm); font-size: 0.7rem;">(<?= number_format($m['price'], 0, ',', '.') ?>đ)</span>
+                                                <?php if (!empty($m['is_feast_combo'])): ?>
+                                                    <span style="background: #FEF3C7; color: #92400E; font-size: 0.65rem; padding: 1px 4px; border-radius: 4px;">🍱 Mâm cỗ</span>
+                                                <?php endif; ?>
+                                            </span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <button type="submit" class="zen-btn-primary" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 0.85rem;">
+                                + Lưu Bộ Thực Đơn Mẫu
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Danh sách các Suite hiện có -->
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <?php foreach ($allSuites as $suite): ?>
+                            <?php $suiteItems = $menuService->getSuiteItems((int)$suite['id']); ?>
+                            <div class="zen-card" style="border-left: 4px solid <?= (int)$suite['is_default'] === 1 ? 'var(--brand-tea-green)' : 'var(--brand-border-soft)' ?>;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div>
+                                        <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--brand-tea-dark);">
+                                            <?= htmlspecialchars($suite['name'], ENT_QUOTES, 'UTF-8') ?>
+                                            <?php if ((int)$suite['is_default'] === 1): ?>
+                                                <span style="background: #ECFDF5; color: #047857; font-size: 0.68rem; padding: 2px 6px; border-radius: 999px; margin-left: 6px; font-weight: 700;">★ Mặc Định</span>
+                                            <?php endif; ?>
+                                        </h4>
+                                        <p style="font-size: 0.76rem; color: var(--text-muted-warm); margin-top: 2px;">
+                                            <?= htmlspecialchars((string)($suite['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                        </p>
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <?php if ((int)$suite['is_default'] !== 1): ?>
+                                            <form method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa bộ thực đơn này?');">
+                                                <input type="hidden" name="admin_action" value="delete_menu_suite">
+                                                <input type="hidden" name="suite_id" value="<?= (int)$suite['id'] ?>">
+                                                <button type="submit" class="action-btn" style="color: #DC2626; border-color: #FCA5A5;">Xóa</button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--brand-border-soft);">
+                                    <div style="font-size: 0.72rem; color: var(--text-muted-warm); margin-bottom: 4px;">
+                                        Các món phục vụ (<?= count($suiteItems) ?> món):
+                                    </div>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                        <?php foreach ($suiteItems as $si): ?>
+                                            <span style="font-size: 0.7rem; background: #F4EFEA; padding: 2px 6px; border-radius: 6px; color: #4B5563;">
+                                                <?= htmlspecialchars($si['name'], ENT_QUOTES, 'UTF-8') ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
                         <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+                    </div>
+                </div>
+
+            <?php elseif ($menuSubtab === 'schedule'): ?>
+                <!-- SUBTAB 3: Lên Lịch & Quy Tắc Xoay Tua -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <!-- Card 1: Quy tắc xoay tua tự động -->
+                    <div class="zen-card">
+                        <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--brand-tea-green); margin-bottom: 8px;">
+                            🔄 Quy Tắc Xoay Tua Tự Động
+                        </h3>
+                        <p style="font-size: 0.75rem; color: var(--text-muted-warm); margin-bottom: 12px;">
+                            Hệ thống tự động đổi thực đơn mỗi ngày mà không cần bếp phải cài đặt thủ công liên tục.
+                        </p>
+                        <form method="POST">
+                            <input type="hidden" name="admin_action" value="update_menu_rules">
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Chế độ áp dụng:</label>
+                                <select name="menu_schedule_rule" class="zen-input">
+                                    <option value="default" <?= $menuScheduleRule === 'default' ? 'selected' : '' ?>>Luôn dùng bộ mặc định</option>
+                                    <option value="even_odd" <?= $menuScheduleRule === 'even_odd' ? 'selected' : '' ?>>Tự động xoay tua Ngày Chẵn / Lẻ</option>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Bộ thực đơn Ngày Chẵn (T2, T4, T6):</label>
+                                <select name="menu_even_suite_id" class="zen-input">
+                                    <?php foreach ($allSuites as $s): ?>
+                                        <option value="<?= (int)$s['id'] ?>" <?= $menuEvenSuiteId === (int)$s['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($s['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Bộ thực đơn Ngày Lẻ (T3, T5, T7, CN):</label>
+                                <select name="menu_odd_suite_id" class="zen-input">
+                                    <?php foreach ($allSuites as $s): ?>
+                                        <option value="<?= (int)$s['id'] ?>" <?= $menuOddSuiteId === (int)$s['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($s['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <button type="submit" class="zen-btn-primary" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 0.85rem;">
+                                Lưu Quy Tắc Xoay Tua
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Card 2: Chỉ định riêng cho từng ngày (Override) -->
+                    <div class="zen-card">
+                        <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--brand-tea-green); margin-bottom: 8px;">
+                            🎯 Chỉ Định Thực Đơn Cho Ngày Cụ Thể
+                        </h3>
+                        <p style="font-size: 0.75rem; color: var(--text-muted-warm); margin-bottom: 12px;">
+                            Ghi đè thực đơn cho ngày lễ, ngày Rằm 15, Mùng 1 hoặc tiệc mâm cỗ đặt riêng.
+                        </p>
+                        <form method="POST">
+                            <input type="hidden" name="admin_action" value="assign_menu_schedule">
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Chọn ngày:</label>
+                                <input type="date" name="schedule_date" class="zen-input" value="<?= date('Y-m-d') ?>" required>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Áp dụng bộ thực đơn:</label>
+                                <select name="suite_id" class="zen-input">
+                                    <?php foreach ($allSuites as $s): ?>
+                                        <option value="<?= (int)$s['id'] ?>">
+                                            <?= htmlspecialchars($s['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Ghi chú ngày (tùy chọn):</label>
+                                <input type="text" name="note" class="zen-input" placeholder="Ví dụ: Rằm tháng Giêng, Mâm cỗ tiệc...">
+                            </div>
+                            <button type="submit" class="zen-btn-primary" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 0.85rem;">
+                                Áp Dụng Cho Ngày Này
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Card 3: Nhân bản hàng loạt theo tuần/tháng -->
+                    <div class="zen-card">
+                        <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--brand-tea-green); margin-bottom: 8px;">
+                            📑 Nhân Bản Lịch Thực Đơn Hàng Loạt
+                        </h3>
+                        <p style="font-size: 0.75rem; color: var(--text-muted-warm); margin-bottom: 12px;">
+                            Gán một bộ thực đơn cho chuỗi ngày liên tiếp hoặc các ngày cố định trong tuần.
+                        </p>
+                        <form method="POST">
+                            <input type="hidden" name="admin_action" value="replicate_menu_schedule">
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Bộ thực đơn:</label>
+                                <select name="suite_id" class="zen-input">
+                                    <?php foreach ($allSuites as $s): ?>
+                                        <option value="<?= (int)$s['id'] ?>">
+                                            <?= htmlspecialchars($s['name'], ENT_QUOTES, 'UTF-8') ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block;">Từ ngày:</label>
+                                    <input type="date" name="start_date" class="zen-input" value="<?= date('Y-m-d') ?>" required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block;">Đến ngày:</label>
+                                    <input type="date" name="end_date" class="zen-input" value="<?= date('Y-m-d', strtotime('+14 days')) ?>" required>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Lọc các thứ trong tuần (để trống = tất cả):</label>
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 0.72rem;">
+                                    <label><input type="checkbox" name="days_of_week[]" value="1"> T2</label>
+                                    <label><input type="checkbox" name="days_of_week[]" value="2"> T3</label>
+                                    <label><input type="checkbox" name="days_of_week[]" value="3"> T4</label>
+                                    <label><input type="checkbox" name="days_of_week[]" value="4"> T5</label>
+                                    <label><input type="checkbox" name="days_of_week[]" value="5"> T6</label>
+                                    <label><input type="checkbox" name="days_of_week[]" value="6"> T7</label>
+                                    <label><input type="checkbox" name="days_of_week[]" value="0"> CN</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="zen-btn-primary" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 0.85rem;">
+                                Nhân Bản Cho Chuỗi Ngày
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Danh sách ngày đã chỉ định riêng -->
+                <div class="zen-card" style="padding: 0; overflow-x: auto;">
+                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--brand-border-soft); font-weight: 700; color: var(--brand-tea-green); font-size: 0.9rem;">
+                        📅 Các Ngày Đã Chỉ Định Thực Đơn Riêng Trong 30 Ngày Tới (<?= count($upcomingSchedules) ?> ngày)
+                    </div>
+                    <?php if (empty($upcomingSchedules)): ?>
+                        <div style="padding: 24px; text-align: center; color: var(--text-muted-warm); font-size: 0.82rem;">
+                            Chưa có ngày nào được chỉ định riêng. Mọi ngày hiện đang tự động xoay tua theo <strong>Quy Tắc Xoay Tua Tự Động</strong> ở trên.
+                        </div>
+                    <?php else: ?>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Ngày</th>
+                                    <th>Bộ Thực Đơn Áp Dụng</th>
+                                    <th>Ghi Chú Ngày</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($upcomingSchedules as $sch): ?>
+                                    <tr>
+                                        <td><strong><?= date('d/m/Y (l)', strtotime($sch['schedule_date'])) ?></strong></td>
+                                        <td>
+                                            <span style="background: #ECFDF5; color: #047857; font-weight: 600; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem;">
+                                                🍱 <?= htmlspecialchars($sch['suite_name'], ENT_QUOTES, 'UTF-8') ?>
+                                            </span>
+                                        </td>
+                                        <td style="font-size: 0.78rem; color: var(--text-muted-warm);"><?= htmlspecialchars((string)($sch['note'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                                        <td>
+                                            <form method="POST" style="display: inline;">
+                                                <input type="hidden" name="admin_action" value="remove_menu_schedule">
+                                                <input type="hidden" name="schedule_date" value="<?= htmlspecialchars($sch['schedule_date'], ENT_QUOTES, 'UTF-8') ?>">
+                                                <button type="submit" class="action-btn" style="color: #DC2626;">Hủy Chỉ Định</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+
+            <?php elseif ($menuSubtab === 'impact'): ?>
+                <!-- SUBTAB 4: Cảnh Báo Thay Đổi Món & Thông Báo Khách Hàng (Issue #17) -->
+                <div class="zen-card" style="margin-bottom: 16px;">
+                    <h3 style="font-size: 0.95rem; font-weight: 700; color: #B91C1C; margin-bottom: 8px;">
+                        ⚠️ Kiểm Tra Ảnh Hưởng Khi Sửa / Hết Món Đã Được Khách Đặt
+                    </h3>
+                    <p style="font-size: 0.78rem; color: var(--text-muted-warm); margin-bottom: 12px;">
+                        Khi bếp đổi giá, hết món hoặc muốn thay món tương đương, chọn món bên dưới để kiểm tra toàn bộ các đơn đặt trước từ hôm nay trở đi bị ảnh hưởng và hỗ trợ thông báo tức thì cho khách.
+                    </p>
+                    <form method="GET" style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
+                        <input type="hidden" name="tab" value="menu">
+                        <input type="hidden" name="menu_subtab" value="impact">
+                        <div style="flex: 1; min-width: 260px;">
+                            <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Chọn món ăn / mâm cỗ cần kiểm tra:</label>
+                            <select name="check_impact_item_id" class="zen-input" required>
+                                <option value="">-- Chọn món cần soi đơn đặt trước --</option>
+                                <?php foreach ($menuList as $m): ?>
+                                    <option value="<?= (int)$m['id'] ?>" <?= $impactItemId === (int)$m['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($m['name'], ENT_QUOTES, 'UTF-8') ?> (<?= number_format($m['price'], 0, ',', '.') ?>đ)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <button type="submit" class="zen-btn-primary" style="padding: 10px 18px; border-radius: 10px; font-size: 0.85rem;">
+                            🔍 Soi Đơn Đặt Trước
+                        </button>
+                    </form>
+                </div>
+
+                <?php if ($impactData): ?>
+                    <div class="zen-card" style="margin-bottom: 16px; border-left: 4px solid <?= count($impactData['affected_orders']) > 0 ? '#DC2626' : '#10B981' ?>;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <h4 style="font-size: 1rem; font-weight: 700; color: var(--brand-tea-dark);">
+                                    Món đang soi: <span style="color: var(--brand-tea-green);"><?= htmlspecialchars($impactData['item']['name'], ENT_QUOTES, 'UTF-8') ?></span>
+                                </h4>
+                                <p style="font-size: 0.8rem; color: var(--text-muted-warm); margin-top: 4px;">
+                                    Đơn giá hiện hành: <strong><?= number_format($impactData['item']['price'], 0, ',', '.') ?>đ</strong> • Trạng thái: <?= (int)$impactData['item']['is_available'] === 1 ? 'Đang phục vụ' : 'Tạm hết' ?>
+                                </p>
+                            </div>
+                            <div>
+                                <span style="background: <?= count($impactData['affected_orders']) > 0 ? '#FEE2E2' : '#ECFDF5' ?>; color: <?= count($impactData['affected_orders']) > 0 ? '#B91C1C' : '#047857' ?>; padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: 0.82rem;">
+                                    <?= count($impactData['affected_orders']) ?> đơn đã đặt • <?= (int)$impactData['total_quantity'] ?> suất cần phục vụ
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php if (count($impactData['affected_orders']) === 0): ?>
+                        <div class="zen-card" style="text-align: center; padding: 32px; color: #047857; background: #F0FDF4;">
+                            <div style="font-size: 2rem; margin-bottom: 8px;">✓</div>
+                            <strong>Yên tâm! Chưa có khách nào đặt trước món này cho các ca từ hôm nay trở đi.</strong>
+                            <p style="font-size: 0.78rem; color: var(--text-muted-warm); margin-top: 4px;">Bếp có thể thoải mái sửa giá, sửa mô tả hoặc tạm tắt món mà không làm ảnh hưởng đến đơn của khách.</p>
+                        </div>
+                    <?php else: ?>
+                        <!-- Form Thông báo đồng loạt vào Outbox & Gợi ý Zalo -->
+                        <div class="zen-card" style="margin-bottom: 16px; background: #FFFBF0; border: 1.5px solid #FDE68A;">
+                            <h4 style="font-size: 0.92rem; font-weight: 700; color: #92400E; margin-bottom: 8px;">
+                                📢 Gửi Thông Báo Vào Hàng Đợi Cho <?= count($impactData['affected_orders']) ?> Khách Hàng Đã Đặt Món Này
+                            </h4>
+                            <p style="font-size: 0.75rem; color: #78350F; margin-bottom: 12px;">
+                                Thông báo sẽ được lưu vào hàng đợi Outbox của từng khách hàng và hiển thị trên màn hình tra cứu đơn của khách.
+                            </p>
+                            <form method="POST">
+                                <input type="hidden" name="admin_action" value="notify_menu_change">
+                                <input type="hidden" name="item_id" value="<?= (int)$impactData['item']['id'] ?>">
+                                <input type="hidden" name="from_date" value="<?= date('Y-m-d') ?>">
+                                <div style="margin-bottom: 10px;">
+                                    <label style="font-size: 0.72rem; color: #78350F; display: block; margin-bottom: 4px;">Tiêu đề thông báo:</label>
+                                    <input type="text" name="change_title" class="zen-input" value="Bếp An Yên: Thông báo thay đổi món <?= htmlspecialchars($impactData['item']['name'], ENT_QUOTES, 'UTF-8') ?>" required>
+                                </div>
+                                <div style="margin-bottom: 10px;">
+                                    <label style="font-size: 0.72rem; color: #78350F; display: block; margin-bottom: 4px;">Nội dung nhắn gửi khách:</label>
+                                    <textarea name="change_message" class="zen-input" rows="3" required>Dạ chào bạn, Bếp Chay An Yên xin phép thông báo về món [<?= htmlspecialchars($impactData['item']['name'], ENT_QUOTES, 'UTF-8') ?>] trong đơn đặt của bạn. Bếp xin được điều chỉnh/đổi món tương đương giúp bạn hoặc hoàn tiền chênh lệch nhé ạ!</textarea>
+                                </div>
+                                <button type="submit" class="zen-btn-primary" style="background: #D97706; padding: 10px 18px; border-radius: 8px; font-size: 0.85rem;">
+                                    📤 Xếp Lịch Gửi Thông Báo Cho Khách
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Danh sách các đơn cụ thể và nút nhắn Zalo từng người -->
+                        <div class="zen-card" style="padding: 0; overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã Đơn</th>
+                                        <th>Khách Hàng</th>
+                                        <th>SĐT</th>
+                                        <th>Ngày & Giờ Ca</th>
+                                        <th>Số Lượng Đặt</th>
+                                        <th>Thao Tác Khẩn Cấp</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($impactData['affected_orders'] as $ord): ?>
+                                        <?php 
+                                        $cleanPhone = preg_replace('/\D+/', '', (string)$ord['customer_phone']);
+                                        $zaloMsg = "Chào bạn " . ($ord['customer_name'] ?? 'bạn') . ", Bếp Chay An Yên xin liên hệ về đơn #" . $ord['order_id'] . " (ca " . $ord['slot_time'] . " ngày " . date('d/m', strtotime($ord['slot_date'])) . "). Về món " . $impactData['item']['name'] . " bạn đặt, bếp xin phép được thông báo điều chỉnh nhé ạ!";
+                                        ?>
+                                        <tr>
+                                            <td><strong>#<?= (int)$ord['order_id'] ?></strong></td>
+                                            <td><?= htmlspecialchars((string)($ord['customer_name'] ?? 'Khách'), ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td><?= htmlspecialchars($ord['customer_phone'], ENT_QUOTES, 'UTF-8') ?></td>
+                                            <td>
+                                                <?= date('d/m/Y', strtotime($ord['slot_date'])) ?> 
+                                                <span style="font-size: 0.75rem; color: var(--text-muted-warm);">(<?= htmlspecialchars($ord['slot_time'], ENT_QUOTES, 'UTF-8') ?>)</span>
+                                            </td>
+                                            <td>
+                                                <span style="background: #FEE2E2; color: #B91C1C; font-weight: 700; padding: 2px 8px; border-radius: 6px; font-size: 0.8rem;">
+                                                    <?= (int)$ord['quantity'] ?> suất
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="https://zalo.me/<?= urlencode($cleanPhone) ?>" target="_blank" class="action-btn" style="color: #0068FF; border-color: #93C5FD; text-decoration: none; font-weight: 600;">
+                                                    💬 Mở Zalo Khách
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+            <?php endif; ?>
 
         <?php elseif ($currentTab === 'notifications'): ?>
             <!-- TAB 5: Hàng Đợi Thông Báo SQLite (Issue #13) -->

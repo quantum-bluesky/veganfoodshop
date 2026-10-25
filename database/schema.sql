@@ -35,10 +35,41 @@ CREATE TABLE IF NOT EXISTS menu_items (
     name TEXT NOT NULL,
     description TEXT NULL,
     price INTEGER NOT NULL CHECK(price >= 0),
-    category TEXT NOT NULL CHECK(category IN ('food', 'drink', 'extra')),
+    category TEXT NOT NULL CHECK(category IN ('food', 'drink', 'extra', 'feast_combo')),
     image_url TEXT NULL,
+    service_scope TEXT NOT NULL DEFAULT 'both' CHECK(service_scope IN ('both', 'dine_in_only', 'takeaway_only')),
+    is_feast_combo INTEGER NOT NULL DEFAULT 0,
     is_available INTEGER NOT NULL DEFAULT 1,
     sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+-- 3.1. Bảng Bộ Thực Đơn Mẫu (Menu Suites)
+CREATE TABLE IF NOT EXISTS menu_suites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3.2. Bảng Món thuộc Bộ Thực Đơn (Suite Items)
+CREATE TABLE IF NOT EXISTS menu_suite_items (
+    suite_id INTEGER NOT NULL,
+    menu_item_id INTEGER NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (suite_id, menu_item_id),
+    FOREIGN KEY (suite_id) REFERENCES menu_suites(id) ON DELETE CASCADE,
+    FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE
+);
+
+-- 3.3. Bảng Phân Bổ Lịch Thực Đơn Theo Ngày (Menu Schedules)
+CREATE TABLE IF NOT EXISTS menu_schedules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    schedule_date TEXT NOT NULL UNIQUE,
+    suite_id INTEGER NOT NULL,
+    note TEXT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (suite_id) REFERENCES menu_suites(id) ON DELETE CASCADE
 );
 
 -- 4. Bảng Đơn Hàng & Đặt Chỗ

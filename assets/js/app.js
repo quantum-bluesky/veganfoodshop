@@ -40,6 +40,40 @@ document.addEventListener('DOMContentLoaded', function () {
     setupRadioGroup('slot_id');
     setupRadioGroup('payment_method');
 
+    // Lọc món theo hình thức nhận (Tại chỗ vs Mang về) (Issue #17)
+    function filterMenuByOrderType(orderType) {
+        const rows = document.querySelectorAll('.menu-item-row');
+        rows.forEach(row => {
+            const scope = row.dataset.scope || 'both';
+            if (scope === 'both') {
+                row.style.display = 'flex';
+            } else if (orderType === 'dine_in' && scope === 'dine_in_only') {
+                row.style.display = 'flex';
+            } else if (orderType === 'takeaway' && scope === 'takeaway_only') {
+                row.style.display = 'flex';
+            } else {
+                row.style.display = 'none';
+                const input = row.querySelector('.qty-input');
+                if (input && parseInt(input.value || '0', 10) > 0) {
+                    input.value = '0';
+                }
+            }
+        });
+        calculateTotal();
+    }
+
+    const orderTypeRadios = document.querySelectorAll('input[name="order_type"]');
+    orderTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function () {
+            if (this.checked) {
+                filterMenuByOrderType(this.value);
+            }
+        });
+    });
+
+    const initialOrderType = document.querySelector('input[name="order_type"]:checked')?.value || 'dine_in';
+    filterMenuByOrderType(initialOrderType);
+
     // 2. Tính toán tổng tiền theo thời gian thực
     function calculateTotal() {
         let total = 0;

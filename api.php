@@ -57,6 +57,24 @@ try {
             ], JSON_UNESCAPED_UNICODE);
             break;
 
+        case 'get_menu_for_date':
+            $date = (string)($_GET['date'] ?? date('Y-m-d'));
+            $orderType = isset($_GET['order_type']) ? (string)$_GET['order_type'] : null;
+
+            $menuService = new \App\Services\MenuService();
+            $scheduledSuite = $menuService->getScheduledSuiteForDate($date);
+            $items = $menuService->getMenuItemsForDate($date, $orderType);
+
+            echo json_encode([
+                'success' => true,
+                'date' => $date,
+                'order_type' => $orderType,
+                'suite_name' => $scheduledSuite['name'] ?? 'Thực đơn Bếp An Yên',
+                'suite_desc' => $scheduledSuite['description'] ?? '',
+                'items' => $items,
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+
         case 'get_zalo_config':
             $zaloService = new \App\Services\ZaloAuthService();
             $zCfg = $zaloService->getConfig();

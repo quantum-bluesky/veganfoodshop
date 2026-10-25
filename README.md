@@ -70,8 +70,22 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
     - **Báo Cáo Chốt Sổ Ngày & Đóng Ca Lịch Sử (Issue #16 - Phần 1):** Tách biệt các ca đang phục vụ với các ca đã qua (`is_closed`); hỗ trợ chốt ca và chốt sổ toàn bộ ngày, chuyển đơn đã xác nhận sang hoàn tất; bảng báo cáo thống kê doanh thu thực tế, doanh thu chờ thu và tổng suất món đã nấu.
     - **Tự Động Xác Nhận Thanh Toán & Đối Soát Tài Chính (Issue #16 - Phần 2):**
       - Tự động nhận diện thanh toán thành công theo thời gian thực (Polling JS chu kỳ 3.5s + API Webhook `api.php?action=bank_webhook`).
-      - Hướng dẫn VietQR minh bạch, hỗ trợ hơn 40 ứng dụng ngân hàng và ví điện tử, hướng dẫn giữ nguyên cú pháp nội dung chuyển khoản `AY-YYYYMMDD-XXXX`.
-      - Bảng đối soát tài chính trên Admin giúp bóc tách mã đơn tự động từ tin nhắn ngân hàng và xác nhận thu tiền tức thì.
+12. **Quản Lý Bộ Thực Đơn Mẫu, Xoay Tua Lịch Ngày & Cảnh Báo Sửa Món (v1.6.0 - Issue #17):**
+    - **Phân Loại Thực Đơn Toàn Diện:**
+      - Phân loại lớn: Đồ ăn (`food`), Đồ uống (`drink`), Món thêm/tráng miệng (`extra`).
+      - Phạm vi phục vụ: Cả hai (`both`), Chỉ tại quán (`dine_in_only`), Chỉ mang về (`takeaway_only`). Giao diện khách hàng tự động lọc và hiển thị đúng món theo hình thức đặt.
+      - Hỗ trợ **Mâm Cỗ Chay Trọn Vị** (`is_feast_combo = 1`): Phục vụ khách đặt tiệc gia đình, cúng Rằm, giỗ chạp với danh mục món và giá mâm trọn gói.
+    - **Bộ Thực Đơn Mẫu (Menu Template Suites):**
+      - Quản lý các bộ thực đơn chuẩn bị sẵn: *Thực Đơn Thường Ngày (Mặc Định)*, *Thực Đơn Ngày Chẵn (T2, T4, T6)*, *Thực Đơn Ngày Lẻ (T3, T5, T7, CN)*, *Mâm Cỗ Chay An Lạc (Rằm & Tiệc)*.
+      - Dễ dàng tạo mới/chỉnh sửa bộ thực đơn với bộ chọn món dạng checklist trực quan.
+    - **Cơ Chế Lên Lịch Thực Đơn Linh Hoạt (Scheduling & Automation):**
+      - **Quy tắc xoay tua tự động (Zero-maintenance):** Tự động đổi thực đơn theo ngày chẵn/lẻ mà không cần can thiệp thủ công.
+      - **Chỉ định ngày đặc biệt (Date Override):** Đặt riêng bộ thực đơn cho ngày Rằm, Mùng 1 hoặc ngày lễ.
+      - **Nhân bản lịch hàng loạt:** Áp dụng nhanh một bộ thực đơn cho chuỗi ngày liên tiếp theo các thứ trong tuần.
+    - **Cảnh Báo Thay Đổi Món & Bảo Vệ Đơn Đã Đặt:**
+      - Khi sửa giá, hết món hoặc đổi món: Bếp dễ dàng tra cứu danh sách toàn bộ các đơn đặt trước từ hôm nay trở đi bị ảnh hưởng.
+      - Ngăn chặn xóa vĩnh viễn món ăn đã có trong lịch sử đơn hàng để bảo toàn dữ liệu đối soát.
+      - Tự động sinh mẫu tin nhắn Zalo gửi tay kèm link trực tiếp `https://zalo.me/{sdt}` và hỗ trợ xếp lịch thông báo đồng loạt vào hàng đợi Outbox (`MENU_CHANGE_ALERT`).
 
 ---
 

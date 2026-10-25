@@ -64,10 +64,12 @@ $requireZaloLogin = (bool)($zaloConfig['require_zalo_login'] ?? false);
 $today = date('Y-m-d');
 $shopClosedStatusToday = $configService->getShopClosedStatus($today);
 $availableDates = $slotService->getAvailableDates($advanceBookingDays);
-$selectedDate = !empty($availableDates) ? $availableDates[0] : $today;
+$reqDate = (string)($_GET['date'] ?? '');
+$selectedDate = ($reqDate !== '' && in_array($reqDate, $availableDates, true)) ? $reqDate : (!empty($availableDates) ? $availableDates[0] : $today);
 $slots = !empty($availableDates) ? $slotService->getSlotsByDate($selectedDate, true, $minLeadTimeHours) : [];
 $isBookingDisabled = empty($availableDates) || empty($slots);
-$menuItems = $menuService->getActiveMenu();
+$scheduledSuite = $menuService->getScheduledSuiteForDate($selectedDate);
+$menuItems = $menuService->getMenuItemsForDate($selectedDate);
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -246,7 +248,7 @@ $menuItems = $menuService->getActiveMenu();
                         <span class="badge-step">2</span> Khung giờ bạn ghé / nhận món
                     </h2>
                     <?php if (count($availableDates) > 1): ?>
-                    <select id="dateSelector" name="order_date" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--brand-border-soft); background: #FAF7F2; color: var(--brand-tea-dark); outline: none;">
+                    <select id="dateSelector" name="order_date" onchange="window.location.href='index.php?date='+encodeURIComponent(this.value)" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--brand-border-soft); background: #FAF7F2; color: var(--brand-tea-dark); outline: none;">
                         <?php foreach ($availableDates as $d): ?>
                             <option value="<?= htmlspecialchars($d, ENT_QUOTES, 'UTF-8') ?>" <?= $d === $selectedDate ? 'selected' : '' ?>>
                                 <?= date('d/m/Y', strtotime($d)) ?>
@@ -321,31 +323,66 @@ $menuItems = $menuService->getActiveMenu();
                 </div>
             </section>
 
-            <!-- BƯỚC 3: Chọn món thanh tịnh tinh tuyển -->
+            <!-- BƯỚC 3: Chọn món thanh tịnh tinh tuyển (Issue #17) -->
             <section class="zen-card">
-                <h2 class="zen-label">
-                    <span class="badge-step">3</span> Món lành hôm nay
-                </h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
+                    <h2 class="zen-label" style="margin-bottom: 0;">
+                        <span class="badge-step">3</span> Món lành hôm nay
+                    </h2>
+                    <span id="menuSuiteBadge" style="font-size: 0.72rem; background: #EEF2E6; color: var(--brand-tea-green); padding: 3px 8px; border-radius: 6px; font-weight: 600;">
+                        🍱 <?= htmlspecialchars($scheduledSuite['name'] ?? 'Thực đơn Bếp An Yên', ENT_QUOTES, 'UTF-8') ?>
+                    </span>
+                </div>
                 
-                <div style="display: flex; flex-direction: column;">
-                    <?php foreach ($menuItems as $idx => $item): 
-                        $defaultQty = ($idx === 0) ? 1 : 0;
-                    ?>
-                        <div class="menu-item-row" data-price="<?= (int)$item['price'] ?>" data-item-id="<?= (int)$item['id'] ?>">
-                            <div class="menu-item-info">
-                                <h3 class="menu-item-title"><?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?></h3>
-                                <?php if (!empty($item['description'])): ?>
-                                    <p class="menu-item-desc"><?= htmlspecialchars($item['description'], ENT_QUOTES, 'UTF-8') ?></p>
-                                <?php endif; ?>
-                                <span class="menu-item-price"><?= number_format((int)$item['price'], 0, ',', '.') ?>đ</span>
-                            </div>
-                            <div class="qty-control">
-                                <button type="button" class="qty-btn qty-minus" aria-label="Giảm số lượng">-</button>
-                                <input type="text" name="items[<?= (int)$item['id'] ?>]" value="<?= $defaultQty ?>" class="qty-input" readonly>
-                                <button type="button" class="qty-btn qty-plus" aria-label="Tăng số lượng">+</button>
-                            </div>
+                <div id="menuItemsContainer" style="display: flex; flex-direction: column;">
+                    <?php if (empty($menuItems)): ?>
+                        <div style="text-align: center; color: var(--text-muted-warm); padding: 24px 0; font-size: 0.85rem;">
+                            🍃 Hôm nay bếp đang chuẩn bị thực đơn mới, mong bạn quay lại sau ít phút nhé.
                         </div>
-                    <?php endforeach; ?>
+                    <?php else: ?>
+                        <?php foreach ($menuItems as $idx => $item): 
+                            $defaultQty = ($idx === 0) ? 1 : 0;
+                            $isCombo = !empty($item['is_feast_combo']);
+                            $scope = $item['service_scope'] ?? 'both';
+                        ?>
+                            <div class="menu-item-row" 
+                                 data-price="<?= (int)$item['price'] ?>" 
+                                 data-item-id="<?= (int)$item['id'] ?>"
+                                 data-category="<?= htmlspecialchars($item['category'] ?? 'food', ENT_QUOTES, 'UTF-8') ?>"
+                                 data-scope="<?= htmlspecialchars($scope, ENT_QUOTES, 'UTF-8') ?>"
+                                 data-combo="<?= $isCombo ? '1' : '0' ?>"
+                                 style="<?= $isCombo ? 'background: #FAF7F2; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px;' : '' ?>">
+                                <div class="menu-item-info">
+                                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+                                        <h3 class="menu-item-title"><?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?></h3>
+                                        <?php if ($isCombo): ?>
+                                            <span style="font-size: 0.65rem; background: #FEF3C7; color: #92400E; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
+                                                🍱 Mâm cỗ trọn vị
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($scope === 'dine_in_only'): ?>
+                                            <span style="font-size: 0.62rem; background: #E0E7FF; color: #3730A3; padding: 1px 5px; border-radius: 4px;">
+                                                🍵 Chỉ tại quán
+                                            </span>
+                                        <?php elseif ($scope === 'takeaway_only'): ?>
+                                            <span style="font-size: 0.62rem; background: #FEF2F2; color: #991B1B; padding: 1px 5px; border-radius: 4px;">
+                                                🥡 Chỉ mang về
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php if (!empty($item['description'])): ?>
+                                        <p class="menu-item-desc"><?= htmlspecialchars($item['description'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    <?php endif; ?>
+                                    <span class="menu-item-price"><?= number_format((int)$item['price'], 0, ',', '.') ?>đ</span>
+                                </div>
+                                <div class="qty-control">
+                                    <button type="button" class="qty-btn qty-minus" aria-label="Giảm số lượng">-</button>
+                                    <input type="text" name="items[<?= (int)$item['id'] ?>]" value="<?= $defaultQty ?>" class="qty-input" readonly>
+                                    <button type="button" class="qty-btn qty-plus" aria-label="Tăng số lượng">+</button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </section>
 

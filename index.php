@@ -531,8 +531,11 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
             </div>
         </div>
 
-        <footer style="text-align: center; font-size: 0.72rem; color: var(--text-muted-warm); margin-top: 10px;">
+        <footer style="text-align: center; font-size: 0.72rem; color: var(--text-muted-warm); margin-top: 10px; display: flex; flex-direction: column; gap: 6px; align-items: center;">
             <p>Bếp Chay An Yên • Bình an trong từng bát bún phở</p>
+            <a href="reviews.php" style="color: var(--brand-tea-green); text-decoration: none; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;">
+                <span>🌸</span> Góc Cảm Nhận & Đánh Giá
+            </a>
         </footer>
 
     </main>

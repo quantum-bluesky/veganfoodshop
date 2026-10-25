@@ -129,6 +129,24 @@ CREATE TABLE IF NOT EXISTS notification_outbox (
     payload_json TEXT
 );
 
+-- 8. Bảng Đánh Giá & Cảm Nhận Của Khách Hàng (Customer Reviews - Issue #18)
+CREATE TABLE IF NOT EXISTS customer_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_phone TEXT NULL,
+    customer_name TEXT NOT NULL,
+    order_id INTEGER NULL,
+    rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+    title TEXT NULL,
+    comment TEXT NOT NULL,
+    kitchen_reply TEXT NULL,
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'hidden'
+    is_verified_buyer INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    replied_at DATETIME NULL,
+    FOREIGN KEY (customer_phone) REFERENCES customers(phone) ON UPDATE CASCADE ON DELETE SET NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
+);
+
 -- ====================================================================
 -- INDEXES TỐI ƯU HIỆU NĂNG TRUY VẤN
 -- ====================================================================
@@ -141,3 +159,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_customer_phone ON orders(customer_phone);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_notification_pending ON notification_outbox(status, next_retry_at);
 CREATE INDEX IF NOT EXISTS idx_notification_order ON notification_outbox(order_id);
+CREATE INDEX IF NOT EXISTS idx_customer_reviews_status ON customer_reviews(status);
+CREATE INDEX IF NOT EXISTS idx_customer_reviews_phone ON customer_reviews(customer_phone);
+CREATE INDEX IF NOT EXISTS idx_customer_reviews_order ON customer_reviews(order_id);
+

@@ -86,6 +86,16 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Khi sửa giá, hết món hoặc đổi món: Bếp dễ dàng tra cứu danh sách toàn bộ các đơn đặt trước từ hôm nay trở đi bị ảnh hưởng.
       - Ngăn chặn xóa vĩnh viễn món ăn đã có trong lịch sử đơn hàng để bảo toàn dữ liệu đối soát.
       - Tự động sinh mẫu tin nhắn Zalo gửi tay kèm link trực tiếp `https://zalo.me/{sdt}` và hỗ trợ xếp lịch thông báo đồng loạt vào hàng đợi Outbox (`MENU_CHANGE_ALERT`).
+13. **Trang Đánh Giá & Cảm Nhận Người Dùng - Có Cơ Chế Feature Flag Tạm Khóa (v1.7.0 - Issue #18):**
+    - **Cơ chế Bật/Tắt chủ động (Feature Flag):** Mặc định tính năng ở trạng thái **TẮT** (`reviews_enabled = '0'`). Khi chưa cần, trang `reviews.php` hiển thị thông điệp nhẹ nhàng hẹn mở cửa trong thời gian tới và tạm khóa form gửi để tránh nhận spam. Khi bếp cần lắng nghe khách, chỉ cần 1 click trên Admin để **BẬT** ngay lập tức.
+    - **Góc Cảm Nhận Khách Hàng (`reviews.php`):**
+      - Thang điểm đánh giá 1-5 sao trực quan kèm thống kê điểm số trung bình và phân bổ số sao.
+      - Tự động gắn cờ **✓ Đã dùng bữa** (`is_verified_buyer = 1`) khi khách nhập đúng mã đơn hàng đã đặt.
+      - Chống spam gửi nhiều lần cho cùng một mã đơn.
+    - **Kiểm Duyệt & Phản Hồi Từ Bếp (`admin.php?tab=reviews`):**
+      - Thống kê thời gian thực: Chờ duyệt (`pending`), Đang hiển thị (`approved`), Đã ẩn (`hidden`).
+      - Nút Duyệt hiển thị, Ẩn đánh giá hoặc Xóa nhanh gọn.
+      - Khung phản hồi trực tiếp: Bếp có thể gửi lời cảm ơn hoặc giải đáp thắc mắc, hiển thị ngay bên dưới đánh giá của khách trên web.
 
 ---
 

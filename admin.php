@@ -17,6 +17,7 @@ use App\Services\MenuService;
 use App\Services\NotificationService;
 use App\Services\OrderService;
 use App\Services\SlotService;
+use App\Services\ReviewService;
 
 $configService = new ConfigService();
 $customerService = new CustomerService();
@@ -24,6 +25,7 @@ $menuService = new MenuService();
 $notificationService = new NotificationService();
 $orderService = new OrderService();
 $slotService = new SlotService();
+$reviewService = new ReviewService(\App\Database\Connection::getInstance(), $configService);
 
 $config = require __DIR__ . '/config/config.php';
 $defaultPassword = $config['admin']['default_password'] ?? 'AnYen@2026';
@@ -361,7 +363,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $configService->set('smtp_from_name', $smtpFromName);
             $configService->set('smtp_mock_mode', $smtpMockMode);
 
-            $message = 'Đã lưu cấu hình hệ thống, thời gian đặt, Zalo & Email SMTP thành công.';
+            // Cấu hình Đánh Giá & Cảm Nhận Khách Hàng (Issue #18)
+            $reviewsEnabled = isset($_POST['reviews_enabled']) ? '1' : '0';
+            $reviewsRequireApproval = isset($_POST['reviews_require_approval']) ? '1' : '0';
+            $reviewsAllowAnon = isset($_POST['reviews_allow_anonymous']) ? '1' : '0';
+
+            $configService->set('reviews_enabled', $reviewsEnabled);
+            $configService->set('reviews_require_approval', $reviewsRequireApproval);
+            $configService->set('reviews_allow_anonymous', $reviewsAllowAnon);
+
+            $message = 'Đã lưu cấu hình hệ thống, thời gian đặt, Zalo, Email & Đánh giá thành công.';
             break;
 
         // 6. Xử lý hàng đợi thông báo (Issue #13)
@@ -468,6 +479,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $closingReport = $orderService->closeDay($closeDate, true);
             $message = sprintf('Đã chốt sổ toàn bộ ngày %s thành công. Doanh thu ghi nhận: %sđ.', $closeDate, number_format((int)$closingReport['total_revenue'], 0, ',', '.'));
             break;
+
+        // 9. Quản lý Đánh Giá & Cảm Nhận Của Khách (Issue #18)
+        case 'update_review_status':
+            $revId = (int)($_POST['review_id'] ?? 0);
+            $revStatus = (string)($_POST['review_status'] ?? 'pending');
+            if ($revId > 0) {
+                $reviewService->updateStatus($revId, $revStatus);
+                $message = 'Đã cập nhật trạng thái hiển thị của đánh giá.';
+            }
+            break;
+
+        case 'reply_review':
+            $revId = (int)($_POST['review_id'] ?? 0);
+            $kitchenReply = (string)($_POST['kitchen_reply'] ?? '');
+            if ($revId > 0) {
+                $reviewService->replyToReview($revId, $kitchenReply);
+                $message = 'Đã lưu lời phản hồi của Bếp gửi khách.';
+            }
+            break;
+
+        case 'delete_review':
+            $revId = (int)($_POST['review_id'] ?? 0);
+            if ($revId > 0) {
+                $reviewService->deleteReview($revId);
+                $message = 'Đã xóa đánh giá.';
+            }
+            break;
+
+        case 'toggle_reviews_feature':
+            $enabled = (int)($_POST['reviews_enabled'] ?? 0) === 1;
+            $reviewService->setReviewsEnabled($enabled);
+            $message = $enabled 
+                ? 'Đã BẬT trang đánh giá & cảm nhận cho khách hàng.' 
+                : 'Đã TẮT trang đánh giá của khách hàng (chế độ tạm đóng).';
+            break;
     }
 }
 
@@ -544,6 +590,12 @@ $notifChannelFilter = !empty($_GET['notif_channel']) ? (string)$_GET['notif_chan
 $notifStatusFilter = !empty($_GET['notif_status']) ? (string)$_GET['notif_status'] : null;
 $notifList = $notificationService->getNotificationsForAdmin(60, $notifChannelFilter, $notifStatusFilter);
 $notifStats = $notificationService->getStats();
+
+// Tab Reviews (Issue #18)
+$reviewStatusFilter = !empty($_GET['review_status']) ? (string)$_GET['review_status'] : null;
+$allReviews = $reviewService->getAllReviewsForAdmin($reviewStatusFilter);
+$reviewAdminStats = $reviewService->getAdminStats();
+$isReviewsEnabled = $reviewService->isReviewsEnabled();
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -674,6 +726,14 @@ $notifStats = $notificationService->getStats();
             </a>
             <a href="admin.php?tab=customers" class="admin-tab <?= $currentTab === 'customers' ? 'active' : '' ?>">🌿 Khách Quen</a>
             <a href="admin.php?tab=menu" class="admin-tab <?= $currentTab === 'menu' ? 'active' : '' ?>">🥢 Thực Đơn</a>
+            <a href="admin.php?tab=reviews" class="admin-tab <?= $currentTab === 'reviews' ? 'active' : '' ?>">
+                🌸 Đánh Giá
+                <?php if ($reviewAdminStats['pending'] > 0): ?>
+                    <span style="background: #F59E0B; color: #FFFFFF; font-size: 0.65rem; padding: 2px 6px; border-radius: 999px; margin-left: 4px; font-weight: 700;" title="Đánh giá đang chờ duyệt">
+                        <?= $reviewAdminStats['pending'] ?>
+                    </span>
+                <?php endif; ?>
+            </a>
             <a href="admin.php?tab=notifications" class="admin-tab <?= $currentTab === 'notifications' ? 'active' : '' ?>">
                 🔔 Thông Báo
                 <?php if ($notifStats['pending'] > 0 || $notifStats['failed'] > 0): ?>
@@ -2067,6 +2127,200 @@ $notifStats = $notificationService->getStats();
                 </table>
             </div>
 
+        <?php elseif ($currentTab === 'reviews'): ?>
+            <!-- TAB: Quản Lý Đánh Giá Khách Hàng (Issue #18) -->
+            <div class="zen-card" style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2 style="font-size: 1.05rem; font-weight: 700; color: var(--brand-tea-green); margin-bottom: 2px;">
+                            🌸 Quản Lý Đánh Giá & Cảm Nhận Của Khách
+                        </h2>
+                        <p style="font-size: 0.78rem; color: var(--text-muted-warm);">
+                            Lắng nghe phản hồi từ khách và kiểm duyệt lời cảm nhận trước khi hiển thị công khai.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <form method="POST" style="display: inline;">
+                            <input type="hidden" name="admin_action" value="toggle_reviews_feature">
+                            <input type="hidden" name="reviews_enabled" value="<?= $isReviewsEnabled ? '0' : '1' ?>">
+                            <button type="submit" class="action-btn" style="<?= $isReviewsEnabled ? 'background: #ECFDF5; color: #047857; font-weight: 700; border-color: #A7F3D0;' : 'background: #FEF3C7; color: #92400E; font-weight: 700; border-color: #FDE68A;' ?>">
+                                <?= $isReviewsEnabled ? '🟢 Đang MỞ CHO KHÁCH ĐÁNH GIÁ (Bấm Tắt)' : '🔒 Đang TẮT (Chưa bật - Bấm để Mở)' ?>
+                            </button>
+                        </form>
+                        <a href="reviews.php" target="_blank" class="action-btn" style="text-decoration: none;">
+                            Xem Trang Đánh Giá ↗
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thẻ thống kê đánh giá -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #F59E0B;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">⏳ Chờ Kiểm Duyệt</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #D97706; margin-top: 4px;">
+                        <?= (int)$reviewAdminStats['pending'] ?>
+                    </p>
+                </div>
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #10B981;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">✓ Đang Hiển Thị</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #059669; margin-top: 4px;">
+                        <?= (int)$reviewAdminStats['approved'] ?>
+                    </p>
+                </div>
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #6B7280;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">👁️ Đã Ẩn</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #4B5563; margin-top: 4px;">
+                        <?= (int)$reviewAdminStats['hidden'] ?>
+                    </p>
+                </div>
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #D97706;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">★ Điểm Trung Bình</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #D97706; margin-top: 4px;">
+                        <?= number_format((float)$reviewAdminStats['avg_rating'], 1) ?><span style="font-size: 1rem; color: #F59E0B;">★</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Bộ lọc trạng thái đánh giá -->
+            <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+                <a href="admin.php?tab=reviews" class="action-btn" style="<?= $reviewStatusFilter === null ? 'background: var(--brand-tea-green); color: #FFF; font-weight: 700;' : '' ?>">
+                    Tất Cả (<?= (int)$reviewAdminStats['total'] ?>)
+                </a>
+                <a href="admin.php?tab=reviews&review_status=pending" class="action-btn" style="<?= $reviewStatusFilter === 'pending' ? 'background: #D97706; color: #FFF; font-weight: 700;' : '' ?>">
+                    ⏳ Chờ Duyệt (<?= (int)$reviewAdminStats['pending'] ?>)
+                </a>
+                <a href="admin.php?tab=reviews&review_status=approved" class="action-btn" style="<?= $reviewStatusFilter === 'approved' ? 'background: #059669; color: #FFF; font-weight: 700;' : '' ?>">
+                    ✓ Đã Duyệt (<?= (int)$reviewAdminStats['approved'] ?>)
+                </a>
+                <a href="admin.php?tab=reviews&review_status=hidden" class="action-btn" style="<?= $reviewStatusFilter === 'hidden' ? 'background: #4B5563; color: #FFF; font-weight: 700;' : '' ?>">
+                    👁️ Đã Ẩn (<?= (int)$reviewAdminStats['hidden'] ?>)
+                </a>
+            </div>
+
+            <!-- Danh sách đánh giá -->
+            <div class="zen-card" style="padding: 0; overflow-x: auto;">
+                <?php if (empty($allReviews)): ?>
+                    <div style="padding: 32px; text-align: center; color: var(--text-muted-warm); font-size: 0.85rem;">
+                        Chưa có đánh giá nào phù hợp với bộ lọc hiện tại.
+                    </div>
+                <?php else: ?>
+                    <div style="display: flex; flex-direction: column;">
+                        <?php foreach ($allReviews as $rev): ?>
+                            <div style="padding: 16px; border-bottom: 1px solid var(--brand-border-soft); display: flex; flex-direction: column; gap: 10px;">
+                                <!-- Dòng tiêu đề đánh giá -->
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                            <strong style="font-size: 0.95rem; color: var(--brand-tea-dark);">
+                                                <?= htmlspecialchars($rev['customer_name'], ENT_QUOTES, 'UTF-8') ?>
+                                            </strong>
+                                            <?php if (!empty($rev['customer_phone'])): ?>
+                                                <span style="font-size: 0.78rem; color: var(--text-muted-warm);">
+                                                    (<?= htmlspecialchars($rev['customer_phone'], ENT_QUOTES, 'UTF-8') ?>)
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($rev['is_verified_buyer'])): ?>
+                                                <span style="background: #ECFDF5; color: #047857; font-size: 0.65rem; padding: 2px 6px; border-radius: 999px; font-weight: 700;">
+                                                    ✓ Đã dùng bữa
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($rev['order_code'])): ?>
+                                                <span style="font-size: 0.72rem; color: #2563EB; background: #EFF6FF; padding: 2px 6px; border-radius: 4px;">
+                                                    Đơn #<?= htmlspecialchars($rev['order_code'], ENT_QUOTES, 'UTF-8') ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div style="font-size: 0.72rem; color: var(--text-muted-warm); margin-top: 2px;">
+                                            Gửi lúc: <?= date('H:i d/m/Y', strtotime($rev['created_at'])) ?>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="color: #F59E0B; font-size: 0.95rem;">
+                                            <?= str_repeat('★', (int)$rev['rating']) ?><?= str_repeat('☆', 5 - (int)$rev['rating']) ?>
+                                        </div>
+                                        <div>
+                                            <?php if ($rev['status'] === 'approved'): ?>
+                                                <span style="background: #ECFDF5; color: #047857; font-size: 0.72rem; padding: 3px 8px; border-radius: 6px; font-weight: 700;">✓ Hiển thị</span>
+                                            <?php elseif ($rev['status'] === 'pending'): ?>
+                                                <span style="background: #FEF3C7; color: #92400E; font-size: 0.72rem; padding: 3px 8px; border-radius: 6px; font-weight: 700;">⏳ Chờ duyệt</span>
+                                            <?php else: ?>
+                                                <span style="background: #F3F4F6; color: #4B5563; font-size: 0.72rem; padding: 3px 8px; border-radius: 6px; font-weight: 700;">👁️ Đã ẩn</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Nội dung cảm nhận -->
+                                <?php if (!empty($rev['title'])): ?>
+                                    <div style="font-weight: 700; font-size: 0.88rem; color: var(--brand-tea-green);">
+                                        <?= htmlspecialchars($rev['title'], ENT_QUOTES, 'UTF-8') ?>
+                                    </div>
+                                <?php endif; ?>
+                                <div style="font-size: 0.82rem; color: #374151; line-height: 1.5; background: #FAF8F5; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--brand-border-soft);">
+                                    <?= nl2br(htmlspecialchars($rev['comment'], ENT_QUOTES, 'UTF-8')) ?>
+                                </div>
+
+                                <!-- Phản hồi từ Bếp (nếu có) -->
+                                <?php if (!empty($rev['kitchen_reply'])): ?>
+                                    <div style="background: #F0FDF4; border-left: 3px solid #10B981; padding: 8px 12px; border-radius: 6px; font-size: 0.78rem; color: #065F46;">
+                                        <strong>🌿 Bếp An Yên phản hồi (<?= !empty($rev['replied_at']) ? date('d/m/Y', strtotime($rev['replied_at'])) : '' ?>):</strong>
+                                        <div style="margin-top: 2px;">
+                                            <?= nl2br(htmlspecialchars($rev['kitchen_reply'], ENT_QUOTES, 'UTF-8')) ?>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+
+                                <!-- Thao tác kiểm duyệt & Phản hồi -->
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 4px;">
+                                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                        <?php if ($rev['status'] !== 'approved'): ?>
+                                            <form method="POST" style="display: inline;">
+                                                <input type="hidden" name="admin_action" value="update_review_status">
+                                                <input type="hidden" name="review_id" value="<?= (int)$rev['id'] ?>">
+                                                <input type="hidden" name="review_status" value="approved">
+                                                <button type="submit" class="action-btn" style="color: #047857; border-color: #A7F3D0; font-weight: 600;">
+                                                    ✓ Duyệt Hiển Thị
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <?php if ($rev['status'] !== 'hidden'): ?>
+                                            <form method="POST" style="display: inline;">
+                                                <input type="hidden" name="admin_action" value="update_review_status">
+                                                <input type="hidden" name="review_id" value="<?= (int)$rev['id'] ?>">
+                                                <input type="hidden" name="review_status" value="hidden">
+                                                <button type="submit" class="action-btn" style="color: #4B5563;">
+                                                    Ẩn Đánh Giá
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Bạn có chắc muốn xóa đánh giá này vĩnh viễn?');">
+                                            <input type="hidden" name="admin_action" value="delete_review">
+                                            <input type="hidden" name="review_id" value="<?= (int)$rev['id'] ?>">
+                                            <button type="submit" class="action-btn" style="color: #DC2626; border-color: #FECACA;">
+                                                Xóa
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    <!-- Form phản hồi ngắn gọn của Bếp -->
+                                    <form method="POST" style="display: flex; gap: 4px; align-items: center; flex: 1; max-width: 420px; min-width: 260px;">
+                                        <input type="hidden" name="admin_action" value="reply_review">
+                                        <input type="hidden" name="review_id" value="<?= (int)$rev['id'] ?>">
+                                        <input type="text" name="kitchen_reply" class="zen-input" value="<?= htmlspecialchars((string)($rev['kitchen_reply'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Nhập lời cảm ơn hoặc phản hồi của Bếp..." style="padding: 4px 8px; font-size: 0.78rem;">
+                                        <button type="submit" class="action-btn" style="white-space: nowrap; font-size: 0.75rem;">
+                                            Phản Hồi
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
         <?php elseif ($currentTab === 'config'): ?>
             <!-- TAB 5: Cấu hình Hệ Thống -->
             <div class="zen-card">
@@ -2282,6 +2536,40 @@ $notifStats = $notificationService->getStats();
                             <p style="font-size: 0.7rem; color: #166534; margin-top: 6px; line-height: 1.4;">
                                 💡 <em>Ghi chú:</em> Khi dùng Gmail, bạn hãy tạo <strong>Mật khẩu ứng dụng (App Password)</strong> trong tài khoản Google để điền vào ô mật khẩu. Nếu để trống SMTP Host, hệ thống sẽ tự động dùng hàm <code>mail()</code> hoặc ghi log giả lập an toàn.
                             </p>
+                        </div>
+                    </div>
+
+                    <!-- Cấu hình Đánh Giá & Cảm Nhận Khách Hàng (Issue #18) -->
+                    <div id="reviews_settings" style="border-top: 1px dashed var(--brand-border-soft); margin-top: 10px; padding-top: 14px;">
+                        <h3 style="font-size: 0.88rem; font-weight: 700; color: #9D174D; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                            <span>🌸 Cấu Hình Trang Đánh Giá Của Khách Hàng</span>
+                        </h3>
+                        <div style="background: #FDF2F8; border: 1px solid #FBCFE8; padding: 14px; border-radius: 12px; margin-bottom: 12px;">
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 700; color: #831843;">
+                                    <input type="checkbox" name="reviews_enabled" value="1" <?= (isset($currentConfig['reviews_enabled']) && $currentConfig['reviews_enabled'] === '1') ? 'checked' : '' ?> style="width: 16px; height: 16px;">
+                                    <span>Bật trang đánh giá cho khách hàng (Khi tắt, trang reviews.php sẽ hiện thông báo hẹn dịp khác & tạm khóa form gửi)</span>
+                                </label>
+
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; color: #9D174D;">
+                                    <input type="checkbox" name="reviews_require_approval" value="1" <?= (!isset($currentConfig['reviews_require_approval']) || $currentConfig['reviews_require_approval'] === '1') ? 'checked' : '' ?>>
+                                    <span>Kiểm duyệt trước khi hiển thị (Đánh giá mới sẽ ở trạng thái Chờ Duyệt cho đến khi Bếp bấm Duyệt)</span>
+                                </label>
+
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; color: #9D174D;">
+                                    <input type="checkbox" name="reviews_allow_anonymous" value="1" <?= (!isset($currentConfig['reviews_allow_anonymous']) || $currentConfig['reviews_allow_anonymous'] === '1') ? 'checked' : '' ?>>
+                                    <span>Cho phép khách chưa có đơn đặt trước gửi cảm nhận/góp ý</span>
+                                </label>
+                            </div>
+
+                            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #FBCFE8; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.75rem; color: #9D174D;">
+                                    🔗 Đường dẫn trang đánh giá: <code>reviews.php</code>
+                                </span>
+                                <a href="reviews.php" target="_blank" class="action-btn" style="text-decoration: none; font-size: 0.75rem; border-color: #F472B6; color: #BE185D;">
+                                    Xem trước trang đánh giá ↗
+                                </a>
+                            </div>
                         </div>
                     </div>
 

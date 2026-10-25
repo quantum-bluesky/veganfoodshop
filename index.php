@@ -18,11 +18,15 @@ use App\Services\SlotService;
 $configService = new ConfigService();
 $menuService = new MenuService();
 $slotService = new SlotService();
+$zaloService = new \App\Services\ZaloAuthService();
+$zaloConfig = $zaloService->getConfig();
 
 $shopName = $configService->get('shop_name', 'Bếp Chay An Yên');
 $shopTagline = $configService->get('shop_tagline', 'Chốn dừng chân thanh tĩnh');
 $shopQuote = $configService->get('shop_quote', 'Một bát canh thanh ngọt, vỗ về những bộn bề ngày thường');
 $noticeText = $configService->get('notice_text', 'Lịch bếp hôm nay: Ca trưa 11:30 - 13:30 (Chỉ nhận tối đa 12 suất)');
+$orderNoteShipping = (string)($zaloConfig['order_note_shipping'] ?? '');
+$requireZaloLogin = (bool)($zaloConfig['require_zalo_login'] ?? false);
 
 $today = date('Y-m-d');
 $availableDates = $slotService->getAvailableDates();
@@ -220,9 +224,49 @@ $menuItems = $menuService->getActiveMenu();
 
             <!-- BƯỚC 4: Thông tin & Thanh toán linh hoạt -->
             <section class="zen-card" style="display: flex; flex-direction: column; gap: 14px;">
-                <h2 class="zen-label">
-                    <span class="badge-step">4</span> Người thương gửi đơn
-                </h2>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 class="zen-label" style="margin-bottom: 0;">
+                        <span class="badge-step">4</span> Người thương gửi đơn
+                    </h2>
+                </div>
+
+                <!-- Nút Đăng nhập Zalo (Tuỳ chọn) -->
+                <div id="zaloAuthContainer">
+                    <div id="zaloLoginSection">
+                        <a href="api.php?action=zalo_login" id="zaloLoginBtn" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: var(--radius-input); background: #0068FF; color: #FFFFFF; text-decoration: none; font-size: 0.85rem; font-weight: 600; box-shadow: 0 2px 8px rgba(0, 104, 255, 0.2); transition: all 0.2s;">
+                            <svg width="18" height="18" viewBox="0 0 48 48" fill="none"><path fill="#fff" d="M24 4C12.95 4 4 12.95 4 24c0 3.73 1.02 7.22 2.79 10.22L4 44l10.15-2.67C17.06 43.04 20.44 44 24 44c11.05 0 20-8.95 20-20S35.05 4 24 4z"/></svg>
+                            <span>Đăng nhập Zalo để tự động điền</span>
+                        </a>
+                        <?php if ($requireZaloLogin): ?>
+                            <p style="font-size: 0.72rem; color: #DC2626; margin-top: 4px; text-align: center;">
+                                * Quán yêu cầu kết nối Zalo để gửi xác nhận đơn hàng
+                            </p>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Hiển thị tài khoản Zalo đã kết nối -->
+                    <div id="zaloProfileSection" class="hidden" style="background: #F0F7FF; border: 1px solid #BFDBFE; border-radius: var(--radius-input); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div id="zaloAvatarWrapper" style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: #0068FF; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0;">
+                                Z
+                            </div>
+                            <div>
+                                <div style="font-size: 0.85rem; font-weight: 700; color: #1E40AF; display: flex; align-items: center; gap: 4px;">
+                                    <span id="zaloProfileName">Khách Zalo</span>
+                                    <span style="font-size: 0.65rem; background: #DBEAFE; color: #1E40AF; padding: 2px 6px; border-radius: 6px; font-weight: normal;">Đã nối Zalo</span>
+                                </div>
+                                <div id="zaloProfilePhone" style="font-size: 0.75rem; color: #4B5563;"></div>
+                            </div>
+                        </div>
+                        <button type="button" id="zaloLogoutBtn" style="background: none; border: none; color: #6B7280; font-size: 0.75rem; cursor: pointer; text-decoration: underline; padding: 4px;">
+                            Đổi tài khoản
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lưu Zalo ID và Avatar ẩn -->
+                <input type="hidden" name="zalo_id" id="custZaloId" value="">
+                <input type="hidden" name="avatar_url" id="custAvatarUrl" value="">
 
                 <div>
                     <input type="text" name="customer_name" id="custName" class="zen-input" 
@@ -284,6 +328,12 @@ $menuItems = $menuService->getActiveMenu();
                 <span>Gửi Đặt Bếp An Yên</span>
                 <span id="btnTotalText"></span>
             </button>
+
+            <?php if (!empty($orderNoteShipping)): ?>
+                <p style="font-size: 0.75rem; color: var(--accent-wood); text-align: center; font-style: italic; margin-top: -6px;">
+                    * <?= htmlspecialchars($orderNoteShipping, ENT_QUOTES, 'UTF-8') ?> *
+                </p>
+            <?php endif; ?>
         </form>
 
         <footer style="text-align: center; font-size: 0.72rem; color: var(--text-muted-warm); margin-top: 10px;">

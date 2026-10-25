@@ -27,12 +27,16 @@ try {
                     'found' => true,
                     'name' => $customer['name'],
                     'is_trusted' => (int)$customer['is_trusted'],
+                    'zalo_id' => (string)($customer['zalo_id'] ?? ''),
+                    'avatar_url' => (string)($customer['avatar_url'] ?? ''),
                 ], JSON_UNESCAPED_UNICODE);
             } else {
                 echo json_encode([
                     'success' => true,
                     'found' => false,
                     'is_trusted' => 0,
+                    'zalo_id' => '',
+                    'avatar_url' => '',
                 ], JSON_UNESCAPED_UNICODE);
             }
             break;
@@ -48,6 +52,54 @@ try {
                 'slots' => $slots,
             ], JSON_UNESCAPED_UNICODE);
             break;
+
+        case 'get_zalo_config':
+            $zaloService = new \App\Services\ZaloAuthService();
+            $zCfg = $zaloService->getConfig();
+
+            echo json_encode([
+                'success' => true,
+                'mock_test_mode' => (bool)$zCfg['mock_test_mode'],
+                'require_zalo_login' => (bool)$zCfg['require_zalo_login'],
+                'require_zalo_group_to_order' => (bool)$zCfg['require_zalo_group_to_order'],
+                'seller_zalo_url' => (string)$zCfg['seller_zalo_url'],
+                'order_note_shipping' => (string)$zCfg['order_note_shipping'],
+                'zalo_confirm_template' => (string)$zCfg['zalo_confirm_template'],
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'zalo_login':
+            // Xây dựng callback URL tự động dựa trên host hiện tại
+            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+            $scheme = $isHttps ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8008';
+            $callbackUrl = $scheme . '://' . $host . '/zalo_callback.php';
+
+            $zaloService = new \App\Services\ZaloAuthService();
+            $authData = $zaloService->generateAuthUrl($callbackUrl);
+
+            if (!$authData['is_mock']) {
+                setcookie('zalo_code_verifier', $authData['code_verifier'], [
+                    'expires' => time() + 300,
+                    'path' => '/',
+                    'httponly' => true,
+                    'samesite' => 'Lax',
+                ]);
+            }
+
+            header('Location: ' . $authData['auth_url']);
+            exit;
+
+        case 'zalo_callback':
+            header('Content-Type: text/html; charset=UTF-8');
+            $code = (string)($_GET['code'] ?? '');
+            $codeVerifier = (string)($_COOKIE['zalo_code_verifier'] ?? '');
+
+            $zaloService = new \App\Services\ZaloAuthService();
+            $user = $zaloService->handleCallback($code, $codeVerifier);
+
+            echo $zaloService->renderCallbackHtml($user, 'index.php');
+            exit;
 
         default:
             http_response_code(400);

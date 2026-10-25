@@ -27,7 +27,13 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
    - **Quản lý Lịch ca:** Mở ca mới, điều chỉnh số suất tối đa, bật/tắt ca.
    - **Quản lý Đơn hàng:** Cập nhật trạng thái thanh toán và trạng thái đơn.
    - **Quản lý Khách quen:** Bật/tắt cờ `is_trusted`.
-   - **Quản lý Thực đơn & Cấu hình:** Chỉnh giá món, bật/tắt món, cấu hình tài khoản VietQR.
+   - **Quản lý Thực đơn & Cấu hình:** Chỉnh giá món, bật/tắt món, cấu hình tài khoản VietQR và Zalo Login.
+6. **Đăng nhập Zalo (Tùy chọn) & Tự động điền đơn (v1.1.0):**
+   - Tích hợp chuẩn **Zalo OAuth2 PKCE** bảo mật cao, đi kèm chế độ **Mock Test Mode** cho môi trường dev/local.
+   - Tự động trích xuất thông tin Họ tên, SĐT, Avatar và đồng bộ vào `localStorage` (`public_customer_info`).
+   - Tự động kích hoạt kiểm tra khách quen khi nhận diện SĐT từ Zalo.
+   - Sau khi gửi đơn: Nút mở Zalo Bếp (`seller_zalo_url`) kèm nút sao chép nhanh mẫu tin nhắn xác nhận đơn (`zalo_confirm_template`).
+   - Hiển thị ghi chú vận chuyển (`order_note_shipping`) rõ ràng, minh bạch.
 
 ---
 
@@ -43,9 +49,10 @@ D:\Quan\VeganFoodShop\
 ├── process_order.php                           # Xử lý tiếp nhận đơn & sinh mã VietQR
 ├── admin.php                                   # Trang quản trị: lịch ca, bếp, đơn hàng, khách quen
 ├── api.php                                     # AJAX endpoint: kiểm tra SĐT khách quen, lấy ca
+├── zalo_callback.php                           # Endpoint tiếp nhận Zalo OAuth callback & đồng bộ
 ├── phpunit.xml                                 # Cấu hình test PHPUnit
 ├── config/
-│   └── config.php                              # Cấu hình hệ thống (VietQR, admin, CSDL)
+│   └── config.php                              # Cấu hình hệ thống (VietQR, Zalo Login, admin, CSDL)
 ├── database/
 │   ├── bep_an_yen.db                           # CSDL SQLite3 chính (chế độ WAL)
 │   ├── schema.sql                              # Cấu trúc 6 bảng CSDL & chỉ mục
@@ -64,7 +71,8 @@ D:\Quan\VeganFoodShop\
 │       ├── MenuService.php
 │       ├── OrderService.php
 │       ├── VietQrService.php
-│       └── ConfigService.php
+│       ├── ConfigService.php
+│       └── ZaloAuthService.php
 ├── assets/
 │   ├── css/
 │   │   └── style.css                           # Bảng màu Washi, xanh trà, bo góc Ghibli

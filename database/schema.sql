@@ -6,12 +6,14 @@
 
 PRAGMA foreign_keys = ON;
 
--- 1. Bảng Khách Hàng (Nhận diện khách quen & trả sau)
+-- 1. Bảng Khách Hàng (Nhận diện khách quen, Zalo OAuth & trả sau)
 CREATE TABLE IF NOT EXISTS customers (
     phone TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     is_trusted INTEGER NOT NULL DEFAULT 0,
     note TEXT NULL,
+    zalo_id TEXT NULL,
+    avatar_url TEXT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -82,6 +84,7 @@ CREATE TABLE IF NOT EXISTS system_config (
 -- ====================================================================
 
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+CREATE INDEX IF NOT EXISTS idx_customers_zalo_id ON customers(zalo_id);
 CREATE INDEX IF NOT EXISTS idx_time_slots_date_active ON time_slots(slot_date, is_active);
 CREATE INDEX IF NOT EXISTS idx_orders_slot_status ON orders(slot_id, order_status);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_phone ON orders(customer_phone);

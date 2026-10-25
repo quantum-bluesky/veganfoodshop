@@ -148,6 +148,17 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
     - **Điều Hướng Xuyên Suốt Hệ Thống:**
       - Thanh điều hướng tối giản kết nối mượt mà giữa **Đặt Chỗ (`index.php`)** • **Về Bếp An Yên (`about.php`)** • **Cảm Nhận (`reviews.php`)**.
       - Hỗ trợ Clean URL chuẩn (`/about`, `/reviews`, `/admin`).
+18. **Giải Pháp Thanh Toán Mobile VietQR - Mở Trực Tiếp App & Quét Từ Thư Viện Ảnh (v1.11.0):**
+    - **Giải quyết Rào cản Mobile Web:**
+      - Khắc phục triệt để vấn đề thực khách giao dịch trên điện thoại di động không thể dùng camera của máy để quét mã QR hiển thị trên chính màn hình đó.
+    - **Giải Pháp 1 - Deep Link Mở Thẳng App Ngân Hàng:**
+      - Nút hành động nổi bật: *"🚀 Mở Ứng Dụng Ngân Hàng Thanh Toán"* tích hợp chuẩn **VietQR / Napas247 Universal Deeplink** (`https://dl.vietqr.io/pay?...`), tự động điền sẵn số tài khoản, số tiền và mã đơn hàng. Khách chỉ cần xác thực FaceID/vân tay trong app ngân hàng để chuyển khoản.
+      - **Khay phím tắt mở trực tiếp:** Tích hợp bộ custom app schemes dẫn thẳng vào các app ngân hàng hàng đầu: Vietcombank (`vcb://`), MBBank (`mbmobile://`), Techcombank (`tcb://`), BIDV (`bidvsmartbanking://`), Ví MoMo (`momo://`).
+    - **Giải Pháp 2 - Lưu Ảnh QR & Quét Từ Thư Viện Ảnh (Album):**
+      - Nút bấm 1-chạm: *"📥 Lưu Ảnh QR Vào Máy (Để Quét Từ Thư Viện)"* tự động lưu ảnh mã QR có sẵn số tiền và nội dung đơn về cuộn ảnh điện thoại.
+      - Hướng dẫn 2 bước mộc mạc và trực quan giúp bất kỳ khách hàng nào cũng thao tác dễ dàng: *Bấm Lưu ảnh ➜ Mở App ngân hàng chọn Quét QR từ Album*.
+    - **Tự Động Cập Nhật Đơn Hàng (Zero-Friction):**
+      - Hệ thống polling nền chu kỳ 3.5s và API webhook vẫn tiếp tục lắng nghe biến động số dư ngân hàng, tự động xác nhận đơn thành công ngay khi khách hoàn tất giao dịch trên app ngân hàng mà không cần khách phải chụp màn hình gửi lại.
 
 ---
 

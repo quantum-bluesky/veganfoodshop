@@ -34,6 +34,8 @@ $zaloConfirmTemplate = (string)($zaloConfig['zalo_confirm_template'] ?? '');
 $error = null;
 $order = null;
 $qrUrl = null;
+$universalDeeplink = null;
+$popularBankingApps = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -86,6 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($order['payment_method'] === 'vietqr') {
                 $vietQrService = new VietQrService($bankId, $accountNo, $accountName);
                 $qrUrl = $vietQrService->generateQrUrl((int)$order['total_amount'], (string)$order['order_code']);
+                $universalDeeplink = $vietQrService->generateUniversalLink((int)$order['total_amount'], (string)$order['order_code']);
+                $popularBankingApps = $vietQrService->getPopularBankingApps((int)$order['total_amount'], (string)$order['order_code']);
             }
         } else {
             $error = 'Không tìm thấy thông tin đơn hàng hoặc mã đơn không hợp lệ.';
@@ -200,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </section>
 
             <?php else: ?>
-                <!-- Đơn chuyển khoản VietQR (Chưa thanh toán) -->
+                <!-- Đơn chuyển khoản VietQR (Chưa thanh toán - Issue #22 / #23 Mobile QR Solutions) -->
                 <section class="zen-card" style="text-align: center;">
                     <p style="font-size: 0.8rem; color: var(--text-muted-warm); margin-bottom: 12px;">
                         Quét mã VietQR chuyển khoản để bếp hoàn tất giữ suất bún/phở nhé:
@@ -208,11 +212,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <!-- Ảnh VietQR động -->
                     <?php if ($qrUrl): ?>
-                        <div style="display: flex; justify-content: center; margin-bottom: 14px;">
-                            <img src="<?= htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8') ?>" 
+                        <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+                            <img id="vietQrImg" 
+                                 src="<?= htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8') ?>" 
                                  alt="Mã VietQR Chuyển Khoản" 
                                  style="width: 230px; height: auto; border-radius: 16px; border: 1px solid var(--brand-border-soft); box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
                         </div>
+
+                        <!-- GIẢI PHÁP 1: Mở thẳng App Ngân Hàng qua Deeplink -->
+                        <?php if (!empty($universalDeeplink)): ?>
+                            <a href="<?= htmlspecialchars($universalDeeplink, ENT_QUOTES, 'UTF-8') ?>" 
+                               class="zen-btn-primary" 
+                               style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 14px; border-radius: 14px; font-size: 0.92rem; font-weight: 700; margin-bottom: 10px; box-shadow: 0 4px 14px rgba(91, 112, 101, 0.2);">
+                                <span>🚀</span> Mở Ứng Dụng Ngân Hàng Thanh Toán
+                            </a>
+                        <?php endif; ?>
+
+                        <!-- GIẢI PHÁP 2: Nút Lưu ảnh QR vào máy để quét từ Album -->
+                        <button type="button" 
+                                onclick="downloadQRCode('<?= htmlspecialchars($qrUrl, ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars((string)$order['order_code'], ENT_QUOTES, 'UTF-8') ?>')" 
+                                class="action-btn" 
+                                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; font-size: 0.84rem; font-weight: 700; background: #FAF7F2; border: 1.5px dashed var(--brand-tea-green); color: var(--brand-tea-dark); border-radius: 12px; margin-bottom: 12px;">
+                            <span>📥</span> Lưu Ảnh QR Vào Máy (Để Quét Từ Thư Viện)
+                        </button>
+
+                        <!-- Hướng dẫn 2 bước mộc mạc và trực quan -->
+                        <div style="background: #FBF9F5; border: 1px solid #EAE3D9; border-radius: 12px; padding: 10px 12px; text-align: left; font-size: 0.76rem; color: #344037; line-height: 1.5; margin-bottom: 14px;">
+                            <div style="font-weight: 700; color: var(--brand-tea-green); margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                                <span>💡</span> Khi dùng điện thoại không thể quét mã trên màn hình:
+                            </div>
+                            <div style="display: flex; gap: 6px; margin-bottom: 4px;">
+                                <span style="background: var(--brand-tea-green); color: #FFF; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; flex-shrink: 0; margin-top: 1px;">1</span>
+                                <span>Bấm <strong>"Lưu ảnh QR vào máy"</strong> ở trên để tải mã về cuộn ảnh điện thoại.</span>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <span style="background: var(--brand-tea-green); color: #FFF; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; flex-shrink: 0; margin-top: 1px;">2</span>
+                                <span>Mở App Ngân hàng ➜ Chọn <strong>Quét QR</strong> ➜ Chọn <strong>Ảnh từ thư viện (Album)</strong> để thanh toán.</span>
+                            </div>
+                        </div>
+
+                        <!-- Khay phím tắt mở trực tiếp App Ngân Hàng phổ biến -->
+                        <?php if (!empty($popularBankingApps)): ?>
+                            <div style="margin-bottom: 14px; text-align: left;">
+                                <div style="font-size: 0.74rem; color: var(--text-muted-warm); margin-bottom: 6px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                    <span>⚡</span> Hoặc chọn mở thẳng app ngân hàng của bạn:
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                                    <?php foreach ($popularBankingApps as $app): ?>
+                                        <a href="<?= htmlspecialchars($app['url'], ENT_QUOTES, 'UTF-8') ?>" 
+                                           style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; background: <?= htmlspecialchars($app['bg'], ENT_QUOTES, 'UTF-8') ?>; border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; text-decoration: none; color: <?= htmlspecialchars($app['color'], ENT_QUOTES, 'UTF-8') ?>; transition: transform 0.15s ease;">
+                                            <span style="font-size: 1.15rem; margin-bottom: 2px;"><?= $app['icon'] ?></span>
+                                            <span style="font-size: 0.72rem; font-weight: 700;"><?= htmlspecialchars($app['short_name'], ENT_QUOTES, 'UTF-8') ?></span>
+                                        </a>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
                     <?php endif; ?>
 
                     <div style="background-color: #FAF7F2; border-radius: 14px; padding: 12px; font-size: 0.82rem; text-align: left; display: flex; flex-direction: column; gap: 6px;">
@@ -340,6 +396,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             navigator.clipboard.writeText(val).then(() => {
                 alert('Đã sao chép: ' + val);
             });
+        }
+
+        /**
+         * Lưu/tải ảnh mã QR về máy điện thoại để quét từ thư viện ảnh (Issue #22 Mobile QR)
+         */
+        function downloadQRCode(qrImageUrl, orderCode) {
+            if (!qrImageUrl) return;
+
+            // Thử tải bằng fetch blob (tương thích tốt với lưu file trên mobile)
+            fetch(qrImageUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error('Network error');
+                    return res.blob();
+                })
+                .then(blob => {
+                    const blobUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = `VietQR_Don_${orderCode}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                    alert('Đã lưu ảnh mã QR vào máy! Bạn hãy mở App Ngân hàng ➜ Quét QR ➜ Chọn "Ảnh từ thư viện (Album)" để thanh toán nhé 🍃');
+                })
+                .catch(() => {
+                    // Fallback: Mở ảnh trực tiếp hoặc tạo link tải thông thường
+                    const link = document.createElement('a');
+                    link.href = qrImageUrl;
+                    link.download = `VietQR_Don_${orderCode}.png`;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    alert('Đã mở ảnh mã QR. Nếu chưa tự động lưu, bạn hãy nhấn giữ vào ảnh để Lưu vào Album ảnh nhé 🍃');
+                });
         }
 
         // Tự động kiểm tra trạng thái thanh toán theo thời gian thực (Issue #16)

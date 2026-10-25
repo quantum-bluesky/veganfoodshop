@@ -28,8 +28,10 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
    - **Quản lý Đơn hàng:** Cập nhật trạng thái thanh toán và trạng thái đơn.
    - **Quản lý Khách quen:** Bật/tắt cờ `is_trusted`.
    - **Quản lý Thực đơn & Cấu hình:** Chỉnh giá món, bật/tắt món, cấu hình tài khoản VietQR và Zalo Login.
-6. **Đăng nhập Zalo (Tùy chọn) & Tự động điền đơn (v1.1.0):**
+6. **Đăng nhập Zalo (Tùy chọn) & Tự động điền đơn (v1.1.1):**
    - Tích hợp chuẩn **Zalo OAuth2 PKCE** bảo mật cao, đi kèm chế độ **Mock Test Mode** cho môi trường dev/local.
+   - Chuẩn hóa **Clean URL** cho Callback và Login không có đuôi file (ví dụ: `/api/public/zalo-login`, `/api/public/zalo-callback`), tương thích cả khi triển khai thư mục con (ví dụ: `/chaytt/...`).
+   - Tự động nhận diện `callback_url` thông minh theo domain/base path, hỗ trợ cấu hình tường minh qua Admin hoặc `config/config.php`.
    - Tự động trích xuất thông tin Họ tên, SĐT, Avatar và đồng bộ vào `localStorage` (`public_customer_info`).
    - Tự động kích hoạt kiểm tra khách quen khi nhận diện SĐT từ Zalo.
    - Sau khi gửi đơn: Nút mở Zalo Bếp (`seller_zalo_url`) kèm nút sao chép nhanh mẫu tin nhắn xác nhận đơn (`zalo_confirm_template`).

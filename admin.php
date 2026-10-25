@@ -186,6 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $zaloRequireLogin = isset($_POST['zalo_require_login']) ? '1' : '0';
             $zaloRequireGroup = isset($_POST['zalo_require_group']) ? '1' : '0';
             $zaloSellerUrl = (string)($_POST['zalo_seller_url'] ?? 'https://zalo.me/0987862241');
+            $zaloCallbackUrl = trim((string)($_POST['zalo_callback_url'] ?? ''));
             $orderNoteShipping = (string)($_POST['order_note_shipping'] ?? 'Chưa bao gồm chi phí vận chuyển');
             $zaloConfirmTemplate = (string)($_POST['zalo_confirm_template'] ?? 'Chào shop, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!');
 
@@ -203,6 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $configService->set('zalo_require_login', $zaloRequireLogin);
             $configService->set('zalo_require_group', $zaloRequireGroup);
             $configService->set('zalo_seller_url', $zaloSellerUrl);
+            $configService->set('zalo_callback_url', $zaloCallbackUrl);
             $configService->set('order_note_shipping', $orderNoteShipping);
             $configService->set('zalo_confirm_template', $zaloConfirmTemplate);
 
@@ -718,6 +720,18 @@ $currentConfig = $configService->getAll();
                                 <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Ghi chú vận chuyển (shipping note):</label>
                                 <input type="text" name="order_note_shipping" class="zen-input" value="<?= htmlspecialchars($currentConfig['order_note_shipping'] ?? 'Chưa bao gồm chi phí vận chuyển', ENT_QUOTES, 'UTF-8') ?>">
                             </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px;">
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">
+                                Đường dẫn Callback Zalo (Redirect URI):
+                            </label>
+                            <input type="text" name="zalo_callback_url" class="zen-input" 
+                                   placeholder="Để trống sẽ tự động dùng: <?= htmlspecialchars((new \App\Services\ZaloAuthService())->getCallbackUrl(), ENT_QUOTES, 'UTF-8') ?>" 
+                                   value="<?= htmlspecialchars($currentConfig['zalo_callback_url'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                            <span style="font-size: 0.7rem; color: #6B7280; display: block; margin-top: 4px; line-height: 1.4;">
+                                💡 Nhập URL này vào mục <strong>Redirect URI</strong> trong Zalo Developer Console. Khuyến nghị chuẩn hóa URL không có đuôi file (ví dụ: <code><?= htmlspecialchars((new \App\Services\ZaloAuthService())->getCallbackUrl(), ENT_QUOTES, 'UTF-8') ?></code>). Nếu bạn đã cấu hình dạng <code>.../zalo_callback.php</code> trong Zalo Console, bạn có thể điền vào ô này hoặc sửa lại trên Zalo Console theo clean URL trên.
+                            </span>
                         </div>
 
                         <div style="margin-bottom: 12px;">

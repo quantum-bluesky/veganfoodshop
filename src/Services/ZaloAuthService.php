@@ -32,6 +32,7 @@ class ZaloAuthService
             'mock_test_mode' => filter_var($this->configService->get('zalo_mock_test_mode', (string)($zaloConfig['mock_test_mode'] ? '1' : '0')), FILTER_VALIDATE_BOOLEAN),
             'require_zalo_login' => filter_var($this->configService->get('zalo_require_login', (string)($zaloConfig['require_zalo_login'] ? '1' : '0')), FILTER_VALIDATE_BOOLEAN),
             'require_zalo_group_to_order' => filter_var($this->configService->get('zalo_require_group', (string)($zaloConfig['require_zalo_group_to_order'] ? '1' : '0')), FILTER_VALIDATE_BOOLEAN),
+            'callback_url' => $this->configService->get('zalo_callback_url', (string)($zaloConfig['callback_url'] ?? '')),
             'seller_zalo_url' => $this->configService->get('zalo_seller_url', (string)($zaloConfig['seller_zalo_url'] ?? 'https://zalo.me/0987862241')),
             'order_note_shipping' => $this->configService->get('order_note_shipping', (string)($zaloConfig['order_note_shipping'] ?? 'Chưa bao gồm chi phí vận chuyển')),
             'zalo_confirm_template' => $this->configService->get('zalo_confirm_template', (string)($zaloConfig['zalo_confirm_template'] ?? 'Chào shop, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!')),
@@ -58,25 +59,69 @@ class ZaloAuthService
     }
 
     /**
+     * Xác định Callback URL chuẩn hóa (ưu tiên cấu hình tường minh, nếu trống sẽ tự động sinh clean URL)
+     */
+    public function getCallbackUrl(?string $explicitCallbackUrl = null): string
+    {
+        if ($explicitCallbackUrl !== null && trim($explicitCallbackUrl) !== '') {
+            return trim($explicitCallbackUrl);
+        }
+
+        $configured = trim((string)($this->config['callback_url'] ?? ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        // Tự động nhận diện scheme (HTTP/HTTPS) hỗ trợ Reverse Proxy (Nginx, Cloudflare, DuckDNS)
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+            || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+        $scheme = $isHttps ? 'https' : 'http';
+
+        // Tự động nhận diện host (hỗ trợ X-Forwarded-Host)
+        $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'localhost:8008';
+        if (str_contains($host, ',')) {
+            $host = trim(explode(',', $host)[0]);
+        }
+
+        // Tự động nhận diện base path (ví dụ: /chaytt trên https://qts-home.duckdns.org/chaytt/...)
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        $dir = str_replace('\\', '/', dirname($scriptName));
+        if ($dir === '.' || $dir === '/') {
+            $basePath = '';
+        } else {
+            // Loại bỏ các thư mục con api/public, zalo-login, zalo-callback nếu script đang nằm trong đó
+            $basePath = preg_replace('#/(api(/public)?|zalo-login|zalo-callback)(/.*)?$#', '', $dir);
+            $basePath = rtrim((string)$basePath, '/');
+        }
+
+        // Chuẩn hóa đường dẫn callback sạch không có đuôi .php
+        return $scheme . '://' . $host . $basePath . '/api/public/zalo-callback';
+    }
+
+    /**
      * Tạo đường dẫn đăng nhập Zalo OAuth với PKCE
      * 
-     * @param string $callbackUrl
-     * @return array{auth_url: string, code_verifier: string, is_mock: bool}
+     * @param string|null $callbackUrl
+     * @return array{auth_url: string, code_verifier: string, is_mock: bool, redirect_uri: string}
      */
-    public function generateAuthUrl(string $callbackUrl): array
+    public function generateAuthUrl(?string $callbackUrl = null): array
     {
+        $resolvedCallback = $this->getCallbackUrl($callbackUrl);
+
         if ($this->config['mock_test_mode']) {
-            $mockUrl = $callbackUrl . (str_contains($callbackUrl, '?') ? '&' : '?') . 'code=MOCK_CODE';
+            $mockUrl = $resolvedCallback . (str_contains($resolvedCallback, '?') ? '&' : '?') . 'code=MOCK_CODE';
             return [
                 'auth_url' => $mockUrl,
                 'code_verifier' => 'mock_verifier',
                 'is_mock' => true,
+                'redirect_uri' => $resolvedCallback,
             ];
         }
 
-        $appId = $this->config['app_id'];
-        if ($appId === '' || $appId === '123') {
-            throw new RuntimeException('Chưa cấu hình Zalo App ID thực tế hoặc đang để ID mặc định.');
+        $appId = trim((string)($this->config['app_id'] ?? ''));
+        if ($appId === '') {
+            throw new RuntimeException('Chưa cấu hình Zalo App ID.');
         }
 
         // Tạo PKCE Code Verifier & Challenge (chuẩn Zalo PKCE)
@@ -86,7 +131,7 @@ class ZaloAuthService
         $authUrl = sprintf(
             'https://oauth.zaloapp.com/v4/permission?app_id=%s&redirect_uri=%s&code_challenge=%s&state=zalo_login',
             urlencode($appId),
-            urlencode($callbackUrl),
+            urlencode($resolvedCallback),
             urlencode($codeChallenge)
         );
 
@@ -94,6 +139,7 @@ class ZaloAuthService
             'auth_url' => $authUrl,
             'code_verifier' => $codeVerifier,
             'is_mock' => false,
+            'redirect_uri' => $resolvedCallback,
         ];
     }
 

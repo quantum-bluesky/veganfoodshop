@@ -36,6 +36,14 @@ class ZaloAuthServiceTest extends TestCase
         $this->setUp();
         $this->testRenderCallbackHtml();
         $this->tearDown();
+
+        $this->setUp();
+        $this->testCleanCallbackUrlAutoDetection();
+        $this->tearDown();
+
+        $this->setUp();
+        $this->testExplicitCallbackUrlConfiguration();
+        $this->tearDown();
     }
 
     /**
@@ -126,4 +134,42 @@ class ZaloAuthServiceTest extends TestCase
             'HTML callback phải chứa Zalo ID'
         );
     }
+
+    /**
+     * Test tự động nhận diện clean callback URL không có đuôi .php
+     */
+    public function testCleanCallbackUrlAutoDetection(): void
+    {
+        $_SERVER['HTTP_HOST'] = 'qts-home.duckdns.org';
+        $_SERVER['HTTPS'] = 'on';
+        $_SERVER['SCRIPT_NAME'] = '/chaytt/api.php';
+
+        $service = new ZaloAuthService($this->db, null, null, $this->mockConfig);
+        $callbackUrl = $service->getCallbackUrl();
+
+        $this->assertFalse(str_contains($callbackUrl, '.php'), 'Callback URL chuẩn hóa không được chứa đuôi .php');
+        $this->assertEquals('https://qts-home.duckdns.org/chaytt/api/public/zalo-callback', $callbackUrl);
+
+        // Dọn dẹp biến $_SERVER
+        unset($_SERVER['HTTP_HOST'], $_SERVER['HTTPS'], $_SERVER['SCRIPT_NAME']);
+    }
+
+    /**
+     * Test sử dụng URL callback tường minh khi người dùng đã cấu hình trong config
+     */
+    public function testExplicitCallbackUrlConfiguration(): void
+    {
+        $customConfig = $this->mockConfig;
+        $customConfig['callback_url'] = 'https://qts-home.duckdns.org/chaytt/zalo_callback.php';
+
+        $service = new ZaloAuthService($this->db, null, null, $customConfig);
+        $callbackUrl = $service->getCallbackUrl();
+
+        $this->assertEquals(
+            'https://qts-home.duckdns.org/chaytt/zalo_callback.php',
+            $callbackUrl,
+            'Khi có cấu hình callback_url tường minh, phải ưu tiên sử dụng'
+        );
+    }
 }
+

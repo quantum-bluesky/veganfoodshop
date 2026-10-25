@@ -69,14 +69,8 @@ try {
             break;
 
         case 'zalo_login':
-            // Xây dựng callback URL tự động dựa trên host hiện tại
-            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
-            $scheme = $isHttps ? 'https' : 'http';
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8008';
-            $callbackUrl = $scheme . '://' . $host . '/zalo_callback.php';
-
             $zaloService = new \App\Services\ZaloAuthService();
-            $authData = $zaloService->generateAuthUrl($callbackUrl);
+            $authData = $zaloService->generateAuthUrl();
 
             if (!$authData['is_mock']) {
                 setcookie('zalo_code_verifier', $authData['code_verifier'], [
@@ -113,6 +107,6 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Có lỗi xảy ra trong quá trình xử lý.',
+        'message' => $e->getMessage(),
     ], JSON_UNESCAPED_UNICODE);
 }

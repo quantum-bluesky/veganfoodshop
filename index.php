@@ -21,6 +21,36 @@ $slotService = new SlotService();
 $zaloService = new \App\Services\ZaloAuthService();
 $zaloConfig = $zaloService->getConfig();
 
+// Xử lý clean routes cho Zalo khi dùng Nginx / Apache front-controller
+$requestPath = (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+if (preg_match('#/(api/public/)?zalo-login/?$#', $requestPath)) {
+    try {
+        $authData = $zaloService->generateAuthUrl();
+        if (!$authData['is_mock']) {
+            setcookie('zalo_code_verifier', $authData['code_verifier'], [
+                'expires' => time() + 300,
+                'path' => '/',
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
+        }
+        header('Location: ' . $authData['auth_url']);
+        exit;
+    } catch (\Throwable $e) {
+        $zaloLoginError = $e->getMessage();
+    }
+} elseif (preg_match('#/(api/public/)?zalo-callback/?$#', $requestPath)) {
+    $code = (string)($_GET['code'] ?? '');
+    $codeVerifier = (string)($_COOKIE['zalo_code_verifier'] ?? '');
+    try {
+        $user = $zaloService->handleCallback($code, $codeVerifier);
+        echo $zaloService->renderCallbackHtml($user, 'index.php');
+        exit;
+    } catch (\Throwable $e) {
+        $zaloLoginError = $e->getMessage();
+    }
+}
+
 $shopName = $configService->get('shop_name', 'Bếp Chay An Yên');
 $shopTagline = $configService->get('shop_tagline', 'Chốn dừng chân thanh tĩnh');
 $shopQuote = $configService->get('shop_quote', 'Một bát canh thanh ngọt, vỗ về những bộn bề ngày thường');
@@ -232,8 +262,13 @@ $menuItems = $menuService->getActiveMenu();
 
                 <!-- Nút Đăng nhập Zalo (Tuỳ chọn) -->
                 <div id="zaloAuthContainer">
+                    <?php if (!empty($zaloLoginError)): ?>
+                        <div style="background: #FEE2E2; border: 1px solid #FECACA; color: #DC2626; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 8px; line-height: 1.4;">
+                            ⚠️ <?= htmlspecialchars($zaloLoginError, ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                    <?php endif; ?>
                     <div id="zaloLoginSection">
-                        <a href="api.php?action=zalo_login" id="zaloLoginBtn" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: var(--radius-input); background: #0068FF; color: #FFFFFF; text-decoration: none; font-size: 0.85rem; font-weight: 600; box-shadow: 0 2px 8px rgba(0, 104, 255, 0.2); transition: all 0.2s;">
+                        <a href="api/public/zalo-login" id="zaloLoginBtn" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: var(--radius-input); background: #0068FF; color: #FFFFFF; text-decoration: none; font-size: 0.85rem; font-weight: 600; box-shadow: 0 2px 8px rgba(0, 104, 255, 0.2); transition: all 0.2s;">
                             <svg width="18" height="18" viewBox="0 0 48 48" fill="none"><path fill="#fff" d="M24 4C12.95 4 4 12.95 4 24c0 3.73 1.02 7.22 2.79 10.22L4 44l10.15-2.67C17.06 43.04 20.44 44 24 44c11.05 0 20-8.95 20-20S35.05 4 24 4z"/></svg>
                             <span>Đăng nhập Zalo để tự động điền</span>
                         </a>

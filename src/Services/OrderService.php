@@ -13,17 +13,20 @@ use App\Exceptions\ValidationException;
 class OrderService
 {
     private ConfigService $configService;
+    private NotificationService $notificationService;
 
     public function __construct(
         private ?PDO $db = null,
         private ?CustomerService $customerService = null,
         private ?SlotService $slotService = null,
-        ?ConfigService $configService = null
+        ?ConfigService $configService = null,
+        ?NotificationService $notificationService = null
     ) {
         $this->db = $db ?? Connection::getInstance();
         $this->customerService = $customerService ?? new CustomerService($this->db);
         $this->slotService = $slotService ?? new SlotService($this->db);
         $this->configService = $configService ?? new ConfigService($this->db);
+        $this->notificationService = $notificationService ?? new NotificationService($this->db);
     }
 
     /**
@@ -251,6 +254,24 @@ class OrderService
                     ':subtotal' => $line['subtotal'],
                 ]);
             }
+
+            // 6. Đưa thông báo vào hàng đợi Outbox trong cùng Transaction (Issue #13)
+            $orderPayload = [
+                'id' => $orderId,
+                'order_code' => $orderCode,
+                'customer_name' => $customerName,
+                'customer_phone' => $customerPhone,
+                'slot_id' => $slotId,
+                'slot_date' => $slot['slot_date'],
+                'slot_time' => $slot['slot_time'],
+                'order_type' => $orderType,
+                'total_amount' => $totalAmount,
+                'payment_method' => $paymentMethod,
+                'payment_status' => $paymentStatus,
+                'customer_note' => $customerNote,
+                'items' => $orderLines,
+            ];
+            $this->notificationService->enqueueNewOrder($orderId, $orderPayload);
 
             // Cam kết giao dịch
             $this->db->exec('COMMIT;');

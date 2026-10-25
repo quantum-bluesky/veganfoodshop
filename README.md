@@ -52,6 +52,17 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
    - Tùy chỉnh lời nhắn an lành gửi khách thương (`closed_reason`).
    - Giao diện khách (`index.php`) tự động hiển thị Banner thông báo mang phong cách Ghibli/Zen ấm áp, ẩn các ca trong ngày nghỉ, khóa nút gửi đơn và dẫn link Zalo để khách liên hệ trực tiếp.
    - Quản trị viên luôn thấy Huy hiệu cảnh báo nổi bật ở đầu trang Admin khi đang bật chế độ tạm nghỉ.
+10. **Hàng Đợi Thông Báo SQLite + Dashboard + Email Dự Phòng (v1.4.0 - Issue #13):**
+    - **Lưu trữ Outbox cùng Transaction:** Đơn hàng và thông báo được ghi đồng thời trong SQLite Transaction `IMMEDIATE`, chống thất lạc thông báo khi server khởi động lại. Lỗi gửi thông báo hoàn toàn tách biệt, không bao giờ rollback đơn hàng đã tạo.
+    - **Kênh thông báo đa dạng:** Hỗ trợ đa kênh (`email`, `web`, mở rộng `zalo` trong tương lai) với khóa sự kiện duy nhất (`event_key`) chống spam và trùng lặp.
+    - **Email Dự Phòng (Zero-Dependency):** Bộ gửi email thuần PHP SMTP socket (hỗ trợ TLS/SSL/App Password) kèm fallback `mail()` native hoặc mock log, định dạng HTML ấm áp phong cách Zen/Washi gửi ngay chi tiết món, số lượng, tiền và link quản trị cho chủ bếp.
+    - **Cơ chế Backoff Retry tự động:** Thử lại tự động sau 1 phút, 5 phút, 15 phút, 1 giờ. Quá 5 lần chuyển trạng thái `failed` và hiển thị cảnh báo trên Admin Dashboard.
+    - **Tự động phục hồi sự cố (Crash Recovery):** Tự động phát hiện và nhặt lại các job kẹt ở `processing` quá 5 phút sau khi máy chủ khởi động lại.
+    - **Trang Quản Trị Hàng Đợi (`admin.php?tab=notifications`):**
+      - Thẻ thống kê: Đang chờ (`pending`), Đang gửi (`processing`), Đã gửi (`sent`), Thất bại (`failed`).
+      - Nút bấm *"🚀 Xử Lý Hàng Đợi Ngay"* để gửi ngay trên web không cần đợi cron.
+      - Nút *"🔄 Gửi lại"* thủ công cho từng thông báo bị lỗi.
+    - **Worker linh hoạt:** Cung cấp cả Worker PHP CLI (`bin/notification_worker.php`) và Worker Python 3 (`bin/notification_worker.py`) hỗ trợ cả chế độ `--run-once` (Crontab) lẫn `--daemon --sleep=5` (Systemd service).
 
 ---
 
@@ -70,18 +81,21 @@ D:\Quan\VeganFoodShop\
 ├── zalo_callback.php                           # Endpoint tiếp nhận Zalo OAuth callback & đồng bộ
 ├── phpunit.xml                                 # Cấu hình test PHPUnit
 ├── bin/
-│   └── migrate.php                             # CLI runner áp dụng & xem trạng thái Migration
+│   ├── migrate.php                             # CLI runner áp dụng & xem trạng thái Migration
+│   ├── notification_worker.php                 # PHP CLI worker xử lý hàng đợi thông báo
+│   └── notification_worker.py                  # Python 3 worker xử lý hàng đợi thông báo (zero dependencies)
 ├── config/
 │   ├── config.php                              # Cấu hình cơ sở mặc định (môi trường dev/test)
 │   ├── config.example.php                      # File mẫu cấu hình môi trường Production
 │   └── config.local.php                        # Cấu hình môi trường thực tế (bảo mật, không commit Git)
 ├── database/
 │   ├── bep_an_yen.db                           # CSDL SQLite3 chính (chế độ WAL)
-│   ├── schema.sql                              # Cấu trúc 6 bảng CSDL & chỉ mục
+│   ├── schema.sql                              # Cấu trúc 7 bảng CSDL & chỉ mục
 │   ├── seed.sql                                # Dữ liệu mẫu (món ăn, ca mẫu, khách mẫu)
 │   └── migrations/                             # Thư mục lưu trữ các file migration tuần tự
 │       ├── 001_initial_schema.sql
-│       └── 002_add_zalo_to_customers.sql
+│       ├── 002_add_zalo_to_customers.sql
+│       └── 003_create_notification_outbox.sql
 ├── src/
 │   ├── autoload.php                            # Bộ nạp lớp tự động PSR-4 thuần
 │   ├── Database/
@@ -98,7 +112,9 @@ D:\Quan\VeganFoodShop\
 │       ├── VietQrService.php
 │       ├── ConfigService.php
 │       ├── ZaloAuthService.php
-│       └── MigrationService.php                # Quản lý & tự động thực thi Auto-Migration CSDL
+│       ├── MigrationService.php                # Quản lý & tự động thực thi Auto-Migration CSDL
+│       ├── EmailService.php                    # Gửi email thông báo đơn mới qua SMTP / mail()
+│       └── NotificationService.php             # Quản lý hàng đợi Outbox, thử lại & backoff
 ├── assets/
 │   ├── css/
 │   │   └── style.css                           # Bảng màu Washi, xanh trà, bo góc Ghibli

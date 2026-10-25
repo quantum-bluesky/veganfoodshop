@@ -14,12 +14,14 @@ require_once __DIR__ . '/src/autoload.php';
 use App\Services\ConfigService;
 use App\Services\CustomerService;
 use App\Services\MenuService;
+use App\Services\NotificationService;
 use App\Services\OrderService;
 use App\Services\SlotService;
 
 $configService = new ConfigService();
 $customerService = new CustomerService();
 $menuService = new MenuService();
+$notificationService = new NotificationService();
 $orderService = new OrderService();
 $slotService = new SlotService();
 
@@ -226,7 +228,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $configService->set('order_note_shipping', $orderNoteShipping);
             $configService->set('zalo_confirm_template', $zaloConfirmTemplate);
 
-            $message = 'Đã lưu cấu hình hệ thống, thời gian đặt & Zalo thành công.';
+            // Cấu hình Email Thông Báo & SMTP (Issue #13)
+            $notifEmailTo = trim((string)($_POST['notification_email_to'] ?? ''));
+            $smtpHost = trim((string)($_POST['smtp_host'] ?? ''));
+            $smtpPort = trim((string)($_POST['smtp_port'] ?? '587'));
+            $smtpUsername = trim((string)($_POST['smtp_username'] ?? ''));
+            $smtpPassword = (string)($_POST['smtp_password'] ?? '');
+            $smtpEncryption = trim((string)($_POST['smtp_encryption'] ?? 'tls'));
+            $smtpFromEmail = trim((string)($_POST['smtp_from_email'] ?? ''));
+            $smtpFromName = trim((string)($_POST['smtp_from_name'] ?? 'Bếp Chay An Yên'));
+            $smtpMockMode = isset($_POST['smtp_mock_mode']) ? '1' : '0';
+
+            $configService->set('notification_email_to', $notifEmailTo);
+            $configService->set('smtp_host', $smtpHost);
+            $configService->set('smtp_port', $smtpPort);
+            $configService->set('smtp_username', $smtpUsername);
+            if ($smtpPassword !== '') {
+                $configService->set('smtp_password', $smtpPassword);
+            }
+            $configService->set('smtp_encryption', $smtpEncryption);
+            $configService->set('smtp_from_email', $smtpFromEmail);
+            $configService->set('smtp_from_name', $smtpFromName);
+            $configService->set('smtp_mock_mode', $smtpMockMode);
+
+            $message = 'Đã lưu cấu hình hệ thống, thời gian đặt, Zalo & Email SMTP thành công.';
+            break;
+
+        // 6. Xử lý hàng đợi thông báo (Issue #13)
+        case 'retry_notification':
+            $notifId = (int)$_POST['notification_id'];
+            $ok = $notificationService->retryNotification($notifId);
+            $message = $ok 
+                ? ('Đã gửi lại thành công thông báo #' . $notifId) 
+                : ('Đã thử gửi lại thông báo #' . $notifId . ' nhưng gặp lỗi. Bạn kiểm tra cột chi tiết lỗi nhé.');
+            break;
+
+        case 'run_notification_worker':
+            $processedCount = $notificationService->processQueue(20);
+            $message = sprintf('Đã chạy xử lý hàng đợi thông báo thành công (Đã xử lý %d thông báo).', $processedCount);
             break;
     }
 }
@@ -270,6 +309,12 @@ $menuList = $menuService->getAllMenu();
 
 // Tab Config
 $currentConfig = $configService->getAll();
+
+// Tab Notifications (Issue #13)
+$notifChannelFilter = !empty($_GET['notif_channel']) ? (string)$_GET['notif_channel'] : null;
+$notifStatusFilter = !empty($_GET['notif_status']) ? (string)$_GET['notif_status'] : null;
+$notifList = $notificationService->getNotificationsForAdmin(60, $notifChannelFilter, $notifStatusFilter);
+$notifStats = $notificationService->getStats();
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -393,6 +438,14 @@ $currentConfig = $configService->getAll();
             <a href="admin.php?tab=orders" class="admin-tab <?= $currentTab === 'orders' ? 'active' : '' ?>">🍲 Bếp & Đơn Hàng</a>
             <a href="admin.php?tab=customers" class="admin-tab <?= $currentTab === 'customers' ? 'active' : '' ?>">🌿 Khách Quen</a>
             <a href="admin.php?tab=menu" class="admin-tab <?= $currentTab === 'menu' ? 'active' : '' ?>">🥢 Thực Đơn</a>
+            <a href="admin.php?tab=notifications" class="admin-tab <?= $currentTab === 'notifications' ? 'active' : '' ?>">
+                🔔 Thông Báo
+                <?php if ($notifStats['pending'] > 0 || $notifStats['failed'] > 0): ?>
+                    <span style="background: <?= $notifStats['failed'] > 0 ? '#EF4444' : '#F59E0B' ?>; color: #FFFFFF; font-size: 0.65rem; padding: 2px 6px; border-radius: 999px; margin-left: 4px; font-weight: 700;">
+                        <?= $notifStats['pending'] + $notifStats['failed'] ?>
+                    </span>
+                <?php endif; ?>
+            </a>
             <a href="admin.php?tab=config" class="admin-tab <?= $currentTab === 'config' ? 'active' : '' ?>">⚙️ Cấu Hình</a>
         </nav>
 
@@ -772,6 +825,170 @@ $currentConfig = $configService->getAll();
                 </table>
             </div>
 
+        <?php elseif ($currentTab === 'notifications'): ?>
+            <!-- TAB 5: Hàng Đợi Thông Báo SQLite (Issue #13) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #F59E0B;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">⏳ Đang chờ gửi</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #D97706; margin-top: 4px;">
+                        <?= (int)$notifStats['pending'] ?>
+                    </p>
+                </div>
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #3B82F6;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">🔄 Đang xử lý</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #2563EB; margin-top: 4px;">
+                        <?= (int)$notifStats['processing'] ?>
+                    </p>
+                </div>
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #10B981;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">✓ Đã gửi thành công</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #059669; margin-top: 4px;">
+                        <?= (int)$notifStats['sent'] ?>
+                    </p>
+                </div>
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid <?= $notifStats['failed'] > 0 ? '#EF4444' : '#9CA3AF' ?>;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">✗ Lỗi cần chú ý</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: <?= $notifStats['failed'] > 0 ? '#DC2626' : '#6B7280' ?>; margin-top: 4px;">
+                        <?= (int)$notifStats['failed'] ?>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Toolbar & Bộ lọc -->
+            <div class="zen-card" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <form method="GET" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <input type="hidden" name="tab" value="notifications">
+                    
+                    <select name="notif_channel" class="zen-input" style="padding: 6px 10px; font-size: 0.78rem;" onchange="this.form.submit()">
+                        <option value="">Tất cả kênh (All Channels)</option>
+                        <option value="email" <?= $notifChannelFilter === 'email' ? 'selected' : '' ?>>✉️ Email</option>
+                        <option value="web" <?= $notifChannelFilter === 'web' ? 'selected' : '' ?>>🔔 Web Dashboard</option>
+                    </select>
+
+                    <select name="notif_status" class="zen-input" style="padding: 6px 10px; font-size: 0.78rem;" onchange="this.form.submit()">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="pending" <?= $notifStatusFilter === 'pending' ? 'selected' : '' ?>>⏳ Chờ gửi (pending)</option>
+                        <option value="processing" <?= $notifStatusFilter === 'processing' ? 'selected' : '' ?>>🔄 Đang xử lý (processing)</option>
+                        <option value="sent" <?= $notifStatusFilter === 'sent' ? 'selected' : '' ?>>✓ Đã gửi (sent)</option>
+                        <option value="failed" <?= $notifStatusFilter === 'failed' ? 'selected' : '' ?>>✗ Thất bại (failed)</option>
+                    </select>
+                </form>
+
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <form method="POST" style="margin: 0;">
+                        <input type="hidden" name="admin_action" value="run_notification_worker">
+                        <button type="submit" class="action-btn" style="background: var(--brand-tea-green); color: #FFFFFF; border-color: var(--brand-tea-green); font-weight: 600; padding: 6px 14px;">
+                            🚀 Xử Lý Hàng Đợi Ngay
+                        </button>
+                    </form>
+                    <a href="admin.php?tab=config#smtp_settings" class="action-btn" style="text-decoration: none; font-size: 0.75rem;">
+                        ⚙️ Cài đặt Email SMTP
+                    </a>
+                </div>
+            </div>
+
+            <!-- Bảng danh sách hàng đợi Outbox -->
+            <div class="zen-card" style="padding: 0; overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ID</th>
+                            <th>Mã Đơn / Sự Kiện</th>
+                            <th>Kênh</th>
+                            <th>Trạng Thái</th>
+                            <th>Số Lần Thử</th>
+                            <th>Lần Thử Tiếp / Đã Gửi</th>
+                            <th>Lỗi Gần Nhất</th>
+                            <th style="text-align: right;">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($notifList)): ?>
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 24px; color: var(--text-muted-warm);">
+                                    🍃 Không có thông báo nào trong hàng đợi phù hợp với bộ lọc.
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($notifList as $item): ?>
+                                <tr>
+                                    <td style="font-size: 0.75rem; color: var(--text-muted-warm);">#<?= (int)$item['id'] ?></td>
+                                    <td>
+                                        <strong><?= htmlspecialchars((string)($item['order_code'] ?? 'N/A'), ENT_QUOTES, 'UTF-8') ?></strong>
+                                        <span style="font-size: 0.72rem; color: var(--text-muted-warm); display: block;">
+                                            <?= htmlspecialchars((string)$item['event_key'], ENT_QUOTES, 'UTF-8') ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php if ($item['channel'] === 'email'): ?>
+                                            <span style="background: #EFF6FF; color: #1D4ED8; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">✉️ Email</span>
+                                        <?php elseif ($item['channel'] === 'web'): ?>
+                                            <span style="background: #F0FDF4; color: #15803D; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">🔔 Web</span>
+                                        <?php else: ?>
+                                            <span style="background: #F3F4F6; color: #374151; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem;"><?= htmlspecialchars($item['channel'], ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if ($item['status'] === 'sent'): ?>
+                                            <span style="background: #ECFDF5; color: #065F46; padding: 3px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600;">✓ Đã gửi</span>
+                                        <?php elseif ($item['status'] === 'pending'): ?>
+                                            <span style="background: #FFFBEB; color: #92400E; padding: 3px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600;">⏳ Chờ gửi</span>
+                                        <?php elseif ($item['status'] === 'processing'): ?>
+                                            <span style="background: #EFF6FF; color: #1E40AF; padding: 3px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600;">🔄 Đang gửi...</span>
+                                        <?php elseif ($item['status'] === 'failed'): ?>
+                                            <span style="background: #FEE2E2; color: #991B1B; padding: 3px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600;">✗ Thất bại</span>
+                                        <?php else: ?>
+                                            <span><?= htmlspecialchars($item['status'], ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span style="font-size: 0.78rem; font-weight: 600; color: <?= (int)$item['attempt_count'] >= 5 ? '#DC2626' : 'inherit' ?>;">
+                                            <?= (int)$item['attempt_count'] ?>/5
+                                        </span>
+                                    </td>
+                                    <td style="font-size: 0.75rem; color: var(--text-muted-warm);">
+                                        <?php if ($item['status'] === 'sent' && !empty($item['sent_at'])): ?>
+                                            <?= date('d/m H:i:s', strtotime($item['sent_at'])) ?>
+                                        <?php elseif (!empty($item['next_retry_at'])): ?>
+                                            <?= date('d/m H:i:s', strtotime($item['next_retry_at'])) ?>
+                                        <?php else: ?>
+                                            <?= date('d/m H:i:s', strtotime($item['created_at'])) ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="font-size: 0.72rem; max-width: 220px; color: #B91C1C;">
+                                        <?php if (!empty($item['last_error'])): ?>
+                                            <?php
+                                            $errStr = (string)$item['last_error'];
+                                            $errLen = function_exists('mb_strlen') ? mb_strlen($errStr) : strlen($errStr);
+                                            $errSnippet = $errLen > 45 ? ((function_exists('mb_substr') ? mb_substr($errStr, 0, 45) : substr($errStr, 0, 45)) . '...') : $errStr;
+                                            ?>
+                                            <span title="<?= htmlspecialchars($errStr, ENT_QUOTES, 'UTF-8') ?>">
+                                                <?= htmlspecialchars($errSnippet, ENT_QUOTES, 'UTF-8') ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span style="color: #9CA3AF;">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <?php if ($item['status'] !== 'sent'): ?>
+                                            <form method="POST" style="display: inline-block; margin: 0;">
+                                                <input type="hidden" name="admin_action" value="retry_notification">
+                                                <input type="hidden" name="notification_id" value="<?= (int)$item['id'] ?>">
+                                                <button type="submit" class="action-btn" style="color: #1D4ED8; font-weight: 600;">
+                                                    🔄 Gửi Lại
+                                                </button>
+                                            </form>
+                                        <?php else: ?>
+                                            <span style="font-size: 0.72rem; color: #10B981;">Hoàn tất</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
         <?php elseif ($currentTab === 'config'): ?>
             <!-- TAB 5: Cấu hình Hệ Thống -->
             <div class="zen-card">
@@ -928,6 +1145,65 @@ $currentConfig = $configService->getAll();
                                 <input type="checkbox" name="zalo_require_group" value="1" <?= (isset($currentConfig['zalo_require_group']) && $currentConfig['zalo_require_group'] === '1') ? 'checked' : '' ?>>
                                 <span>Bắt buộc tham gia nhóm Zalo</span>
                             </label>
+                        </div>
+                    </div>
+
+                    <!-- Cấu hình Email Thông Báo & SMTP (Issue #13) -->
+                    <div id="smtp_settings" style="border-top: 1px dashed var(--brand-border-soft); margin-top: 10px; padding-top: 14px;">
+                        <h3 style="font-size: 0.88rem; font-weight: 700; color: #1E40AF; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                            <span>✉️ Cấu Hình Email Thông Báo & Máy Chủ SMTP (Dự Phòng)</span>
+                        </h3>
+                        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; padding: 14px; border-radius: 12px; margin-bottom: 12px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #166534; display: block; margin-bottom: 4px;"><strong>Email nhận thông báo đơn mới (Chủ bếp):</strong></label>
+                                    <input type="email" name="notification_email_to" class="zen-input" value="<?= htmlspecialchars($currentConfig['notification_email_to'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="chubep@anyen.vn hoặc gmail của bạn" style="background: #FFFFFF;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #166534; display: block; margin-bottom: 4px;">Tên người gửi (From Name):</label>
+                                    <input type="text" name="smtp_from_name" class="zen-input" value="<?= htmlspecialchars($currentConfig['smtp_from_name'] ?? 'Bếp Chay An Yên', ENT_QUOTES, 'UTF-8') ?>" style="background: #FFFFFF;">
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #166534; display: block; margin-bottom: 4px;">Máy chủ SMTP (SMTP Host):</label>
+                                    <input type="text" name="smtp_host" class="zen-input" value="<?= htmlspecialchars($currentConfig['smtp_host'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="smtp.gmail.com" style="background: #FFFFFF;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #166534; display: block; margin-bottom: 4px;">Cổng SMTP (Port):</label>
+                                    <input type="number" name="smtp_port" class="zen-input" value="<?= htmlspecialchars((string)($currentConfig['smtp_port'] ?? '587'), ENT_QUOTES, 'UTF-8') ?>" placeholder="587 hoặc 465" style="background: #FFFFFF;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #166534; display: block; margin-bottom: 4px;">Phương thức mã hóa:</label>
+                                    <select name="smtp_encryption" class="zen-input" style="background: #FFFFFF;">
+                                        <option value="tls" <?= ($currentConfig['smtp_encryption'] ?? 'tls') === 'tls' ? 'selected' : '' ?>>TLS (Cổng 587 khuyến nghị)</option>
+                                        <option value="ssl" <?= ($currentConfig['smtp_encryption'] ?? '') === 'ssl' ? 'selected' : '' ?>>SSL (Cổng 465)</option>
+                                        <option value="none" <?= ($currentConfig['smtp_encryption'] ?? '') === 'none' ? 'selected' : '' ?>>Không mã hóa (Cổng 25)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #166534; display: block; margin-bottom: 4px;">Tài khoản SMTP (Username/Email gửi):</label>
+                                    <input type="text" name="smtp_username" class="zen-input" value="<?= htmlspecialchars($currentConfig['smtp_username'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="ví dụ: bepchayanyen@gmail.com" style="background: #FFFFFF;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #166534; display: block; margin-bottom: 4px;">Mật khẩu ứng dụng SMTP (App Password):</label>
+                                    <input type="password" name="smtp_password" class="zen-input" value="" placeholder="Để trống nếu không đổi mật khẩu" style="background: #FFFFFF;">
+                                </div>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.8rem; color: #166534;">
+                                    <input type="checkbox" name="smtp_mock_mode" value="1" <?= (isset($currentConfig['smtp_mock_mode']) && $currentConfig['smtp_mock_mode'] === '1') ? 'checked' : '' ?>>
+                                    <span>Bật chế độ thử nghiệm Email (Mock Mode - chỉ ghi vào logs/mail.log, không gửi thật ra ngoài)</span>
+                                </label>
+                            </div>
+                            <p style="font-size: 0.7rem; color: #166534; margin-top: 6px; line-height: 1.4;">
+                                💡 <em>Ghi chú:</em> Khi dùng Gmail, bạn hãy tạo <strong>Mật khẩu ứng dụng (App Password)</strong> trong tài khoản Google để điền vào ô mật khẩu. Nếu để trống SMTP Host, hệ thống sẽ tự động dùng hàm <code>mail()</code> hoặc ghi log giả lập an toàn.
+                            </p>
                         </div>
                     </div>
 

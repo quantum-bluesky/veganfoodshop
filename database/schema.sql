@@ -79,6 +79,22 @@ CREATE TABLE IF NOT EXISTS system_config (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 7. Bảng Hàng Đợi Thông Báo (Notification Outbox)
+CREATE TABLE IF NOT EXISTS notification_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_key TEXT NOT NULL UNIQUE,
+    event_type TEXT NOT NULL,
+    order_id INTEGER NOT NULL,
+    channel TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    next_retry_at TEXT,
+    last_error TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at TEXT,
+    payload_json TEXT
+);
+
 -- ====================================================================
 -- INDEXES TỐI ƯU HIỆU NĂNG TRUY VẤN
 -- ====================================================================
@@ -89,3 +105,5 @@ CREATE INDEX IF NOT EXISTS idx_time_slots_date_active ON time_slots(slot_date, i
 CREATE INDEX IF NOT EXISTS idx_orders_slot_status ON orders(slot_id, order_status);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_phone ON orders(customer_phone);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_notification_pending ON notification_outbox(status, next_retry_at);
+CREATE INDEX IF NOT EXISTS idx_notification_order ON notification_outbox(order_id);

@@ -28,3 +28,8 @@ logs/
 Thumbs.db
 .idea/
 .vscode/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

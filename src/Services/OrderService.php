@@ -1,0 +1,352 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Services;
+
+use PDO;
+use Throwable;
+use App\Database\Connection;
+use App\Exceptions\DomainException;
+use App\Exceptions\SlotFullException;
+use App\Exceptions\ValidationException;
+
+class OrderService
+{
+    public function __construct(
+        private ?PDO $db = null,
+        private ?CustomerService $customerService = null,
+        private ?SlotService $slotService = null
+    ) {
+        $this->db = $db ?? Connection::getInstance();
+        $this->customerService = $customerService ?? new CustomerService($this->db);
+        $this->slotService = $slotService ?? new SlotService($this->db);
+    }
+
+    /**
+     * Sinh mã đơn hàng thân thiện (ví dụ: AY-20261025-7K9P)
+     */
+    public function generateOrderCode(): string
+    {
+        $datePrefix = date('Ymd');
+        $randomPart = strtoupper(substr(bin2hex(random_bytes(3)), 0, 4));
+        return sprintf('AY-%s-%s', $datePrefix, $randomPart);
+    }
+
+    /**
+     * Tạo đơn đặt chỗ & đặt món với cơ chế Transaction IMMEDIATE khóa suất an toàn
+     * 
+     * @param array{
+     *    customer_name: string,
+     *    customer_phone: string,
+     *    slot_id: int,
+     *    order_type: string,
+     *    payment_method: string,
+     *    items: array<int, int>, // [menu_item_id => quantity]
+     *    customer_note?: ?string
+     * } $data
+     * @return array
+     * @throws SlotFullException
+     * @throws ValidationException
+     * @throws DomainException
+     */
+    public function createOrder(array $data): array
+    {
+        // 1. Validation dữ liệu đầu vào
+        $customerName = trim((string)($data['customer_name'] ?? ''));
+        $rawPhone = (string)($data['customer_phone'] ?? '');
+        $customerPhone = $this->customerService->normalizePhone($rawPhone);
+        $slotId = (int)($data['slot_id'] ?? 0);
+        $orderType = (string)($data['order_type'] ?? 'dine_in');
+        $paymentMethod = (string)($data['payment_method'] ?? 'vietqr');
+        $customerNote = isset($data['customer_note']) ? trim((string)$data['customer_note']) : null;
+        $items = (array)($data['items'] ?? []);
+
+        if ($customerName === '') {
+            throw new ValidationException('Xin vui lòng nhập tên của bạn.');
+        }
+
+        if (strlen($customerPhone) < 9 || strlen($customerPhone) > 11) {
+            throw new ValidationException('Số điện thoại không hợp lệ.');
+        }
+
+        if (!in_array($orderType, ['dine_in', 'takeaway'], true)) {
+            throw new ValidationException('Hình thức nhận món không hợp lệ.');
+        }
+
+        if (!in_array($paymentMethod, ['vietqr', 'pay_later', 'cash'], true)) {
+            throw new ValidationException('Phương thức thanh toán không hợp lệ.');
+        }
+
+        // Lọc danh sách món có số lượng > 0
+        $validItems = [];
+        foreach ($items as $itemId => $qty) {
+            $itemId = (int)$itemId;
+            $qty = (int)$qty;
+            if ($qty > 0) {
+                if ($qty > 10) {
+                    throw new ValidationException('Số lượng mỗi món không vượt quá 10 suất.');
+                }
+                $validItems[$itemId] = $qty;
+            }
+        }
+
+        if (empty($validItems)) {
+            throw new ValidationException('Xin vui lòng chọn ít nhất một món ăn hoặc thức uống.');
+        }
+
+        // Nếu chọn pay_later, bắt buộc khách phải là khách quen (is_trusted == 1)
+        if ($paymentMethod === 'pay_later' && !$this->customerService->isTrusted($customerPhone)) {
+            throw new ValidationException('Phương thức thanh toán sau chỉ dành riêng cho khách quen đã được bếp ghi nhận.');
+        }
+
+        // 2. Bắt đầu Transaction IMMEDIATE để khóa ghi, chống Race Condition
+        $this->db->exec('BEGIN IMMEDIATE TRANSACTION;');
+
+        try {
+            // Lấy thông tin ca
+            $stmtSlot = $this->db->prepare('SELECT id, slot_date, slot_time, max_capacity, is_active FROM time_slots WHERE id = :id');
+            $stmtSlot->execute([':id' => $slotId]);
+            $slot = $stmtSlot->fetch();
+
+            if (!$slot || (int)$slot['is_active'] !== 1) {
+                throw new DomainException('Khung giờ phục vụ này hiện không khả dụng.');
+            }
+
+            $maxCapacity = (int)$slot['max_capacity'];
+
+            // Lấy thông tin các món trong DB để snapshot và tính tiền
+            $itemIds = array_keys($validItems);
+            $inPlaceholders = implode(',', array_fill(0, count($itemIds), '?'));
+            $stmtMenu = $this->db->prepare("SELECT id, name, price, category, is_available FROM menu_items WHERE id IN ($inPlaceholders)");
+            $stmtMenu->execute($itemIds);
+            $menuRows = $stmtMenu->fetchAll();
+
+            $menuMap = [];
+            foreach ($menuRows as $row) {
+                $menuMap[(int)$row['id']] = $row;
+            }
+
+            // Đếm số món chính ('food') trong đơn mới
+            $newFoodCount = 0;
+            $orderLines = [];
+            $totalAmount = 0;
+
+            foreach ($validItems as $itemId => $qty) {
+                if (!isset($menuMap[$itemId])) {
+                    throw new ValidationException('Món ăn bạn chọn không tồn tại trong thực đơn.');
+                }
+                $itemInfo = $menuMap[$itemId];
+                if ((int)$itemInfo['is_available'] !== 1) {
+                    throw new DomainException(sprintf('Món "%s" hôm nay đã tạm hết.', $itemInfo['name']));
+                }
+
+                if ($itemInfo['category'] === 'food') {
+                    $newFoodCount += $qty;
+                }
+
+                $unitPrice = (int)$itemInfo['price'];
+                $subtotal = $unitPrice * $qty;
+                $totalAmount += $subtotal;
+
+                $orderLines[] = [
+                    'menu_item_id' => $itemId,
+                    'item_name' => (string)$itemInfo['name'],
+                    'unit_price' => $unitPrice,
+                    'quantity' => $qty,
+                    'subtotal' => $subtotal,
+                ];
+            }
+
+            // Kiểm tra số suất món ăn chính đã đặt trong ca
+            $stmtCount = $this->db->prepare('
+                SELECT COALESCE(SUM(oi.quantity), 0) AS booked_count
+                FROM orders o
+                JOIN order_items oi ON o.id = oi.order_id
+                JOIN menu_items mi ON oi.menu_item_id = mi.id
+                WHERE o.slot_id = :slot_id 
+                  AND o.order_status != \'cancelled\'
+                  AND mi.category = \'food\'
+            ');
+            $stmtCount->execute([':slot_id' => $slotId]);
+            $currentBookedFood = (int)$stmtCount->fetchColumn();
+
+            // Nếu vượt quá công suất
+            if ($newFoodCount > 0 && ($currentBookedFood + $newFoodCount) > $maxCapacity) {
+                $remaining = max(0, $maxCapacity - $currentBookedFood);
+                throw new SlotFullException(
+                    sprintf('Ca %s chỉ còn %d suất món ăn chính khả dụng. Xin bạn chọn ca khác hoặc giảm số lượng.', $slot['slot_time'], $remaining)
+                );
+            }
+
+            // 3. Thêm hoặc cập nhật khách hàng
+            $this->customerService->saveOrUpdate($customerPhone, $customerName);
+
+            // 4. Sinh mã đơn hàng và chèn vào bảng orders
+            $orderCode = $this->generateOrderCode();
+            $paymentStatus = ($paymentMethod === 'pay_later') ? 'pay_later' : 'pending';
+
+            $stmtOrder = $this->db->prepare('
+                INSERT INTO orders (
+                    order_code, customer_phone, slot_id, order_type, 
+                    total_amount, payment_method, payment_status, order_status, 
+                    customer_note, created_at
+                ) VALUES (
+                    :order_code, :customer_phone, :slot_id, :order_type, 
+                    :total_amount, :payment_method, :payment_status, \'confirmed\', 
+                    :customer_note, CURRENT_TIMESTAMP
+                )
+            ');
+            $stmtOrder->execute([
+                ':order_code' => $orderCode,
+                ':customer_phone' => $customerPhone,
+                ':slot_id' => $slotId,
+                ':order_type' => $orderType,
+                ':total_amount' => $totalAmount,
+                ':payment_method' => $paymentMethod,
+                ':payment_status' => $paymentStatus,
+                ':customer_note' => $customerNote,
+            ]);
+
+            $orderId = (int)$this->db->lastInsertId();
+
+            // 5. Chèn chi tiết các món vào bảng order_items
+            $stmtItem = $this->db->prepare('
+                INSERT INTO order_items (order_id, menu_item_id, item_name, unit_price, quantity, subtotal) 
+                VALUES (:order_id, :menu_item_id, :item_name, :unit_price, :quantity, :subtotal)
+            ');
+
+            foreach ($orderLines as $line) {
+                $stmtItem->execute([
+                    ':order_id' => $orderId,
+                    ':menu_item_id' => $line['menu_item_id'],
+                    ':item_name' => $line['item_name'],
+                    ':unit_price' => $line['unit_price'],
+                    ':quantity' => $line['quantity'],
+                    ':subtotal' => $line['subtotal'],
+                ]);
+            }
+
+            // Cam kết giao dịch
+            $this->db->exec('COMMIT;');
+
+            return [
+                'id' => $orderId,
+                'order_code' => $orderCode,
+                'customer_name' => $customerName,
+                'customer_phone' => $customerPhone,
+                'slot_id' => $slotId,
+                'slot_date' => $slot['slot_date'],
+                'slot_time' => $slot['slot_time'],
+                'order_type' => $orderType,
+                'total_amount' => $totalAmount,
+                'payment_method' => $paymentMethod,
+                'payment_status' => $paymentStatus,
+                'order_status' => 'confirmed',
+                'customer_note' => $customerNote,
+                'items' => $orderLines,
+            ];
+        } catch (Throwable $e) {
+            try {
+                $this->db->exec('ROLLBACK;');
+            } catch (Throwable) {
+                // Nuốt lỗi nếu transaction đã được rollback trước đó
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Lấy chi tiết đơn hàng theo mã đơn
+     */
+    public function getOrderByCode(string $orderCode): ?array
+    {
+        $stmt = $this->db->prepare('
+            SELECT o.*, c.name as customer_name, ts.slot_date, ts.slot_time
+            FROM orders o
+            JOIN customers c ON o.customer_phone = c.phone
+            JOIN time_slots ts ON o.slot_id = ts.id
+            WHERE o.order_code = :code 
+            LIMIT 1
+        ');
+        $stmt->execute([':code' => trim($orderCode)]);
+        $order = $stmt->fetch();
+        if (!$order) {
+            return null;
+        }
+
+        // Lấy chi tiết món
+        $stmtItems = $this->db->prepare('SELECT * FROM order_items WHERE order_id = :order_id');
+        $stmtItems->execute([':order_id' => (int)$order['id']]);
+        $order['items'] = $stmtItems->fetchAll();
+
+        return $order;
+    }
+
+    /**
+     * Lấy danh sách đơn hàng lọc theo ca (Admin)
+     */
+    public function getOrdersBySlot(int $slotId): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT o.*, c.name as customer_name, c.is_trusted
+            FROM orders o
+            JOIN customers c ON o.customer_phone = c.phone
+            WHERE o.slot_id = :slot_id
+            ORDER BY o.created_at DESC
+        ');
+        $stmt->execute([':slot_id' => $slotId]);
+        $orders = $stmt->fetchAll();
+
+        foreach ($orders as &$order) {
+            $stmtItems = $this->db->prepare('SELECT * FROM order_items WHERE order_id = :order_id');
+            $stmtItems->execute([':order_id' => (int)$order['id']]);
+            $order['items'] = $stmtItems->fetchAll();
+        }
+        unset($order);
+
+        return $orders;
+    }
+
+    /**
+     * Thống kê bếp (tổng hợp số lượng từng món cần nấu trong ca)
+     */
+    public function getKitchenSummaryBySlot(int $slotId): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT mi.id, mi.name, mi.category, SUM(oi.quantity) as total_qty
+            FROM orders o
+            JOIN order_items oi ON o.id = oi.order_id
+            JOIN menu_items mi ON oi.menu_item_id = mi.id
+            WHERE o.slot_id = :slot_id 
+              AND o.order_status != \'cancelled\'
+            GROUP BY mi.id, mi.name, mi.category
+            ORDER BY mi.category ASC, total_qty DESC
+        ');
+        $stmt->execute([':slot_id' => $slotId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Cập nhật trạng thái đơn hàng (Admin)
+     */
+    public function updateOrderStatus(int $orderId, string $status): bool
+    {
+        if (!in_array($status, ['pending', 'confirmed', 'completed', 'cancelled'], true)) {
+            return false;
+        }
+        $stmt = $this->db->prepare('UPDATE orders SET order_status = :status WHERE id = :id');
+        return $stmt->execute([':status' => $status, ':id' => $orderId]);
+    }
+
+    /**
+     * Cập nhật trạng thái thanh toán (Admin)
+     */
+    public function updatePaymentStatus(int $orderId, string $status): bool
+    {
+        if (!in_array($status, ['pending', 'paid', 'pay_later', 'refunded'], true)) {
+            return false;
+        }
+        $stmt = $this->db->prepare('UPDATE orders SET payment_status = :status WHERE id = :id');
+        return $stmt->execute([':status' => $status, ':id' => $orderId]);
+    }
+}

@@ -1,0 +1,277 @@
+/* ====================================================================
+   DESIGN SYSTEM: Bếp Chay An Yên
+   Triết lý: Hơi thở Ghibli & Thiền Vị (Zen)
+   ==================================================================== */
+
+:root {
+    --bg-washi-primary: #FAF7F2;
+    --bg-washi-card: #FFFFFF;
+    --brand-tea-green: #5B7065;
+    --brand-tea-hover: #4A5C52;
+    --brand-tea-dark: #344037;
+    --brand-sage-light: #EEF2E6;
+    --brand-border-soft: #DDE5D4;
+    --text-charcoal: #2C2A29;
+    --text-muted-warm: #7D7871;
+    --accent-wood: #8C7A6B;
+    --radius-card: 24px;
+    --radius-input: 16px;
+    --shadow-zen: 0 4px 20px -2px rgba(91, 112, 101, 0.08);
+    --shadow-active: 0 8px 30px -4px rgba(91, 112, 101, 0.16);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: 'Quicksand', 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-washi-primary);
+    color: var(--text-charcoal);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    background-image: radial-gradient(rgba(91, 112, 101, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.font-serif-zen {
+    font-family: 'Lora', serif;
+}
+
+/* Card Ghibli */
+.zen-card {
+    background-color: var(--bg-washi-card);
+    border-radius: var(--radius-card);
+    padding: 20px;
+    box-shadow: var(--shadow-zen);
+    border: 1px solid rgba(221, 229, 212, 0.7);
+    transition: all 0.25s ease-in-out;
+}
+
+.zen-card:hover {
+    box-shadow: var(--shadow-active);
+}
+
+/* Label tiêu đề nhóm */
+.zen-label {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--brand-tea-green);
+    margin-bottom: 12px;
+}
+
+.zen-label .badge-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background-color: var(--brand-sage-light);
+    color: var(--brand-tea-green);
+    border-radius: 50%;
+    font-size: 0.75rem;
+    margin-right: 8px;
+    font-weight: 700;
+}
+
+/* Khung chọn hình thức & ca */
+.zen-radio-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.zen-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 10px;
+    border: 1.5px solid #E5E7EB;
+    border-radius: var(--radius-input);
+    cursor: pointer;
+    background-color: #FFFFFF;
+    transition: all 0.2s ease-in-out;
+    text-align: center;
+    user-select: none;
+}
+
+.zen-option:hover {
+    border-color: var(--brand-tea-green);
+}
+
+.zen-option input[type="radio"] {
+    display: none;
+}
+
+.zen-option.is-checked {
+    background-color: var(--brand-sage-light);
+    border-color: var(--brand-tea-green);
+    color: var(--brand-tea-dark);
+}
+
+.zen-option.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+    background-color: #F3F4F6;
+    border-color: #E5E7EB;
+}
+
+/* Danh mục món ăn */
+.menu-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px dashed rgba(221, 229, 212, 0.9);
+}
+
+.menu-item-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.menu-item-info {
+    flex: 1;
+    padding-right: 12px;
+}
+
+.menu-item-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--brand-tea-dark);
+    margin-bottom: 2px;
+}
+
+.menu-item-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted-warm);
+    line-height: 1.35;
+    margin-bottom: 4px;
+}
+
+.menu-item-price {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--brand-tea-green);
+}
+
+/* Bộ đếm số lượng món */
+.qty-control {
+    display: flex;
+    align-items: center;
+    background-color: var(--brand-sage-light);
+    border-radius: 12px;
+    padding: 2px;
+}
+
+.qty-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background-color: #FFFFFF;
+    color: var(--brand-tea-dark);
+    font-weight: bold;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: all 0.15s ease;
+}
+
+.qty-btn:active {
+    transform: scale(0.92);
+}
+
+.qty-input {
+    width: 34px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    background: transparent;
+    color: var(--brand-tea-dark);
+    outline: none;
+}
+
+/* Ô nhập liệu Form */
+.zen-input {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: var(--radius-input);
+    border: 1.5px solid #E5E7EB;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--text-charcoal);
+    background-color: #FAFAFA;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.zen-input:focus {
+    border-color: var(--brand-tea-green);
+    background-color: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(91, 112, 101, 0.12);
+}
+
+/* Badge Khách Quen */
+.trusted-badge {
+    background-color: #E6F3E6;
+    border: 1px solid #C3E6C3;
+    color: #2D5A27;
+    padding: 12px 14px;
+    border-radius: 14px;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Nút Submit chính */
+.zen-btn-primary {
+    width: 100%;
+    padding: 16px 20px;
+    border-radius: var(--radius-card);
+    background-color: var(--brand-tea-green);
+    color: #FFFFFF;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(91, 112, 101, 0.3);
+    transition: all 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.zen-btn-primary:hover {
+    background-color: var(--brand-tea-hover);
+    box-shadow: 0 6px 20px rgba(91, 112, 101, 0.4);
+}
+
+.zen-btn-primary:active {
+    transform: scale(0.98);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile responsive fixes */
+@media (max-width: 480px) {
+    .zen-card {
+        padding: 16px;
+    }
+}

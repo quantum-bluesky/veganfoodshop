@@ -118,14 +118,15 @@ D:\Quan\VeganFoodShop\
 ## 🚀 Hướng Dẫn Chạy Cục Bộ (Local Development)
 
 ### 1. Khởi chạy Web Server tích hợp
-Mở terminal tại thư mục dự án và chạy:
+Mở terminal tại thư mục dự án và chạy (hỗ trợ Clean URLs không cần đuôi `.php`):
 ```powershell
-php -S localhost:8008
+php -S localhost:8008 router.php
 ```
 Mở trình duyệt truy cập:
 - **Trang Đặt Món Khách Hàng:** `http://localhost:8008` (Bật DevTools giả lập màn hình di động 390x844 để có trải nghiệm tốt nhất).
-- **Trang Quản Trị Bếp:** `http://localhost:8008/admin.php`
+- **Trang Quản Trị Bếp:** `http://localhost:8008/admin` (hoặc `http://localhost:8008/admin.php`)
   - Mật khẩu quản trị mặc định: `AnYen@2026`
+- **Hướng dẫn cấu hình Nginx/Apache Rewrite chi tiết:** Xem tại [docs/URL_REWRITE_GUIDE.md](docs/URL_REWRITE_GUIDE.md).
 
 ---
 

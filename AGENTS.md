@@ -186,8 +186,9 @@ server {
         return 404;
     }
 
+    # Hỗ trợ Clean URLs (truy cập /admin thay vì /admin.php)
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files $uri $uri/ $uri.php?$query_string /index.php?$query_string;
     }
 
     location ~ \.php$ {

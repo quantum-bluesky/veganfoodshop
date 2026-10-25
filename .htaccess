@@ -1,0 +1,28 @@
+# ====================================================================
+# Apache URL Rewrite Configuration: VeganFoodShop (Bếp Chay An Yên)
+# Hỗ trợ Clean URLs (truy cập /admin thay vì /admin.php)
+# ====================================================================
+
+RewriteEngine On
+
+# 1. Chặn tải trực tiếp file database và file cấu hình nhạy cảm
+<FilesMatch "\.(db|sqlite|sqlite3|sql|log|env)$">
+    Require all denied
+</FilesMatch>
+
+# 2. Bỏ qua nếu là thư mục hoặc file tĩnh thực tế (css, js, ảnh)
+RewriteCond %{REQUEST_FILENAME} -d [OR]
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# 3. Tự động thêm đuôi .php nếu file .php tồn tại (vd: /admin -> admin.php)
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.+?)/?$ $1.php [L,QSA]
+
+# 4. Clean routes cho Zalo OAuth
+RewriteRule ^(api/public/)?zalo-(login|callback)/?$ index.php [L,QSA]
+
+# 5. Fallback về index.php cho các route khác
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L,QSA]

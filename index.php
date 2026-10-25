@@ -14,11 +14,13 @@ require_once __DIR__ . '/src/autoload.php';
 use App\Services\ConfigService;
 use App\Services\LunarCalendarService;
 use App\Services\MenuService;
+use App\Services\PromotionService;
 use App\Services\SlotService;
 
 $configService = new ConfigService();
 $menuService = new MenuService();
 $slotService = new SlotService();
+$promotionService = new PromotionService();
 $zaloService = new \App\Services\ZaloAuthService();
 $zaloConfig = $zaloService->getConfig();
 
@@ -72,15 +74,29 @@ $reqDate = (string)($_GET['date'] ?? '');
 $selectedDate = ($reqDate !== '' && in_array($reqDate, $availableDates, true)) ? $reqDate : (!empty($availableDates) ? $availableDates[0] : $today);
 
 $datesWithLunar = [];
+$datesWithPromos = [];
 foreach ($availableDates as $d) {
     $datesWithLunar[$d] = LunarCalendarService::getLunarInfoForDate($d);
+    $activeP = $promotionService->getActivePromotionsForDate($d);
+    if (!empty($activeP)) {
+        $datesWithPromos[$d] = $activeP;
+    }
 }
 $selectedDateLunar = $datesWithLunar[$selectedDate] ?? LunarCalendarService::getLunarInfoForDate($selectedDate);
+$activePromosForSelectedDate = $datesWithPromos[$selectedDate] ?? $promotionService->getActivePromotionsForDate($selectedDate);
 
 $slots = !empty($availableDates) ? $slotService->getSlotsByDate($selectedDate, true, $minLeadTimeHours) : [];
 $isBookingDisabled = empty($availableDates) || empty($slots);
 $scheduledSuite = $menuService->getScheduledSuiteForDate($selectedDate);
-$menuItems = $menuService->getMenuItemsForDate($selectedDate);
+$rawMenuItems = $menuService->getMenuItemsForDate($selectedDate);
+$menuItems = $promotionService->enrichMenuItemsWithPromotions($selectedDate, $rawMenuItems);
+$hasAnyPromoInMenu = false;
+foreach ($menuItems as $it) {
+    if (!empty($it['has_promo'])) {
+        $hasAnyPromoInMenu = true;
+        break;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -192,6 +208,24 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                     <span style="flex: 1; line-height: 1.4;"><?= htmlspecialchars($noticeText, ENT_QUOTES, 'UTF-8') ?></span>
                 </div>
 
+                <!-- Chương trình Khuyến Mại & Ưu đãi đặc biệt (Issue #20) -->
+                <?php if (!empty($activePromosForSelectedDate)): ?>
+                    <?php foreach ($activePromosForSelectedDate as $promo): ?>
+                        <div class="zen-event-item" style="background: #FFF7ED; border-left: 3px solid #EA580C;">
+                            <span style="font-size: 0.95rem;">🔥</span>
+                            <div style="flex: 1; line-height: 1.4;">
+                                <strong style="color: #9A3412;"><?= htmlspecialchars($promo['badge_text'] ?: $promo['title'], ENT_QUOTES, 'UTF-8') ?>:</strong>
+                                <span style="color: #7C2D12; font-weight: 600;"><?= htmlspecialchars($promo['title'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php if (!empty($promo['description'])): ?>
+                                    <div style="font-size: 0.72rem; color: #9A3412; opacity: 0.9; margin-top: 1px;">
+                                        <?= htmlspecialchars($promo['description'], ENT_QUOTES, 'UTF-8') ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+
                 <!-- Lịch ngày Mùng 1 & Rằm sắp tới (Issue #19) -->
                 <?php if (!empty($upcomingVeganDays)): ?>
                     <?php foreach ($upcomingVeganDays as $uvd): ?>
@@ -302,7 +336,7 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                     </span>
                 </div>
 
-                <!-- Thanh Lịch Ngang Trượt (Horizontal Date Strip - Issue #19) -->
+                <!-- Thanh Lịch Ngang Trượt (Horizontal Date Strip - Issue #19 & #20) -->
                 <?php if (count($availableDates) > 1): ?>
                     <div class="date-strip-container" role="tablist" aria-label="Chọn ngày phục vụ">
                         <?php foreach ($availableDates as $d): 
@@ -315,6 +349,7 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                                 $dow = 'Ngày mai';
                             }
                             $isActive = ($d === $selectedDate);
+                            $hasPromoOnDate = !empty($datesWithPromos[$d]);
                         ?>
                             <a href="index.php?date=<?= urlencode($d) ?>" 
                                class="date-chip <?= $isActive ? 'is-active' : '' ?>"
@@ -326,6 +361,11 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                                 <?php if ($lunar && !empty($lunar['badge'])): ?>
                                     <span class="badge-lunar-chip <?= htmlspecialchars($lunar['badge']['class'], ENT_QUOTES, 'UTF-8') ?>">
                                         <?= htmlspecialchars($lunar['badge']['icon'] . ' ' . ($lunar['is_first_day'] ? 'M1' : ($lunar['is_full_moon'] ? 'Rằm' : 'Lễ')), ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                <?php endif; ?>
+                                <?php if ($hasPromoOnDate): ?>
+                                    <span class="badge-lunar-chip" style="background: #FFEDD5; color: #C2410C; border: 1px solid #FDBA74;">
+                                        🔥 KM
                                     </span>
                                 <?php endif; ?>
                             </a>
@@ -407,7 +447,7 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                 </div>
             </section>
 
-            <!-- BƯỚC 3: Chọn món thanh tịnh tinh tuyển (Issue #17 & #19) -->
+            <!-- BƯỚC 3: Chọn món thanh tịnh tinh tuyển (Issue #17, #19 & #20) -->
             <section class="zen-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                     <h2 class="zen-label" style="margin-bottom: 0;">
@@ -418,13 +458,13 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                     </span>
                 </div>
 
-                <!-- Category Pills (Bộ lọc nhóm món tiện lợi - Issue #19) -->
+                <!-- Category Pills (Bộ lọc nhóm món tiện lợi - Issue #19 & #20) -->
                 <div class="category-pills-bar" role="tablist" aria-label="Lọc nhóm món">
                     <button type="button" class="category-pill is-active" data-category="all">✨ Tất cả món</button>
                     <button type="button" class="category-pill" data-category="food">🍜 Món chính</button>
                     <button type="button" class="category-pill" data-category="drink">🍵 Đồ uống</button>
                     <button type="button" class="category-pill" data-category="feast">🍱 Mâm cỗ</button>
-                    <button type="button" class="category-pill" data-category="promo" style="display: none;" id="promoCategoryPill">🔥 Khuyến mại</button>
+                    <button type="button" class="category-pill" data-category="promo" style="<?= $hasAnyPromoInMenu ? 'display: inline-block;' : 'display: none;' ?>" id="promoCategoryPill">🔥 Khuyến mại</button>
                 </div>
                 
                 <div id="menuItemsContainer" style="display: flex; flex-direction: column;">
@@ -437,17 +477,26 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                             $defaultQty = ($idx === 0) ? 1 : 0;
                             $isCombo = !empty($item['is_feast_combo']);
                             $scope = $item['service_scope'] ?? 'both';
+                            $hasPromo = !empty($item['has_promo']);
+                            $finalPrice = (int)($item['final_price'] ?? $item['price']);
+                            $origPrice = (int)($item['original_price'] ?? $item['price']);
                         ?>
                             <div class="menu-item-row" 
-                                 data-price="<?= (int)$item['price'] ?>" 
+                                 data-price="<?= $finalPrice ?>" 
                                  data-item-id="<?= (int)$item['id'] ?>"
                                  data-category="<?= htmlspecialchars($item['category'] ?? 'food', ENT_QUOTES, 'UTF-8') ?>"
                                  data-scope="<?= htmlspecialchars($scope, ENT_QUOTES, 'UTF-8') ?>"
                                  data-combo="<?= $isCombo ? '1' : '0' ?>"
+                                 data-has-promo="<?= $hasPromo ? '1' : '0' ?>"
                                  style="<?= $isCombo ? 'background: #FAF7F2; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px;' : '' ?>">
                                 <div class="menu-item-info">
                                     <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
                                         <h3 class="menu-item-title"><?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?></h3>
+                                        <?php if (!empty($item['promo_badge'])): ?>
+                                            <span style="font-size: 0.65rem; background: #FFEDD5; color: #C2410C; border: 1px solid #FDBA74; padding: 1px 6px; border-radius: 4px; font-weight: 700;">
+                                                <?= htmlspecialchars($item['promo_badge'], ENT_QUOTES, 'UTF-8') ?>
+                                            </span>
+                                        <?php endif; ?>
                                         <?php if ($isCombo): ?>
                                             <span style="font-size: 0.65rem; background: #FEF3C7; color: #92400E; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
                                                 🍱 Mâm cỗ trọn vị
@@ -466,7 +515,18 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                                     <?php if (!empty($item['description'])): ?>
                                         <p class="menu-item-desc"><?= htmlspecialchars($item['description'], ENT_QUOTES, 'UTF-8') ?></p>
                                     <?php endif; ?>
-                                    <span class="menu-item-price"><?= number_format((int)$item['price'], 0, ',', '.') ?>đ</span>
+                                    <div style="display: flex; align-items: baseline; gap: 6px;">
+                                        <?php if ($hasPromo): ?>
+                                            <span class="menu-item-price" style="color: #EA580C; font-weight: 700;">
+                                                <?= number_format($finalPrice, 0, ',', '.') ?>đ
+                                            </span>
+                                            <del style="font-size: 0.75rem; color: var(--text-muted-warm);">
+                                                <?= number_format($origPrice, 0, ',', '.') ?>đ
+                                            </del>
+                                        <?php else: ?>
+                                            <span class="menu-item-price"><?= number_format($finalPrice, 0, ',', '.') ?>đ</span>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                                 <div class="qty-control">
                                     <button type="button" class="qty-btn qty-minus" aria-label="Giảm số lượng">-</button>
@@ -476,7 +536,6 @@ $menuItems = $menuService->getMenuItemsForDate($selectedDate);
                             </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
-                </div>
             </section>
 
             <!-- BƯỚC 4: Thông tin & Thanh toán linh hoạt -->

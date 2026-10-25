@@ -107,6 +107,26 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
     - **Tối Ưu Trải Nghiệm Di Động & Chống Dàn Trải Dọc:**
       - **Category Pills (Bộ lọc danh mục):** Dải nút bấm lọc nhanh `Tất cả`, `Món chính`, `Đồ uống`, `Mâm cỗ` giúp khách không phải cuộn trang dài.
       - **Floating Bottom Summary Bar:** Thanh đáy nổi mềm mại hiển thị số lượng món đã chọn, tạm tính tiền và nút "Xem đơn & Đặt ngay ➔" tự động trượt mượt xuống Bước 4, giải phóng hoàn toàn trải nghiệm cuộn mỏi tay trên điện thoại.
+15. **Thiết Lập Khuyến Mại Giảm Giá Theo Lịch, Món Ăn & Ngày Âm Lịch (v1.9.0 - Issue #20):**
+    - **Thiết lập Khuyến mại Linh hoạt & Đa dạng:**
+      - Quản lý theo khung thời gian hiệu lực (`start_date` đến `end_date`).
+      - Hình thức giảm giá: Giảm theo phần trăm (`percentage` ví dụ: 10%, 15%) hoặc Giảm số tiền trực tiếp (`fixed_amount` ví dụ: 20.000đ).
+      - Ngưỡng đơn tối thiểu (`min_order_amount`) kích hoạt khuyến mại.
+      - Phạm vi áp dụng phong phú: Áp dụng toàn bộ menu (`all`), chỉ áp dụng mâm cỗ (`feast_combo`), áp dụng theo danh mục (`category`) hoặc chỉ định một món cụ thể (`menu_item`).
+    - **Cơ Chế Khuyến Mại Ngày Âm Lịch Tự Động (Mùng 1 & Rằm):**
+      - Tùy chọn độc đáo tự động áp dụng vào ngày Sóc (Mùng 1) và ngày Vọng (Rằm 15) hàng tháng (`apply_on_lunar_days = '1,15'`).
+      - Chủ bếp chỉ cần tạo chương trình ưu đãi một lần, hệ thống tự động nhận diện theo thuật toán Âm lịch và kích hoạt chính xác vào mọi ngày Mùng 1 & Rằm mà không cần lên lịch lặp lại thủ công.
+    - **Hình thức Gây Chú Ý Nổi Bật Trên Web Public:**
+      - **Notice Hub Banner:** Hiển thị thẻ thông báo khuyến mại nổi bật ngay đầu trang với huy hiệu `🔥 ƯU ĐÃI ĐANG DIỄN RA`, mô tả chương trình và điều kiện áp dụng.
+      - **Date Strip Badge:** Ngày nào trên thanh lịch có khuyến mại sẽ tự động gắn huy hiệu `🔥 KM` rực rỡ để khách dễ dàng nhận diện và chọn ngày hưởng ưu đãi.
+      - **Category Pill KM:** Nút lọc nhanh `🔥 Khuyến mại` giúp khách lọc xem ngay danh sách các món đang được giảm giá.
+      - **Thẻ món ăn:** Hiển thị huy hiệu giảm giá (ví dụ: `-15%`, `-20k`), giá bán sau giảm nổi bật và giá gốc gạch ngang minh bạch.
+    - **Trang Quản Trị Khuyến Mại Toàn Diện (`admin.php?tab=promotions`):**
+      - Thống kê tổng số chương trình, số chương trình đang chạy và đã lên lịch.
+      - Form tạo mới chương trình trực quan với đầy đủ tùy chọn điều kiện và phạm vi.
+      - Thao tác 1-chạm bật/tắt kích hoạt (`toggle`) hoặc xóa bỏ chương trình.
+    - **Tích Hợp Chặt Chẽ Vào Đơn Hàng:**
+      - `PromotionService` và `OrderService` tự động tính toán chiết khấu đơn, ưu tiên chương trình có lợi nhất cho khách khi có nhiều khuyến mại cùng thỏa mãn, trừ tiền chuẩn xác và ghi nhận chi tiết chương trình vào dữ liệu đơn hàng.
 
 ---
 

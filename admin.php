@@ -18,6 +18,7 @@ use App\Services\NotificationService;
 use App\Services\OrderService;
 use App\Services\SlotService;
 use App\Services\ReviewService;
+use App\Services\PromotionService;
 
 $configService = new ConfigService();
 $customerService = new CustomerService();
@@ -26,6 +27,7 @@ $notificationService = new NotificationService();
 $orderService = new OrderService();
 $slotService = new SlotService();
 $reviewService = new ReviewService(\App\Database\Connection::getInstance(), $configService);
+$promotionService = new PromotionService();
 
 $config = require __DIR__ . '/config/config.php';
 $defaultPassword = $config['admin']['default_password'] ?? 'AnYen@2026';
@@ -514,11 +516,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ? 'Đã BẬT trang đánh giá & cảm nhận cho khách hàng.' 
                 : 'Đã TẮT trang đánh giá của khách hàng (chế độ tạm đóng).';
             break;
+
+        // 10. Quản lý Khuyến Mại & Ưu Đãi (Issue #20)
+        case 'create_promotion':
+            try {
+                $promotionService->createPromotion($_POST);
+                $message = 'Đã tạo chương trình khuyến mại mới thành công.';
+            } catch (\Throwable $e) {
+                $message = 'Lỗi tạo khuyến mại: ' . $e->getMessage();
+            }
+            break;
+
+        case 'update_promotion':
+            $promoId = (int)($_POST['promo_id'] ?? 0);
+            try {
+                $promotionService->updatePromotion($promoId, $_POST);
+                $message = 'Đã cập nhật chương trình khuyến mại.';
+            } catch (\Throwable $e) {
+                $message = 'Lỗi cập nhật: ' . $e->getMessage();
+            }
+            break;
+
+        case 'toggle_promotion':
+            $promoId = (int)($_POST['promo_id'] ?? 0);
+            $isActive = (int)($_POST['is_active'] ?? 0) === 1;
+            $promotionService->togglePromotionStatus($promoId, $isActive);
+            $message = 'Đã cập nhật trạng thái hoạt động của khuyến mại.';
+            break;
+
+        case 'delete_promotion':
+            $promoId = (int)($_POST['promo_id'] ?? 0);
+            $promotionService->deletePromotion($promoId);
+            $message = 'Đã xóa chương trình khuyến mại.';
+            break;
     }
 }
 
 // Lấy dữ liệu cho các tab
 $currentTab = (string)($_GET['tab'] ?? 'slots');
+$allPromotions = $promotionService->getPromotions();
 $slotFilter = (string)($_GET['slot_filter'] ?? 'upcoming');
 $adminSlots = $slotService->getAllSlotsForAdmin(50, $slotFilter);
 
@@ -726,6 +762,17 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
             </a>
             <a href="admin.php?tab=customers" class="admin-tab <?= $currentTab === 'customers' ? 'active' : '' ?>">🌿 Khách Quen</a>
             <a href="admin.php?tab=menu" class="admin-tab <?= $currentTab === 'menu' ? 'active' : '' ?>">🥢 Thực Đơn</a>
+            <a href="admin.php?tab=promotions" class="admin-tab <?= $currentTab === 'promotions' ? 'active' : '' ?>">
+                🔥 Khuyến Mại
+                <?php 
+                $activePromoCount = count(array_filter($allPromotions, fn($p) => (int)$p['is_active'] === 1));
+                if ($activePromoCount > 0): 
+                ?>
+                    <span style="background: #EA580C; color: #FFFFFF; font-size: 0.65rem; padding: 2px 6px; border-radius: 999px; margin-left: 4px; font-weight: 700;">
+                        <?= $activePromoCount ?>
+                    </span>
+                <?php endif; ?>
+            </a>
             <a href="admin.php?tab=reviews" class="admin-tab <?= $currentTab === 'reviews' ? 'active' : '' ?>">
                 🌸 Đánh Giá
                 <?php if ($reviewAdminStats['pending'] > 0): ?>
@@ -2119,6 +2166,257 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                                         <?php else: ?>
                                             <span style="font-size: 0.72rem; color: #10B981;">Hoàn tất</span>
                                         <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+        <?php elseif ($currentTab === 'promotions'): ?>
+            <!-- TAB: Quản Lý Khuyến Mại & Giảm Giá (Issue #20) -->
+            <div class="zen-card" style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2 style="font-size: 1.05rem; font-weight: 700; color: #EA580C; margin-bottom: 2px;">
+                            🔥 Quản Lý Chương Trình Khuyến Mại & Ưu Đãi
+                        </h2>
+                        <p style="font-size: 0.78rem; color: var(--text-muted-warm);">
+                            Thiết lập giảm giá theo thời gian, theo ngày Âm lịch (Mùng 1 & Rằm), cho từng món hoặc mâm cỗ chay.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thống kê nhanh khuyến mại -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #EA580C;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">🔥 Đang Hoạt Động</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #EA580C; margin-top: 4px;">
+                        <?= count(array_filter($allPromotions, fn($p) => (int)$p['is_active'] === 1)) ?>
+                    </p>
+                </div>
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #F59E0B;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">🌕 Ưu Đãi Mùng 1 & Rằm</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #D97706; margin-top: 4px;">
+                        <?= count(array_filter($allPromotions, fn($p) => !empty($p['apply_on_lunar_days']))) ?>
+                    </p>
+                </div>
+                <div class="zen-card" style="padding: 14px; text-align: center; border-left: 4px solid #6B7280;">
+                    <p style="font-size: 0.72rem; color: var(--text-muted-warm); text-transform: uppercase;">📋 Tổng Chương Trình</p>
+                    <p style="font-size: 1.6rem; font-weight: 700; color: #4B5563; margin-top: 4px;">
+                        <?= count($allPromotions) ?>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Form Thêm Khuyến Mại Mới -->
+            <div class="zen-card" style="margin-bottom: 20px;">
+                <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--brand-tea-dark); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <span>✨</span> Tạo Chương Trình Khuyến Mại Mới
+                </h3>
+                <form method="POST" style="display: flex; flex-direction: column; gap: 14px;">
+                    <input type="hidden" name="admin_action" value="create_promotion">
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;"><strong>Tên chương trình khuyến mại (*):</strong></label>
+                            <input type="text" name="title" class="zen-input" placeholder="Ví dụ: Ưu Đãi Ngày Rằm & Mùng 1" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Mã khuyến mại (Code - tuỳ chọn):</label>
+                            <input type="text" name="code" class="zen-input" placeholder="Ví dụ: RAMANYEN15">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;"><strong>Loại giảm giá:</strong></label>
+                            <select name="discount_type" class="zen-input">
+                                <option value="percentage">Giảm theo Phần trăm (%)</option>
+                                <option value="fixed_amount">Giảm theo Số tiền cố định (đ)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;"><strong>Mức giảm (*):</strong></label>
+                            <input type="number" name="discount_value" class="zen-input" placeholder="Ví dụ: 15 (với %) hoặc 20000 (với đ)" min="1" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Đơn tối thiểu để áp dụng (đ):</label>
+                            <input type="number" name="min_order_amount" class="zen-input" value="0" min="0" placeholder="0 = không yêu cầu">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;"><strong>Đối tượng áp dụng:</strong></label>
+                            <select name="applies_to" id="promoAppliesTo" class="zen-input" onchange="
+                                document.getElementById('targetCatWrapper').style.display = (this.value === 'category' ? 'block' : 'none');
+                                document.getElementById('targetItemWrapper').style.display = (this.value === 'item' ? 'block' : 'none');
+                            ">
+                                <option value="all">Toàn bộ đơn hàng</option>
+                                <option value="category">Theo danh mục món</option>
+                                <option value="feast_combo">Mâm cỗ chay trọn vị</option>
+                                <option value="item">Món ăn cụ thể</option>
+                            </select>
+                        </div>
+
+                        <div id="targetCatWrapper" style="display: none;">
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Chọn danh mục:</label>
+                            <select name="target_category" class="zen-input">
+                                <option value="food">Món chính (Bún, Phở, Cơm)</option>
+                                <option value="drink">Đồ uống / Trà</option>
+                                <option value="extra">Món thêm</option>
+                            </select>
+                        </div>
+
+                        <div id="targetItemWrapper" style="display: none;">
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Chọn món ăn:</label>
+                            <select name="target_id" class="zen-input">
+                                <?php foreach ($menuList as $mItem): ?>
+                                    <option value="<?= (int)$mItem['id'] ?>">
+                                        <?= htmlspecialchars($mItem['name']) ?> (<?= number_format((int)$mItem['price'], 0, ',', '.') ?>đ)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Huy hiệu hiển thị (Badge):</label>
+                            <input type="text" name="badge_text" class="zen-input" placeholder="Ví dụ: 🔥 Giảm 15% hoặc 🌕 Ưu Đãi Rằm">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; background: #FAF7F2; padding: 12px; border-radius: 12px;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;"><strong>Từ ngày (Dương lịch):</strong></label>
+                            <input type="date" name="start_date" class="zen-input" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;"><strong>Đến hết ngày:</strong></label>
+                            <input type="date" name="end_date" class="zen-input" value="<?= date('Y-m-d', strtotime('+30 days')) ?>" required>
+                        </div>
+                        <div style="display: flex; flex-direction: column; justify-content: center;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 700; color: #9A3412;">
+                                <input type="checkbox" name="apply_on_lunar_days" value="1,15" style="width: 16px; height: 16px;">
+                                <span>🌕 Chỉ kích hoạt ngày Mùng 1 & Rằm (Âm lịch)</span>
+                            </label>
+                            <span style="font-size: 0.68rem; color: var(--text-muted-warm); margin-top: 2px;">
+                                Tự động nhận diện Mùng 1 & Rằm hàng tháng không cần cài đặt lại
+                            </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Mô tả / Lưu ý cho khách:</label>
+                        <input type="text" name="description" class="zen-input" placeholder="Ví dụ: Áp dụng cho cả ăn tại quán và mang về">
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button type="submit" class="zen-btn-primary" style="width: auto; padding: 10px 24px;">
+                            <span>Lưu & Kích Hoạt Khuyến Mại</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Bảng danh sách các chương trình khuyến mại -->
+            <div class="zen-card">
+                <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--brand-tea-dark); margin-bottom: 12px;">
+                    📜 Danh Sách Chương Trình Khuyến Mại Hiện Có
+                </h3>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Tên & Huy Hiệu</th>
+                            <th>Mức Giảm</th>
+                            <th>Đối Tượng</th>
+                            <th>Thời Gian Áp Dụng</th>
+                            <th>Trạng Thái</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($allPromotions)): ?>
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-muted-warm); padding: 24px;">
+                                    Chưa có chương trình khuyến mại nào. Hãy tạo chương trình đầu tiên ở trên nhé!
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($allPromotions as $promo): 
+                                $isPct = ($promo['discount_type'] === 'percentage');
+                                $discountStr = $isPct ? "{$promo['discount_value']}%" : number_format((int)$promo['discount_value'], 0, ',', '.') . 'đ';
+                                $isActive = (int)$promo['is_active'] === 1;
+                            ?>
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 700; color: var(--brand-tea-dark); display: flex; align-items: center; gap: 6px;">
+                                            <span><?= htmlspecialchars($promo['title']) ?></span>
+                                            <?php if (!empty($promo['badge_text'])): ?>
+                                                <span style="font-size: 0.65rem; background: #FFEDD5; color: #C2410C; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
+                                                    <?= htmlspecialchars($promo['badge_text']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php if (!empty($promo['code'])): ?>
+                                            <span style="font-size: 0.72rem; color: #2563EB; font-family: monospace;">Mã: <?= htmlspecialchars($promo['code']) ?></span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($promo['description'])): ?>
+                                            <div style="font-size: 0.72rem; color: var(--text-muted-warm);"><?= htmlspecialchars($promo['description']) ?></div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <strong style="color: #EA580C; font-size: 0.95rem;"><?= $discountStr ?></strong>
+                                        <?php if ((int)$promo['min_order_amount'] > 0): ?>
+                                            <div style="font-size: 0.68rem; color: var(--text-muted-warm);">
+                                                Đơn từ <?= number_format((int)$promo['min_order_amount'], 0, ',', '.') ?>đ
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php 
+                                        $appliesText = 'Toàn bộ đơn';
+                                        if ($promo['applies_to'] === 'category') {
+                                            $appliesText = 'Danh mục: ' . ($promo['target_category'] === 'drink' ? 'Đồ uống' : 'Món chính');
+                                        } elseif ($promo['applies_to'] === 'feast_combo') {
+                                            $appliesText = '🍱 Mâm cỗ tiệc';
+                                        } elseif ($promo['applies_to'] === 'item') {
+                                            $appliesText = 'Món ID #' . (int)$promo['target_id'];
+                                        }
+                                        ?>
+                                        <span style="font-size: 0.75rem; background: #EEF2E6; color: var(--brand-tea-green); padding: 2px 6px; border-radius: 4px; font-weight: 600;">
+                                            <?= htmlspecialchars($appliesText) ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style="font-size: 0.75rem;">
+                                            <?= date('d/m/Y', strtotime($promo['start_date'])) ?> - <?= date('d/m/Y', strtotime($promo['end_date'])) ?>
+                                        </div>
+                                        <?php if (!empty($promo['apply_on_lunar_days'])): ?>
+                                            <span style="font-size: 0.68rem; background: #FEF3C7; color: #92400E; padding: 1px 5px; border-radius: 4px; font-weight: 700;">
+                                                🌕 Mùng 1 & Rằm ÂL
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <form method="POST" style="display: inline;">
+                                            <input type="hidden" name="admin_action" value="toggle_promotion">
+                                            <input type="hidden" name="promo_id" value="<?= (int)$promo['id'] ?>">
+                                            <input type="hidden" name="is_active" value="<?= $isActive ? '0' : '1' ?>">
+                                            <button type="submit" class="action-btn" style="<?= $isActive ? 'background: #ECFDF5; color: #047857; font-weight: 700;' : 'color: #9CA3AF;' ?>">
+                                                <?= $isActive ? '🟢 Đang Bật' : '⚪ Đã Tắt' ?>
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Bạn có chắc chắn muốn xóa chương trình khuyến mại này?');">
+                                            <input type="hidden" name="admin_action" value="delete_promotion">
+                                            <input type="hidden" name="promo_id" value="<?= (int)$promo['id'] ?>">
+                                            <button type="submit" class="action-btn" style="color: #DC2626;">Xóa</button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

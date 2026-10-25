@@ -147,6 +147,26 @@ CREATE TABLE IF NOT EXISTS customer_reviews (
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
 );
 
+-- 9. Bảng Chương Trình Khuyến Mại & Giảm Giá (Promotions - Issue #20)
+CREATE TABLE IF NOT EXISTS promotions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NULL,
+    title TEXT NOT NULL,
+    description TEXT NULL,
+    discount_type TEXT NOT NULL CHECK(discount_type IN ('percentage', 'fixed_amount')),
+    discount_value INTEGER NOT NULL CHECK(discount_value > 0),
+    min_order_amount INTEGER NOT NULL DEFAULT 0,
+    applies_to TEXT NOT NULL DEFAULT 'all' CHECK(applies_to IN ('all', 'category', 'item', 'feast_combo')),
+    target_id INTEGER NULL,
+    target_category TEXT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    apply_on_lunar_days TEXT NULL,
+    badge_text TEXT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ====================================================================
 -- INDEXES TỐI ƯU HIỆU NĂNG TRUY VẤN
 -- ====================================================================
@@ -162,4 +182,6 @@ CREATE INDEX IF NOT EXISTS idx_notification_order ON notification_outbox(order_i
 CREATE INDEX IF NOT EXISTS idx_customer_reviews_status ON customer_reviews(status);
 CREATE INDEX IF NOT EXISTS idx_customer_reviews_phone ON customer_reviews(customer_phone);
 CREATE INDEX IF NOT EXISTS idx_customer_reviews_order ON customer_reviews(order_id);
+CREATE INDEX IF NOT EXISTS idx_promotions_dates ON promotions(start_date, end_date, is_active);
+
 

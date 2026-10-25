@@ -15,6 +15,7 @@ class OrderService
     private ConfigService $configService;
     private NotificationService $notificationService;
     private ZaloAuthService $zaloAuthService;
+    private PromotionService $promotionService;
 
     public function __construct(
         private ?PDO $db = null,
@@ -22,7 +23,8 @@ class OrderService
         private ?SlotService $slotService = null,
         ?ConfigService $configService = null,
         ?NotificationService $notificationService = null,
-        ?ZaloAuthService $zaloAuthService = null
+        ?ZaloAuthService $zaloAuthService = null,
+        ?PromotionService $promotionService = null
     ) {
         $this->db = $db ?? Connection::getInstance();
         $this->customerService = $customerService ?? new CustomerService($this->db);
@@ -30,6 +32,7 @@ class OrderService
         $this->configService = $configService ?? new ConfigService($this->db);
         $this->notificationService = $notificationService ?? new NotificationService($this->db);
         $this->zaloAuthService = $zaloAuthService ?? new ZaloAuthService($this->db, $this->configService, $this->customerService);
+        $this->promotionService = $promotionService ?? new PromotionService($this->db);
     }
 
     /**
@@ -223,6 +226,25 @@ class OrderService
             $avatarUrl = !empty($data['avatar_url']) ? trim((string)$data['avatar_url']) : null;
             $this->customerService->saveOrUpdate($customerPhone, $customerName, null, $zaloId, $avatarUrl);
 
+            // 3.1. Tính toán khuyến mại & chiết khấu giảm giá (Issue #20)
+            $itemsForPromo = [];
+            foreach ($validItems as $itemId => $qty) {
+                $itemsForPromo[] = [
+                    'item' => $menuMap[$itemId],
+                    'quantity' => $qty,
+                ];
+            }
+            $promoCalc = $this->promotionService->calculateOrderDiscount((string)$slot['slot_date'], $itemsForPromo, $totalAmount);
+            $subtotalBeforeDiscount = $totalAmount;
+            $discountAmount = (int)$promoCalc['discount_amount'];
+            $finalTotalAmount = (int)$promoCalc['final_total'];
+            $appliedPromoTitle = $promoCalc['promotion_title'];
+
+            if ($discountAmount > 0 && !empty($appliedPromoTitle)) {
+                $promoNote = sprintf('[Ưu đãi: %s - Giảm %sđ]', $appliedPromoTitle, number_format($discountAmount, 0, ',', '.'));
+                $customerNote = $customerNote !== null ? ($promoNote . ' ' . $customerNote) : $promoNote;
+            }
+
             // 4. Sinh mã đơn hàng và chèn vào bảng orders
             $orderCode = $this->generateOrderCode();
             $paymentStatus = ($paymentMethod === 'pay_later') ? 'pay_later' : 'pending';
@@ -243,7 +265,7 @@ class OrderService
                 ':customer_phone' => $customerPhone,
                 ':slot_id' => $slotId,
                 ':order_type' => $orderType,
-                ':total_amount' => $totalAmount,
+                ':total_amount' => $finalTotalAmount,
                 ':payment_method' => $paymentMethod,
                 ':payment_status' => $paymentStatus,
                 ':customer_note' => $customerNote,
@@ -278,7 +300,10 @@ class OrderService
                 'slot_date' => $slot['slot_date'],
                 'slot_time' => $slot['slot_time'],
                 'order_type' => $orderType,
-                'total_amount' => $totalAmount,
+                'subtotal' => $subtotalBeforeDiscount,
+                'discount_amount' => $discountAmount,
+                'total_amount' => $finalTotalAmount,
+                'promotion_title' => $appliedPromoTitle,
                 'payment_method' => $paymentMethod,
                 'payment_status' => $paymentStatus,
                 'customer_note' => $customerNote,
@@ -298,7 +323,10 @@ class OrderService
                 'slot_date' => $slot['slot_date'],
                 'slot_time' => $slot['slot_time'],
                 'order_type' => $orderType,
-                'total_amount' => $totalAmount,
+                'subtotal' => $subtotalBeforeDiscount,
+                'discount_amount' => $discountAmount,
+                'total_amount' => $finalTotalAmount,
+                'promotion_title' => $appliedPromoTitle,
                 'payment_method' => $paymentMethod,
                 'payment_status' => $paymentStatus,
                 'order_status' => 'confirmed',

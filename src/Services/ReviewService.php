@@ -154,6 +154,7 @@ class ReviewService
         $newId = (int)$this->db->lastInsertId();
 
         return [
+            'success' => true,
             'id' => $newId,
             'status' => $status,
             'is_verified_buyer' => $isVerifiedBuyer,

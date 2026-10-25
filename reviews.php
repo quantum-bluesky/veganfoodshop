@@ -33,7 +33,7 @@ $zaloService = new ZaloAuthService(
 $isReviewsEnabled = $reviewService->isReviewsEnabled();
 
 // Lấy thông tin khách đã đăng nhập Zalo (nếu có)
-$currentCustomer = $zaloService->getCurrentCustomer();
+$currentCustomer = method_exists($zaloService, 'getCurrentCustomer') ? $zaloService->getCurrentCustomer() : null;
 
 $successMessage = null;
 $errorMessage = null;
@@ -576,5 +576,27 @@ $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
 
     </main>
 
+    <script>
+        // Tự động điền tên và số điện thoại từ localStorage nếu khách đã đăng nhập Zalo hoặc đặt hàng trước đó
+        (function() {
+            try {
+                const storedInfo = localStorage.getItem("public_customer_info");
+                if (storedInfo) {
+                    const customer = JSON.parse(storedInfo);
+                    const nameInput = document.querySelector('input[name="customer_name"]');
+                    const phoneInput = document.querySelector('input[name="customer_phone"]');
+                    if (nameInput && !nameInput.value && customer.name) {
+                        nameInput.value = customer.name;
+                    }
+                    if (phoneInput && !phoneInput.value && customer.phone) {
+                        phoneInput.value = customer.phone;
+                    }
+                }
+            } catch (e) {
+                // Ignore parsing errors
+            }
+        })();
+    </script>
 </body>
 </html>
+

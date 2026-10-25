@@ -375,9 +375,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </section>
             <?php endif; ?>
 
-            <a href="index.php" class="zen-btn-primary" style="text-decoration: none; text-align: center; background-color: #606C5D;">
-                Về trang chủ Bếp An Yên
-            </a>
+            <div style="display: flex; gap: 8px; flex-direction: column;">
+                <a href="reviews.php?order_code=<?= urlencode((string)$order['order_code']) ?>&name=<?= urlencode((string)$order['customer_name']) ?>&phone=<?= urlencode((string)$order['customer_phone']) ?>" 
+                   style="text-decoration: none; text-align: center; padding: 12px; border-radius: 12px; background: #FAF7F2; border: 1px solid var(--brand-border-soft); color: var(--brand-tea-dark); font-size: 0.84rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <span>🌸</span> Gửi cảm nhận & lưu bút đến Bếp An Yên
+                </a>
+                <a href="index.php" class="zen-btn-primary" style="text-decoration: none; text-align: center; background-color: #606C5D;">
+                    Về trang chủ Bếp An Yên
+                </a>
+            </div>
 
         <?php endif; ?>
 

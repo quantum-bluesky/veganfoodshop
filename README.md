@@ -159,6 +159,22 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Hướng dẫn 2 bước mộc mạc và trực quan giúp bất kỳ khách hàng nào cũng thao tác dễ dàng: *Bấm Lưu ảnh ➜ Mở App ngân hàng chọn Quét QR từ Album*.
     - **Tự Động Cập Nhật Đơn Hàng (Zero-Friction):**
       - Hệ thống polling nền chu kỳ 3.5s và API webhook vẫn tiếp tục lắng nghe biến động số dư ngân hàng, tự động xác nhận đơn thành công ngay khi khách hoàn tất giao dịch trên app ngân hàng mà không cần khách phải chụp màn hình gửi lại.
+19. **Kiểm Thử Nghiệp Vụ Toàn Diện (Acceptance Tests) & Khắc Phục Lỗi Trang Cảm Nhận (v1.12.0 - Issue #24 & #25):**
+    - **Bộ Kiểm Thử Nghiệp Vụ Chấp Nhận (Customer Flow Acceptance Testing):**
+      - Bổ sung `Issue24_CustomerFlowAcceptanceTest` với 32 assertions độc lập kiểm tra toàn diện 9 hành trình cốt lõi của khách hàng:
+        1. Khách mới đặt ăn tại quán (Dine-in) qua VietQR & Deeplink.
+        2. Khách quen đặt ship mang về (Takeaway) với đặc quyền Trả sau (Pay Later).
+        3. Tự động tính toán và áp dụng khuyến mại chiết khấu theo lịch.
+        4. Kiểm soát giới hạn công suất ca (Capacity Boundary) và tự động giải phóng suất khi đơn bị hủy.
+        5. Thực thi bắt buộc đăng nhập Zalo khi bật cấu hình và đồng bộ tức thời ở runtime.
+        6. Hiển thị thông báo & nhắc nhở lịch đặt cá nhân cho khách hàng sắp đến ca.
+        7. Đối soát thanh toán tức thời (Reconcile / Polling) và cập nhật trạng thái đơn hàng.
+        8. Khách gửi cảm nhận, xác minh người mua thực tế (`is_verified_buyer`) và chống gửi trùng lặp.
+        9. Kiểm tra tính toàn vẹn và mượt mà của luồng điều hướng giữa các trang.
+    - **Khắc Phục Lỗi Trang Cảm Nhận (`reviews.php` - Issue #25):**
+      - Sửa lỗi Fatal Error `Call to undefined method ZaloAuthService::getCurrentCustomer()` bằng cách bổ sung hàm `getCurrentCustomer(?string $phone)` hỗ trợ truy xuất linh hoạt qua SĐT, session hoặc cookie.
+      - Tích hợp JavaScript tự động điền (autofill) thông tin tên và số điện thoại từ `localStorage` khi khách đã từng đăng nhập Zalo hoặc đặt hàng trước đó.
+      - Bổ sung nút liên kết từ màn hình xác nhận đơn (`process_order.php`) chuyển sang gửi cảm nhận/lưu bút đến Bếp An Yên.
 
 ---
 

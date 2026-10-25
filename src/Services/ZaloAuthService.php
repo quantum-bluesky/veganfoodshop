@@ -11,6 +11,7 @@ use Throwable;
 class ZaloAuthService
 {
     private array $config;
+    private ?array $customConfig = null;
 
     public function __construct(
         private ?PDO $db = null,
@@ -18,6 +19,7 @@ class ZaloAuthService
         private ?CustomerService $customerService = null,
         ?array $customConfig = null
     ) {
+        $this->customConfig = $customConfig;
         $this->db = $db ?? Connection::getInstance();
         $this->configService = $configService ?? new ConfigService($this->db);
         $this->customerService = $customerService ?? new CustomerService($this->db);
@@ -59,11 +61,29 @@ class ZaloAuthService
 
     public function isMockMode(): bool
     {
+        if ($this->customConfig !== null && array_key_exists('mock_test_mode', $this->customConfig)) {
+            return (bool)$this->customConfig['mock_test_mode'];
+        }
+        if ($this->configService !== null) {
+            $dbVal = $this->configService->get('zalo_mock_test_mode');
+            if ($dbVal !== null) {
+                return filter_var($dbVal, FILTER_VALIDATE_BOOLEAN);
+            }
+        }
         return (bool)($this->config['mock_test_mode'] ?? false);
     }
 
     public function isRequireLogin(): bool
     {
+        if ($this->customConfig !== null && array_key_exists('require_zalo_login', $this->customConfig)) {
+            return (bool)$this->customConfig['require_zalo_login'];
+        }
+        if ($this->configService !== null) {
+            $dbVal = $this->configService->get('zalo_require_login');
+            if ($dbVal !== null) {
+                return filter_var($dbVal, FILTER_VALIDATE_BOOLEAN);
+            }
+        }
         return (bool)($this->config['require_zalo_login'] ?? false);
     }
 
@@ -297,4 +317,35 @@ class ZaloAuthService
 </html>
 HTML;
     }
+
+    /**
+     * Lấy thông tin khách hàng hiện tại (qua SĐT, session hoặc cookie)
+     * 
+     * @param string|null $phone
+     * @return array<string, mixed>|null
+     */
+    public function getCurrentCustomer(?string $phone = null): ?array
+    {
+        $phone = trim((string)$phone);
+        if ($phone !== '') {
+            return $this->customerService->findByPhone($phone);
+        }
+
+        if (!empty($_COOKIE['customer_phone'])) {
+            $cookiePhone = trim((string)$_COOKIE['customer_phone']);
+            if ($cookiePhone !== '') {
+                $customer = $this->customerService->findByPhone($cookiePhone);
+                if ($customer) {
+                    return $customer;
+                }
+            }
+        }
+
+        if (!empty($_SESSION['current_customer']) && is_array($_SESSION['current_customer'])) {
+            return $_SESSION['current_customer'];
+        }
+
+        return null;
+    }
 }
+

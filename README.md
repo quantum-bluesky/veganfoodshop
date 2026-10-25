@@ -201,6 +201,10 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Modal *"🌿 Lịch Đặt Của Tôi"* bổ sung nút *"🔄 Làm mới"* ở góc trên giúp khách chủ động cập nhật trạng thái đơn tức thì.
       - Tự động gọi API `get_my_orders` lấy dữ liệu mới nhất mỗi khi khách bấm mở modal từ thanh điều hướng, banner hoặc form.
       - Trang chi tiết đơn (`process_order.php`) hiển thị trạng thái chính xác, tương thích đầy đủ khi đơn chuyển sang `completed` ("✨ Đơn Hàng Đã Hoàn Tất") hoặc `cancelled` ("🍃 Đơn Hàng Đã Được Huỷ").
+22. **Khắc Phục Lỗi Khởi Tạo Biến JavaScript Client-Side (v1.13.1 - Issue #28):**
+    - **Khắc phục lỗi:** `ReferenceError: Cannot access 'currentCategoryFilter' before initialization` tại `app.js:159`.
+    - **Nguyên nhân:** Hàm `filterMenuByOrderType(initialOrderType)` được kích hoạt khi tải trang gọi hàm `applyCategoryAndOrderTypeFilter()`, trong khi biến trạng thái `currentCategoryFilter` và các phần tử DOM của bộ lọc danh mục / thanh nổi (Floating Bar) được khai báo ở phía dưới trong block `DOMContentLoaded`.
+    - **Giải pháp:** Tái cấu trúc toàn bộ khai báo biến state và phần tử DOM lên đầu block `DOMContentLoaded` trước khi định nghĩa và thực thi các hàm helper, đảm bảo 100% luồng tương tác trên web hoạt động mượt mà, không còn lỗi console hay bị ngắt flow trên cả local và production.
 
 ---
 

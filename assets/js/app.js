@@ -16,6 +16,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const dateSelector = document.getElementById('dateSelector');
     const slotContainer = document.getElementById('slotContainer');
 
+    // State & Bộ lọc danh mục món (Issue #19 & #28)
+    let currentCategoryFilter = 'all';
+    const categoryPills = document.querySelectorAll('.category-pill');
+
+    // Quản lý Floating Bottom Bar (Issue #19)
+    const floatingBottomBar = document.getElementById('floatingBottomBar');
+    const floatingQtyText = document.getElementById('floatingQtyText');
+    const floatingPriceText = document.getElementById('floatingPriceText');
+    const btnFloatingView = document.getElementById('btnFloatingView');
+    const step4CustomerInfo = document.getElementById('step4CustomerInfo');
+
     // 1. Cập nhật giao diện radio option khi click
     function setupRadioGroup(groupName) {
         const radios = document.querySelectorAll(`input[name="${groupName}"]`);
@@ -36,63 +47,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    setupRadioGroup('order_type');
-    setupRadioGroup('slot_id');
-    setupRadioGroup('payment_method');
-
-    // Lọc món theo hình thức nhận (Tại chỗ vs Mang về) kết hợp bộ lọc danh mục (Issue #17 & #19)
-    function filterMenuByOrderType(orderType) {
-        applyCategoryAndOrderTypeFilter();
-        calculateTotal();
-    }
-
-    const orderTypeRadios = document.querySelectorAll('input[name="order_type"]');
-    orderTypeRadios.forEach(radio => {
-        radio.addEventListener('change', function () {
-            if (this.checked) {
-                filterMenuByOrderType(this.value);
-            }
-        });
-    });
-
-    const initialOrderType = document.querySelector('input[name="order_type"]:checked')?.value || 'dine_in';
-    filterMenuByOrderType(initialOrderType);
-
-    // 2. Tính toán tổng tiền theo thời gian thực
-    function calculateTotal() {
-        let total = 0;
-        let totalItems = 0;
-        const itemRows = document.querySelectorAll('.menu-item-row');
-
-        itemRows.forEach(row => {
-            const price = parseInt(row.dataset.price || '0', 10);
-            const qtyInput = row.querySelector('.qty-input');
-            const qty = parseInt(qtyInput.value || '0', 10);
-
-            if (qty > 0) {
-                total += price * qty;
-                totalItems += qty;
-            }
-        });
-
-        // Format tiền VND
-        const formattedTotal = new Intl.NumberFormat('vi-VN').format(total) + 'đ';
-        if (btnTotalText) {
-            btnTotalText.textContent = total > 0 ? ` (${formattedTotal})` : '';
-        }
-
-        // Cập nhật Floating Bottom Summary Bar (Issue #19)
-        updateFloatingBottomBar(total, totalItems, formattedTotal);
-
-        return { total, totalItems };
-    }
-
-    // Quản lý Floating Bottom Bar
-    const floatingBottomBar = document.getElementById('floatingBottomBar');
-    const floatingQtyText = document.getElementById('floatingQtyText');
-    const floatingPriceText = document.getElementById('floatingPriceText');
-    const btnFloatingView = document.getElementById('btnFloatingView');
-
+    // Quản lý hiển thị thanh tóm tắt nổi (Floating Bottom Bar)
     function updateFloatingBottomBar(total, totalItems, formattedTotal) {
         if (!floatingBottomBar) return;
         if (totalItems > 0) {
@@ -104,41 +59,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    if (btnFloatingView) {
-        btnFloatingView.addEventListener('click', function () {
-            const step4 = document.getElementById('step4CustomerInfo');
-            if (step4) {
-                step4.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } else if (custName) {
-                custName.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                custName.focus();
-            }
-        });
-    }
-
-    // Tự động ẩn Floating Bar khi người dùng cuộn đến Bước 4 để không che khuất nút gửi
-    const step4CustomerInfo = document.getElementById('step4CustomerInfo');
-    if (step4CustomerInfo && 'IntersectionObserver' in window) {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (!floatingBottomBar) return;
-                if (entry.isIntersecting) {
-                    floatingBottomBar.classList.add('is-hidden');
-                } else {
-                    const { totalItems } = calculateTotal();
-                    if (totalItems > 0) {
-                        floatingBottomBar.classList.remove('is-hidden');
-                    }
-                }
-            });
-        }, { threshold: 0.15 });
-        observer.observe(step4CustomerInfo);
-    }
-
-    // Xử lý Category Pills (Bộ lọc danh mục món - Issue #19)
-    let currentCategoryFilter = 'all';
-    const categoryPills = document.querySelectorAll('.category-pill');
-
+    // Áp dụng bộ lọc danh mục và hình thức nhận món (Issue #17 & #19 & #28)
     function applyCategoryAndOrderTypeFilter() {
         const currentOrderType = document.querySelector('input[name="order_type"]:checked')?.value || 'dine_in';
         const rows = document.querySelectorAll('.menu-item-row');
@@ -174,6 +95,57 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // 2. Tính toán tổng tiền theo thời gian thực
+    function calculateTotal() {
+        let total = 0;
+        let totalItems = 0;
+        const itemRows = document.querySelectorAll('.menu-item-row');
+
+        itemRows.forEach(row => {
+            const price = parseInt(row.dataset.price || '0', 10);
+            const qtyInput = row.querySelector('.qty-input');
+            const qty = parseInt(qtyInput.value || '0', 10);
+
+            if (qty > 0) {
+                total += price * qty;
+                totalItems += qty;
+            }
+        });
+
+        // Format tiền VND
+        const formattedTotal = new Intl.NumberFormat('vi-VN').format(total) + 'đ';
+        if (btnTotalText) {
+            btnTotalText.textContent = total > 0 ? ` (${formattedTotal})` : '';
+        }
+
+        // Cập nhật Floating Bottom Summary Bar (Issue #19)
+        updateFloatingBottomBar(total, totalItems, formattedTotal);
+
+        return { total, totalItems };
+    }
+
+    // Lọc món theo hình thức nhận kết hợp tính tổng tiền
+    function filterMenuByOrderType(orderType) {
+        applyCategoryAndOrderTypeFilter();
+        calculateTotal();
+    }
+
+    // Khởi tạo các nhóm radio
+    setupRadioGroup('order_type');
+    setupRadioGroup('slot_id');
+    setupRadioGroup('payment_method');
+
+    // Lắng nghe thay đổi hình thức nhận (Tại chỗ vs Mang về)
+    const orderTypeRadios = document.querySelectorAll('input[name="order_type"]');
+    orderTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function () {
+            if (this.checked) {
+                filterMenuByOrderType(this.value);
+            }
+        });
+    });
+
+    // Lắng nghe click chọn danh mục Category Pills
     categoryPills.forEach(pill => {
         pill.addEventListener('click', function () {
             categoryPills.forEach(p => p.classList.remove('is-active'));
@@ -182,6 +154,41 @@ document.addEventListener('DOMContentLoaded', function () {
             applyCategoryAndOrderTypeFilter();
         });
     });
+
+    // Khởi tạo bộ lọc ban đầu an toàn sau khi toàn bộ biến và hàm đã sẵn sàng
+    const initialOrderType = document.querySelector('input[name="order_type"]:checked')?.value || 'dine_in';
+    filterMenuByOrderType(initialOrderType);
+
+    // Xử lý nút cuộn nhanh tới Bước 4 từ Floating Bottom Bar
+    if (btnFloatingView) {
+        btnFloatingView.addEventListener('click', function () {
+            const step4 = document.getElementById('step4CustomerInfo');
+            if (step4) {
+                step4.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else if (custName) {
+                custName.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                custName.focus();
+            }
+        });
+    }
+
+    // Tự động ẩn Floating Bar khi người dùng cuộn đến Bước 4 để không che khuất nút gửi
+    if (step4CustomerInfo && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!floatingBottomBar) return;
+                if (entry.isIntersecting) {
+                    floatingBottomBar.classList.add('is-hidden');
+                } else {
+                    const { totalItems } = calculateTotal();
+                    if (totalItems > 0) {
+                        floatingBottomBar.classList.remove('is-hidden');
+                    }
+                }
+            });
+        }, { threshold: 0.15 });
+        observer.observe(step4CustomerInfo);
+    }
 
     // 3. Tăng giảm số lượng món
     document.querySelectorAll('.qty-control').forEach(control => {

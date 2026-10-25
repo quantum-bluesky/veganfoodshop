@@ -62,12 +62,11 @@ $advanceBookingDays = (int)$configService->get('advance_booking_days', '7');
 $requireZaloLogin = (bool)($zaloConfig['require_zalo_login'] ?? false);
 
 $today = date('Y-m-d');
+$shopClosedStatusToday = $configService->getShopClosedStatus($today);
 $availableDates = $slotService->getAvailableDates($advanceBookingDays);
-if (empty($availableDates)) {
-    $availableDates = [$today];
-}
-$selectedDate = $availableDates[0];
-$slots = $slotService->getSlotsByDate($selectedDate, true, $minLeadTimeHours);
+$selectedDate = !empty($availableDates) ? $availableDates[0] : $today;
+$slots = !empty($availableDates) ? $slotService->getSlotsByDate($selectedDate, true, $minLeadTimeHours) : [];
+$isBookingDisabled = empty($availableDates) || empty($slots);
 $menuItems = $menuService->getActiveMenu();
 ?>
 <!DOCTYPE html>
@@ -164,6 +163,38 @@ $menuItems = $menuService->getActiveMenu();
             </div>
         </section>
 
+        <?php if ($shopClosedStatusToday['is_closed']): ?>
+            <!-- Thông báo Bếp Tạm Nghỉ / Đi Vắng (Issue #12) -->
+            <section style="background-color: #FDF6EE; border: 1.5px solid #EBD5BE; border-radius: var(--radius-card); padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start;" aria-label="Thông báo tạm nghỉ">
+                <span style="font-size: 1.4rem; line-height: 1;">🍃</span>
+                <div style="flex: 1;">
+                    <p style="font-weight: 700; color: #8C4A26; font-size: 0.9rem; margin-bottom: 4px;">
+                        Bếp An Yên Tạm Nghỉ & Đi Vắng
+                    </p>
+                    <p style="font-size: 0.8rem; color: #5C4033; line-height: 1.45; margin-bottom: 6px;">
+                        <?= nl2br(htmlspecialchars($shopClosedStatusToday['reason'], ENT_QUOTES, 'UTF-8')) ?>
+                    </p>
+                    <?php if (!empty($shopClosedStatusToday['from_date']) || !empty($shopClosedStatusToday['to_date'])): ?>
+                        <p style="font-size: 0.72rem; color: #8C6A50; margin-bottom: 6px;">
+                            🗓️ Lịch nghỉ: 
+                            <?php if (!empty($shopClosedStatusToday['from_date']) && !empty($shopClosedStatusToday['to_date'])): ?>
+                                từ <strong><?= date('d/m/Y', strtotime($shopClosedStatusToday['from_date'])) ?></strong> đến <strong><?= date('d/m/Y', strtotime($shopClosedStatusToday['to_date'])) ?></strong>
+                            <?php elseif (!empty($shopClosedStatusToday['from_date'])): ?>
+                                từ ngày <strong><?= date('d/m/Y', strtotime($shopClosedStatusToday['from_date'])) ?></strong>
+                            <?php else: ?>
+                                đến hết ngày <strong><?= date('d/m/Y', strtotime($shopClosedStatusToday['to_date'])) ?></strong>
+                            <?php endif; ?>
+                        </p>
+                    <?php endif; ?>
+                    <div>
+                        <a href="<?= htmlspecialchars($sellerZaloUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: #0068FF; background: #FFFFFF; border: 1px solid #BFDBFE; padding: 5px 12px; border-radius: 999px; text-decoration: none;">
+                            <span>💬 Nhắn tin trực tiếp với chủ bếp qua Zalo</span> ↗
+                        </a>
+                    </div>
+                </div>
+            </section>
+        <?php endif; ?>
+
         <!-- Form Đặt Chỗ & Món Lành -->
         <form id="orderForm" action="process_order.php" method="POST" style="display: flex; flex-direction: column; gap: 18px;">
 
@@ -207,9 +238,14 @@ $menuItems = $menuService->getActiveMenu();
 
                 <div id="slotContainer" class="zen-radio-group">
                     <?php if (empty($slots)): ?>
-                        <p style="grid-column: span 2; text-align: center; font-size: 0.8rem; color: var(--text-muted-warm); padding: 16px 0;">
-                            Hôm nay bếp chưa mở ca nhận đặt, bạn thương ghé lại sau nhé.
-                        </p>
+                        <div style="grid-column: span 2; text-align: center; padding: 18px 12px; background: #FAF7F2; border-radius: 12px;">
+                            <?php if ($shopClosedStatusToday['is_closed']): ?>
+                                <p style="font-size: 0.85rem; font-weight: 600; color: #8C4A26; margin-bottom: 3px;">🍃 Bếp đang trong thời gian tạm nghỉ</p>
+                                <p style="font-size: 0.75rem; color: #5C4033; line-height: 1.4;">Bếp tạm dừng nhận đặt trước qua web vào thời gian này. Xin bạn thương ghé lại sau hoặc nhắn trực tiếp qua Zalo với chủ bếp nhé.</p>
+                            <?php else: ?>
+                                <p style="font-size: 0.82rem; color: var(--text-muted-warm);">Hôm nay bếp chưa mở ca nhận đặt, bạn thương ghé lại sau nhé.</p>
+                            <?php endif; ?>
+                        </div>
                     <?php else: ?>
                         <?php 
                         $hasPastCutoff = false;
@@ -400,10 +436,16 @@ $menuItems = $menuService->getActiveMenu();
             </section>
 
             <!-- Nút gửi đơn to bản cố định trải nghiệm di động -->
-            <button type="submit" id="submitBtn" class="zen-btn-primary">
-                <span>Gửi Đặt Bếp An Yên</span>
-                <span id="btnTotalText"></span>
-            </button>
+            <?php if ($isBookingDisabled): ?>
+                <button type="button" id="submitBtn" class="zen-btn-primary" disabled style="opacity: 0.65; cursor: not-allowed; background: var(--text-muted-warm); box-shadow: none;">
+                    <span><?= $shopClosedStatusToday['is_closed'] ? 'Bếp Đang Tạm Nghỉ' : 'Bếp Chưa Mở Ca Đặt' ?></span>
+                </button>
+            <?php else: ?>
+                <button type="submit" id="submitBtn" class="zen-btn-primary">
+                    <span>Gửi Đặt Bếp An Yên</span>
+                    <span id="btnTotalText"></span>
+                </button>
+            <?php endif; ?>
 
             <?php if (!empty($orderNoteShipping)): ?>
                 <p style="font-size: 0.75rem; color: var(--accent-wood); text-align: center; font-style: italic; margin-top: -6px;">

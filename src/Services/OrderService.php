@@ -117,6 +117,12 @@ class OrderService
                 throw new DomainException('Khung giờ phục vụ này hiện không khả dụng.');
             }
 
+            // Kiểm tra trạng thái Bếp tạm nghỉ (Issue #12)
+            $closedStatus = $this->configService->getShopClosedStatus((string)$slot['slot_date']);
+            if ($closedStatus['is_closed']) {
+                throw new ValidationException($closedStatus['reason'] ?: 'Bếp An Yên hiện đang tạm nghỉ vào ngày này. Mong bạn thông cảm nhé.');
+            }
+
             // Kiểm tra thời gian đặt trước tối thiểu (Cut-off lead time)
             $currentTime = isset($data['current_time']) ? (int)$data['current_time'] : time();
             $minLeadTimeHours = (int)$this->configService->get('min_lead_time_hours', '3');

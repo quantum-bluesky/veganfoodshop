@@ -44,11 +44,15 @@ try {
         case 'get_slots':
             $date = (string)($_GET['date'] ?? date('Y-m-d'));
             $slotService = new SlotService();
+            $configService = new \App\Services\ConfigService();
+            $closedStatus = $configService->getShopClosedStatus($date);
             $slots = $slotService->getSlotsByDate($date, true);
 
             echo json_encode([
                 'success' => true,
                 'date' => $date,
+                'is_closed' => $closedStatus['is_closed'],
+                'closed_reason' => $closedStatus['reason'],
                 'slots' => $slots,
             ], JSON_UNESCAPED_UNICODE);
             break;

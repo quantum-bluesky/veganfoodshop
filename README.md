@@ -41,6 +41,17 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
    - Quản lý phiên bản chặt chẽ qua bảng `migrations` trong SQLite, đảm bảo tính lũy kế (idempotent), không bao giờ chạy lại file đã áp dụng.
    - Hỗ trợ công cụ dòng lệnh (CLI): `php bin/migrate.php` (thực thi) và `php bin/migrate.php status` (kiểm tra trạng thái).
    - Đảm bảo đồng bộ cấu trúc CSDL 100% tự động trên mọi server (Local, WSL, VPS DuckDNS, staging, production) mà không cần framework cồng kềnh.
+8. **Khóa Ca Cận Giờ, Giới Hạn Tuần & Liên Lạc Zalo Khách Hàng (v1.3.0):**
+   - **Khóa ca cận giờ (Cut-off Lead Time):** Tự động khóa đặt món trực tuyến trước $N$ giờ (mặc định 3h, cấu hình tùy ý) để bếp kịp ninh nước dùng; cung cấp liên hệ Zalo trực tiếp nếu khách cần đặt gấp.
+   - **Giới hạn thời gian đặt trước:** Giới hạn mở lịch đặt trong vòng $N$ ngày (mặc định 7 ngày / 1 tuần trở lại).
+   - **Bảng tổng hợp chuẩn bị bếp cả ngày (`today_all`):** Quản lý/chủ bếp xem toàn bộ số lượng từng món cần chuẩn bị trong ngày, phân tách ca sắp tới, hôm nay và lịch sử ca.
+   - **Chăm sóc khách qua Zalo trực tiếp:** Bấm 1 chạm mở Zalo chat với khách theo SĐT (`https://zalo.me/{phone}`) kèm nút sao chép mẫu tin nhắn chăm sóc đơn.
+9. **Chế Độ Tạm Nghỉ & Thông Báo Khi Bếp Đi Vắng (v1.3.0 - Issue #12):**
+   - Chủ quán dễ dàng bật chế độ **Tạm Nghỉ / Đi Vắng** trong trang quản trị (`admin.php` tab Cấu Hình).
+   - Hỗ trợ cài đặt thời gian tạm nghỉ linh hoạt: nghỉ vô thời hạn hoặc theo khoảng ngày cụ thể (`closed_from_date` đến `closed_to_date`).
+   - Tùy chỉnh lời nhắn an lành gửi khách thương (`closed_reason`).
+   - Giao diện khách (`index.php`) tự động hiển thị Banner thông báo mang phong cách Ghibli/Zen ấm áp, ẩn các ca trong ngày nghỉ, khóa nút gửi đơn và dẫn link Zalo để khách liên hệ trực tiếp.
+   - Quản trị viên luôn thấy Huy hiệu cảnh báo nổi bật ở đầu trang Admin khi đang bật chế độ tạm nghỉ.
 
 ---
 

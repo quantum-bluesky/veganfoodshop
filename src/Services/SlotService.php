@@ -81,6 +81,13 @@ class SlotService
         $leadHours = $minLeadTimeHours ?? (int)$this->configService->get('min_lead_time_hours', '3');
         $now = $currentTime ?? time();
 
+        if ($activeOnly) {
+            $closedStatus = $this->configService->getShopClosedStatus($date);
+            if ($closedStatus['is_closed']) {
+                return [];
+            }
+        }
+
         $sql = 'SELECT id, slot_date, slot_time, max_capacity, is_active FROM time_slots WHERE slot_date = :slot_date';
         if ($activeOnly) {
             $sql .= ' AND is_active = 1';
@@ -137,7 +144,15 @@ class SlotService
             ':today' => $today,
             ':max_date' => $maxDate,
         ]);
-        return $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $rawDates = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $availableDates = [];
+        foreach ($rawDates as $d) {
+            $status = $this->configService->getShopClosedStatus((string)$d);
+            if (!$status['is_closed']) {
+                $availableDates[] = (string)$d;
+            }
+        }
+        return $availableDates;
     }
 
     /**

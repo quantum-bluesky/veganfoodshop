@@ -108,4 +108,12 @@ abstract class TestCase
             throw new \AssertionError($message ?: "Failed asserting that value is not empty");
         }
     }
+
+    protected function assertStringContainsString(string $needle, string $haystack, string $message = ''): void
+    {
+        if (!str_contains($haystack, $needle)) {
+            $msg = $message ?: sprintf("Failed asserting that '%s' contains '%s'", $haystack, $needle);
+            throw new \AssertionError($msg);
+        }
+    }
 }

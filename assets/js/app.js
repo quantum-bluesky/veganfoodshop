@@ -150,20 +150,33 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.success) {
-                        renderSlots(data.slots);
+                        renderSlots(data.slots, Boolean(data.is_closed), data.closed_reason || '');
                     }
                 })
                 .catch(err => console.error('Lỗi tải ca:', err));
         });
     }
 
-    function renderSlots(slots) {
+    function renderSlots(slots, isClosed = false, closedReason = '') {
         if (!slotContainer) return;
         slotContainer.innerHTML = '';
 
         const urgentZaloNote = document.getElementById('urgentZaloNote');
         let hasPastCutoff = false;
         let firstChecked = false;
+
+        if (isClosed) {
+            slotContainer.innerHTML = `
+                <div style="text-align: center; padding: 16px 12px; background: #FAF7F2; border-radius: 12px; grid-column: span 2;">
+                    <p style="font-size: 0.85rem; font-weight: 600; color: #8C4A26;">🍃 Bếp tạm nghỉ vào ngày này</p>
+                    <p style="font-size: 0.75rem; color: #5C4033; margin-top: 4px; line-height: 1.4;">
+                        ${closedReason || 'Bếp xin phép tạm nghỉ đi hái trà & chuẩn bị nguyên liệu mới.'}
+                    </p>
+                </div>
+            `;
+            if (urgentZaloNote) urgentZaloNote.style.display = 'none';
+            return;
+        }
 
         if (!slots || slots.length === 0) {
             slotContainer.innerHTML = '<p class="text-xs text-gray-500 text-center py-3 col-span-2">Hôm nay bếp chưa mở ca, xin bạn quay lại sau nhé.</p>';

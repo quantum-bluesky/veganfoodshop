@@ -27,6 +27,14 @@ class SlotCapacityTest extends TestCase
         $this->setUp();
         $this->testAdvanceBookingWindowLimit();
         $this->tearDown();
+
+        $this->setUp();
+        $this->testShopClosedModeIndefinite();
+        $this->tearDown();
+
+        $this->setUp();
+        $this->testShopClosedDateRange();
+        $this->tearDown();
     }
 
     /**
@@ -190,5 +198,121 @@ class SlotCapacityTest extends TestCase
         $this->assertTrue(in_array($day3, $dates, true), 'Ngày +3 phải nằm trong danh sách mở đặt');
         $this->assertTrue(in_array($day7, $dates, true), 'Ngày +7 phải nằm trong danh sách mở đặt');
         $this->assertFalse(in_array($day14, $dates, true), 'Ngày +14 vượt quá 7 ngày nên không được hiển thị');
+    }
+
+    /**
+     * TC-UNIT-07: Kiểm tra chế độ tạm nghỉ vô thời hạn (is_shop_closed = 1, không ngày cụ thể)
+     */
+    public function testShopClosedModeIndefinite(): void
+    {
+        $configService = new \App\Services\ConfigService($this->db);
+        $slotService = new SlotService($this->db);
+        $orderService = new OrderService($this->db);
+
+        // Bật tạm nghỉ
+        $configService->set('is_shop_closed', '1');
+        $configService->set('closed_reason', 'Bếp tạm nghỉ đi hái trà');
+
+        $status = $configService->getShopClosedStatus();
+        $this->assertTrue($status['is_closed'], 'Shop phải ở trạng thái tạm nghỉ');
+        $this->assertEquals('Bếp tạm nghỉ đi hái trà', $status['reason']);
+
+        // Danh sách ngày mở đặt phải rỗng
+        $dates = $slotService->getAvailableDates(7);
+        $this->assertEquals([], $dates, 'Khi tạm nghỉ vô thời hạn thì availableDates phải rỗng');
+
+        // Danh sách ca khả dụng theo ngày phải rỗng
+        $today = date('Y-m-d');
+        $slots = $slotService->getSlotsByDate($today, true);
+        $this->assertEquals([], $slots, 'Khi tạm nghỉ thì getSlotsByDate activeOnly phải rỗng');
+
+        // Tạo đơn vào ca 1 (có sẵn trong seed) phải bị từ chối
+        $rejected = false;
+        try {
+            $orderService->createOrder([
+                'customer_name' => 'Khách Test',
+                'customer_phone' => '0988776655',
+                'slot_id' => 1,
+                'order_type' => 'dine_in',
+                'payment_method' => 'vietqr',
+                'items' => [1 => 1],
+            ]);
+        } catch (\App\Exceptions\ValidationException $e) {
+            $rejected = true;
+            $this->assertStringContainsString('hái trà', $e->getMessage());
+        }
+        $this->assertTrue($rejected, 'Phải ném ValidationException khi tạo đơn lúc bếp tạm nghỉ');
+    }
+
+    /**
+     * TC-UNIT-08: Kiểm tra chế độ tạm nghỉ theo khoảng ngày (closed_from_date -> closed_to_date)
+     */
+    public function testShopClosedDateRange(): void
+    {
+        $configService = new \App\Services\ConfigService($this->db);
+        $slotService = new SlotService($this->db);
+        $orderService = new OrderService($this->db);
+
+        $today = date('Y-m-d');
+        $day2 = date('Y-m-d', strtotime('+2 days'));
+        $day3 = date('Y-m-d', strtotime('+3 days'));
+        $day4 = date('Y-m-d', strtotime('+4 days'));
+        $day5 = date('Y-m-d', strtotime('+5 days'));
+
+        // Cài đặt tạm nghỉ từ ngày +2 đến ngày +4
+        $configService->set('is_shop_closed', '1');
+        $configService->set('closed_from_date', $day2);
+        $configService->set('closed_to_date', $day4);
+        $configService->set('closed_reason', 'Nghỉ tu bổ bếp');
+
+        // Kiểm tra status từng ngày
+        $this->assertFalse($configService->getShopClosedStatus($today)['is_closed'], 'Hôm nay không nằm trong khoảng nghỉ');
+        $this->assertTrue($configService->getShopClosedStatus($day2)['is_closed'], 'Ngày +2 bắt đầu nghỉ');
+        $this->assertTrue($configService->getShopClosedStatus($day3)['is_closed'], 'Ngày +3 nằm trong khoảng nghỉ');
+        $this->assertTrue($configService->getShopClosedStatus($day4)['is_closed'], 'Ngày +4 là ngày cuối nghỉ');
+        $this->assertFalse($configService->getShopClosedStatus($day5)['is_closed'], 'Ngày +5 đã mở lại');
+
+        // Tạo slot cho ngày +3 (trong khoảng nghỉ) và ngày +5 (sau khoảng nghỉ)
+        $slotService->createSlot($day3, '18:00 - 18:45', 10);
+        $slotService->createSlot($day5, '18:00 - 18:45', 10);
+
+        // Danh sách ngày khả dụng getAvailableDates phải bỏ qua ngày +3, nhưng vẫn giữ ngày +5
+        $availableDates = $slotService->getAvailableDates(7);
+        $this->assertFalse(in_array($day3, $availableDates, true), 'Ngày +3 nghỉ nên không được có trong availableDates');
+        $this->assertTrue(in_array($day5, $availableDates, true), 'Ngày +5 mở lại nên phải có trong availableDates');
+
+        // Lấy slotId vừa tạo
+        $slotsDay3 = $slotService->getSlotsByDate($day3, false); // admin query activeOnly=false
+        $slotIdDay3 = (int)$slotsDay3[0]['id'];
+
+        $slotsDay5 = $slotService->getSlotsByDate($day5, false);
+        $slotIdDay5 = (int)$slotsDay5[0]['id'];
+
+        // Cố tình đặt đơn vào ngày +3 (đang nghỉ) -> Phải bị từ chối
+        $closedRejected = false;
+        try {
+            $orderService->createOrder([
+                'customer_name' => 'Khách Ngày Nghỉ',
+                'customer_phone' => '0988776655',
+                'slot_id' => $slotIdDay3,
+                'order_type' => 'dine_in',
+                'payment_method' => 'vietqr',
+                'items' => [1 => 1],
+            ]);
+        } catch (\App\Exceptions\ValidationException $e) {
+            $closedRejected = true;
+        }
+        $this->assertTrue($closedRejected, 'Không thể đặt đơn vào ngày đang nghỉ tu bổ bếp');
+
+        // Đặt đơn vào ngày +5 (đã mở lại) -> Thành công
+        $order = $orderService->createOrder([
+            'customer_name' => 'Khách Ngày Mở Lại',
+            'customer_phone' => '0988776655',
+            'slot_id' => $slotIdDay5,
+            'order_type' => 'dine_in',
+            'payment_method' => 'vietqr',
+            'items' => [1 => 1],
+        ]);
+        $this->assertNotEmpty($order['order_code'], 'Đặt đơn vào ngày mở lại thành công');
     }
 }

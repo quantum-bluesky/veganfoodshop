@@ -49,4 +49,54 @@ class ConfigService
             ':desc' => $description,
         ]);
     }
+
+    /**
+     * Kiểm tra trạng thái tạm nghỉ / đi vắng của Bếp
+     * 
+     * @param ?string $date Ngày cần kiểm tra (Y-m-d), null = hôm nay
+     * @return array{is_closed: bool, reason: string, from_date: ?string, to_date: ?string}
+     */
+    public function getShopClosedStatus(?string $date = null): array
+    {
+        $isClosed = ($this->get('is_shop_closed', '0') === '1');
+        if (!$isClosed) {
+            return [
+                'is_closed' => false,
+                'reason' => '',
+                'from_date' => null,
+                'to_date' => null,
+            ];
+        }
+
+        $targetDate = $date ?? date('Y-m-d');
+        $fromDate = $this->get('closed_from_date', '');
+        $toDate = $this->get('closed_to_date', '');
+        $reason = $this->get('closed_reason', 'Bếp An Yên xin phép tạm nghỉ đi hái trà & chuẩn bị nguyên liệu mới. Hẹn sớm gặp lại bạn thương nhé! 🍃');
+
+        // Nếu không cài ngày cụ thể -> Tạm nghỉ vô thời hạn
+        if ($fromDate === '' && $toDate === '') {
+            return [
+                'is_closed' => true,
+                'reason' => $reason,
+                'from_date' => null,
+                'to_date' => null,
+            ];
+        }
+
+        // Kiểm tra trong khoảng ngày nghỉ
+        $inRange = true;
+        if ($fromDate !== '' && $targetDate < $fromDate) {
+            $inRange = false;
+        }
+        if ($toDate !== '' && $targetDate > $toDate) {
+            $inRange = false;
+        }
+
+        return [
+            'is_closed' => $inRange,
+            'reason' => $reason,
+            'from_date' => $fromDate ?: null,
+            'to_date' => $toDate ?: null,
+        ];
+    }
 }

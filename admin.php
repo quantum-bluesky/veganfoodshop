@@ -183,6 +183,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $minLeadTime = max(0, (int)($_POST['min_lead_time_hours'] ?? 3));
             $advanceBookingDays = max(1, (int)($_POST['advance_booking_days'] ?? 7));
 
+            // Chế độ tạm nghỉ & đi vắng (Issue #12)
+            $isShopClosed = isset($_POST['is_shop_closed']) ? '1' : '0';
+            $closedFromDate = trim((string)($_POST['closed_from_date'] ?? ''));
+            $closedToDate = trim((string)($_POST['closed_to_date'] ?? ''));
+            $closedReason = trim((string)($_POST['closed_reason'] ?? ''));
+
             // Zalo Config
             $zaloAppId = (string)($_POST['zalo_app_id'] ?? '123');
             $zaloSecretKey = (string)($_POST['zalo_secret_key'] ?? '123');
@@ -204,6 +210,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $configService->set('min_lead_time_hours', (string)$minLeadTime);
             $configService->set('advance_booking_days', (string)$advanceBookingDays);
+
+            $configService->set('is_shop_closed', $isShopClosed);
+            $configService->set('closed_from_date', $closedFromDate);
+            $configService->set('closed_to_date', $closedToDate);
+            $configService->set('closed_reason', $closedReason);
 
             $configService->set('zalo_app_id', $zaloAppId);
             $configService->set('zalo_secret_key', $zaloSecretKey);
@@ -349,6 +360,30 @@ $currentConfig = $configService->getAll();
         <?php if ($message): ?>
             <div style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; padding: 10px 14px; border-radius: 12px; font-size: 0.82rem;">
                 🌿 <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
+            </div>
+        <?php endif; ?>
+
+        <?php 
+        $adminShopClosed = $configService->getShopClosedStatus(); 
+        if ($adminShopClosed['is_closed']): 
+        ?>
+            <!-- Cảnh báo Bếp Tạm Nghỉ (Issue #12) -->
+            <div style="background: #FEF3C7; border: 1.5px solid #F59E0B; color: #92400E; padding: 12px 16px; border-radius: 12px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.3rem;">⚠️</span>
+                    <div>
+                        <strong style="color: #78350F;">Bếp đang BẬT chế độ TẠM NGHỈ / ĐI VẮNG:</strong> Khách đặt trên web sẽ thấy thông báo tạm nghỉ và không thể gửi đơn.
+                        <?php if (!empty($adminShopClosed['from_date']) || !empty($adminShopClosed['to_date'])): ?>
+                            <span style="display: inline-block; margin-left: 6px; font-size: 0.78rem; background: #FDE68A; padding: 2px 8px; border-radius: 6px; color: #78350F;">
+                                <?= !empty($adminShopClosed['from_date']) ? 'Từ ' . date('d/m/Y', strtotime($adminShopClosed['from_date'])) : '' ?>
+                                <?= !empty($adminShopClosed['to_date']) ? ' đến ' . date('d/m/Y', strtotime($adminShopClosed['to_date'])) : '' ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <a href="admin.php?tab=config#vacation_settings" class="action-btn" style="text-decoration: none; font-weight: 600; color: #78350F; border-color: #F59E0B; white-space: nowrap;">
+                    Cài đặt nghỉ ⚙️
+                </a>
             </div>
         <?php endif; ?>
 
@@ -777,6 +812,38 @@ $currentConfig = $configService->getAll();
                                 <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Cho phép khách đặt trước tối đa (ngày):</label>
                                 <input type="number" name="advance_booking_days" class="zen-input" value="<?= htmlspecialchars((string)($currentConfig['advance_booking_days'] ?? '7'), ENT_QUOTES, 'UTF-8') ?>" min="1" max="30" required>
                                 <p style="font-size: 0.7rem; color: var(--text-muted-warm); margin-top: 2px;">* Mặc định 7 ngày (1 tuần trở lại).</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cấu hình Tạm Nghỉ & Lịch Bếp Đi Vắng (Issue #12) -->
+                    <div id="vacation_settings" style="border-top: 1px dashed var(--brand-border-soft); margin-top: 10px; padding-top: 14px;">
+                        <h3 style="font-size: 0.88rem; font-weight: 700; color: #9A3412; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                            <span>🌿 Chế Độ Tạm Nghỉ & Lịch Bếp Đi Vắng</span>
+                        </h3>
+                        <div style="background: #FFFBEB; border: 1px solid #FDE68A; padding: 14px; border-radius: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #92400E; font-size: 0.85rem; margin-bottom: 10px;">
+                                <input type="checkbox" name="is_shop_closed" value="1" <?= (isset($currentConfig['is_shop_closed']) && $currentConfig['is_shop_closed'] === '1') ? 'checked' : '' ?> style="width: 16px; height: 16px;">
+                                <span>Bật chế độ Tạm Nghỉ / Đi Vắng (Tạm dừng nhận đơn & hiển thị thông báo cho khách)</span>
+                            </label>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #78350F; display: block; margin-bottom: 4px;">Nghỉ từ ngày (tùy chọn):</label>
+                                    <input type="date" name="closed_from_date" class="zen-input" value="<?= htmlspecialchars($currentConfig['closed_from_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="background: #FFFFFF;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #78350F; display: block; margin-bottom: 4px;">Nghỉ đến hết ngày (tùy chọn):</label>
+                                    <input type="date" name="closed_to_date" class="zen-input" value="<?= htmlspecialchars($currentConfig['closed_to_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="background: #FFFFFF;">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style="font-size: 0.75rem; color: #78350F; display: block; margin-bottom: 4px;">Lời nhắn gửi bạn thương khi vào web:</label>
+                                <textarea name="closed_reason" class="zen-input" rows="2" style="background: #FFFFFF; resize: vertical;" placeholder="Bếp An Yên xin phép tạm nghỉ đi hái trà & chuẩn bị nguyên liệu mới. Hẹn sớm gặp lại bạn thương nhé! 🍃"><?= htmlspecialchars($currentConfig['closed_reason'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                                <p style="font-size: 0.7rem; color: #92400E; margin-top: 4px; line-height: 1.4;">
+                                    💡 <em>Ghi chú:</em> Nếu để trống ngày bắt đầu & kết thúc, bếp sẽ tạm nghỉ ngay lập tức vô thời hạn cho tới khi bạn bỏ chọn ô kích hoạt. Nếu cài khoảng ngày cụ thể, hệ thống sẽ tự động khóa ca và hiển thị thông báo trong khoảng thời gian đó.
+                                </p>
                             </div>
                         </div>
                     </div>

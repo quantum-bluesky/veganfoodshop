@@ -22,6 +22,10 @@ class CreateOrderTransactionTest extends TestCase
         $this->setUp();
         $this->testOrderRetrievalIdempotencyOnRefresh();
         $this->tearDown();
+
+        $this->setUp();
+        $this->testKitchenSummaryByDateAndOrdersByDate();
+        $this->tearDown();
     }
 
     /**
@@ -134,5 +138,61 @@ class CreateOrderTransactionTest extends TestCase
         $this->assertEquals(1, $countOrdersAfterRefreshes, 'Refresh trang xác nhận không được tạo thêm đơn mới');
 
         $this->assertEquals(8, $slotService->getRemainingCapacity(1), 'Số suất của ca phải giữ nguyên không bị trừ lặp lại');
+    }
+
+    /**
+     * TC-INT-04: Kiểm tra thống kê bếp tổng hợp cả ngày và lấy toàn bộ đơn theo ngày
+     */
+    public function testKitchenSummaryByDateAndOrdersByDate(): void
+    {
+        $orderService = new OrderService($this->db);
+        $slotService = new \App\Services\SlotService($this->db);
+
+        $testDate = date('Y-m-d', strtotime('+2 days'));
+        $slot1 = $slotService->createSlot($testDate, '11:30 - 12:15', 12);
+        $slot2 = $slotService->createSlot($testDate, '12:30 - 13:15', 12);
+
+        // Đơn ca 1: 2 Phở nấm (ID 1)
+        $orderService->createOrder([
+            'customer_name' => 'Chị Lan',
+            'customer_phone' => '0912345678',
+            'slot_id' => $slot1,
+            'order_type' => 'dine_in',
+            'payment_method' => 'pay_later',
+            'items' => [1 => 2],
+        ]);
+
+        // Đơn ca 2: 3 Phở nấm (ID 1) + 1 Bún Huế (ID 2)
+        $orderService->createOrder([
+            'customer_name' => 'Anh Minh',
+            'customer_phone' => '0987654321',
+            'slot_id' => $slot2,
+            'order_type' => 'takeaway',
+            'payment_method' => 'vietqr',
+            'items' => [
+                1 => 3,
+                2 => 1,
+            ],
+        ]);
+
+        // 1. Kiểm tra tổng hợp bếp cả ngày
+        $summary = $orderService->getKitchenSummaryByDate($testDate);
+        $this->assertEquals(2, count($summary), 'Có 2 món khác nhau cần chuẩn bị trong ngày');
+
+        $summaryMap = [];
+        foreach ($summary as $item) {
+            $summaryMap[(int)$item['id']] = (int)$item['total_qty'];
+        }
+
+        // Món 1 (Phở nấm): 2 + 3 = 5 suất
+        $this->assertEquals(5, $summaryMap[1] ?? 0, 'Tổng số Phở nấm cả ngày phải là 5');
+        // Món 2 (Bún Huế): 1 suất
+        $this->assertEquals(1, $summaryMap[2] ?? 0, 'Tổng số Bún Huế cả ngày phải là 1');
+
+        // 2. Kiểm tra danh sách đơn cả ngày
+        $allOrders = $orderService->getOrdersByDate($testDate);
+        $this->assertEquals(2, count($allOrders), 'Tổng số đơn trong ngày phải là 2');
+        $this->assertEquals('11:30 - 12:15', $allOrders[0]['slot_time']);
+        $this->assertEquals('12:30 - 13:15', $allOrders[1]['slot_time']);
     }
 }

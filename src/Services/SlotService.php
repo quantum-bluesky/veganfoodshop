@@ -182,24 +182,50 @@ class SlotService
     }
 
     /**
-     * Lấy tất cả ca phục vụ gần nhất cho trang quản trị
+     * Lấy danh sách ca phục vụ cho trang quản trị với bộ lọc tiện dụng (today, upcoming, history, all)
      */
-    public function getAllSlotsForAdmin(int $limit = 30): array
+    public function getAllSlotsForAdmin(int $limit = 50, string $filter = 'all'): array
     {
-        $stmt = $this->db->prepare('
+        $today = date('Y-m-d');
+        $whereSql = '';
+        $params = [];
+
+        if ($filter === 'today') {
+            $whereSql = 'WHERE slot_date = :today';
+            $params[':today'] = $today;
+        } elseif ($filter === 'upcoming') {
+            $whereSql = 'WHERE slot_date >= :today';
+            $params[':today'] = $today;
+        } elseif ($filter === 'history') {
+            $whereSql = 'WHERE slot_date < :today';
+            $params[':today'] = $today;
+        }
+
+        $orderSql = ($filter === 'history') ? 'ORDER BY slot_date DESC, slot_time DESC' : 'ORDER BY slot_date ASC, slot_time ASC';
+
+        $sql = "
             SELECT id, slot_date, slot_time, max_capacity, is_active, created_at 
             FROM time_slots 
-            ORDER BY slot_date DESC, slot_time ASC 
+            $whereSql
+            $orderSql 
             LIMIT :limit
-        ');
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         $slots = $stmt->fetchAll();
 
+        $now = time();
         foreach ($slots as &$slot) {
             $slotId = (int)$slot['id'];
             $slot['booked_count'] = $this->getBookedFoodCount($slotId);
             $slot['remaining_capacity'] = max(0, (int)$slot['max_capacity'] - $slot['booked_count']);
+            $slotStart = $this->parseSlotStartTime((string)$slot['slot_date'], (string)$slot['slot_time']);
+            $slot['is_past'] = ($now >= $slotStart);
         }
         unset($slot);
 

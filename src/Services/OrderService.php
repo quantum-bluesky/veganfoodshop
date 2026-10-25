@@ -308,9 +308,10 @@ class OrderService
     public function getOrdersBySlot(int $slotId): array
     {
         $stmt = $this->db->prepare('
-            SELECT o.*, c.name as customer_name, c.is_trusted
+            SELECT o.*, c.name as customer_name, c.is_trusted, c.zalo_id, ts.slot_time, ts.slot_date
             FROM orders o
             JOIN customers c ON o.customer_phone = c.phone
+            JOIN time_slots ts ON o.slot_id = ts.id
             WHERE o.slot_id = :slot_id
             ORDER BY o.created_at DESC
         ');
@@ -328,7 +329,33 @@ class OrderService
     }
 
     /**
-     * Thống kê bếp (tổng hợp số lượng từng món cần nấu trong ca)
+     * Lấy toàn bộ đơn hàng của một ngày cụ thể (Admin xem tổng ngày)
+     */
+    public function getOrdersByDate(string $date): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT o.*, c.name as customer_name, c.is_trusted, c.zalo_id, ts.slot_time, ts.slot_date
+            FROM orders o
+            JOIN customers c ON o.customer_phone = c.phone
+            JOIN time_slots ts ON o.slot_id = ts.id
+            WHERE ts.slot_date = :date
+            ORDER BY ts.slot_time ASC, o.created_at DESC
+        ');
+        $stmt->execute([':date' => $date]);
+        $orders = $stmt->fetchAll();
+
+        foreach ($orders as &$order) {
+            $stmtItems = $this->db->prepare('SELECT * FROM order_items WHERE order_id = :order_id');
+            $stmtItems->execute([':order_id' => (int)$order['id']]);
+            $order['items'] = $stmtItems->fetchAll();
+        }
+        unset($order);
+
+        return $orders;
+    }
+
+    /**
+     * Thống kê bếp theo từng ca (tổng hợp số lượng từng món cần nấu trong ca)
      */
     public function getKitchenSummaryBySlot(int $slotId): array
     {
@@ -343,6 +370,26 @@ class OrderService
             ORDER BY mi.category ASC, total_qty DESC
         ');
         $stmt->execute([':slot_id' => $slotId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Thống kê bếp tổng hợp cho cả ngày (Kitchen Prep Sheet - toàn bộ các ca trong ngày)
+     */
+    public function getKitchenSummaryByDate(string $date): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT mi.id, mi.name, mi.category, SUM(oi.quantity) as total_qty
+            FROM orders o
+            JOIN time_slots ts ON o.slot_id = ts.id
+            JOIN order_items oi ON o.id = oi.order_id
+            JOIN menu_items mi ON oi.menu_item_id = mi.id
+            WHERE ts.slot_date = :date 
+              AND o.order_status != \'cancelled\'
+            GROUP BY mi.id, mi.name, mi.category
+            ORDER BY mi.category ASC, total_qty DESC
+        ');
+        $stmt->execute([':date' => $date]);
         return $stmt->fetchAll();
     }
 

@@ -179,6 +179,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $accNo = (string)$_POST['account_no'];
             $accName = (string)$_POST['account_name'];
 
+            // Cấu hình đặt chỗ & thời gian bếp
+            $minLeadTime = max(0, (int)($_POST['min_lead_time_hours'] ?? 3));
+            $advanceBookingDays = max(1, (int)($_POST['advance_booking_days'] ?? 7));
+
             // Zalo Config
             $zaloAppId = (string)($_POST['zalo_app_id'] ?? '123');
             $zaloSecretKey = (string)($_POST['zalo_secret_key'] ?? '123');
@@ -188,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $zaloSellerUrl = (string)($_POST['zalo_seller_url'] ?? 'https://zalo.me/0987862241');
             $zaloCallbackUrl = trim((string)($_POST['zalo_callback_url'] ?? ''));
             $orderNoteShipping = (string)($_POST['order_note_shipping'] ?? 'Chưa bao gồm chi phí vận chuyển');
-            $zaloConfirmTemplate = (string)($_POST['zalo_confirm_template'] ?? 'Chào shop, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!');
+            $zaloConfirmTemplate = (string)($_POST['zalo_confirm_template'] ?? 'Chào Bếp, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!');
 
             $configService->set('shop_name', $shopName);
             $configService->set('shop_quote', $shopQuote);
@@ -197,6 +201,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $configService->set('bank_name', $bankName);
             $configService->set('account_no', $accNo);
             $configService->set('account_name', $accName);
+
+            $configService->set('min_lead_time_hours', (string)$minLeadTime);
+            $configService->set('advance_booking_days', (string)$advanceBookingDays);
 
             $configService->set('zalo_app_id', $zaloAppId);
             $configService->set('zalo_secret_key', $zaloSecretKey);
@@ -208,19 +215,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $configService->set('order_note_shipping', $orderNoteShipping);
             $configService->set('zalo_confirm_template', $zaloConfirmTemplate);
 
-            $message = 'Đã lưu cấu hình hệ thống & Zalo Login thành công.';
+            $message = 'Đã lưu cấu hình hệ thống, thời gian đặt & Zalo thành công.';
             break;
     }
 }
 
 // Lấy dữ liệu cho các tab
 $currentTab = (string)($_GET['tab'] ?? 'slots');
-$adminSlots = $slotService->getAllSlotsForAdmin(30);
+$slotFilter = (string)($_GET['slot_filter'] ?? 'upcoming');
+$adminSlots = $slotService->getAllSlotsForAdmin(50, $slotFilter);
 
-// Tab Orders: ca được chọn để xem
-$selectedSlotId = (int)($_GET['slot_id'] ?? ($adminSlots[0]['id'] ?? 0));
-$kitchenSummary = $selectedSlotId ? $orderService->getKitchenSummaryBySlot($selectedSlotId) : [];
-$slotOrders = $selectedSlotId ? $orderService->getOrdersBySlot($selectedSlotId) : [];
+// Toàn bộ các ca để phục vụ dropdown chọn xem ca cụ thể
+$allUpcomingAndTodaySlots = $slotService->getAllSlotsForAdmin(50, 'all');
+
+// Tab Orders: Chế độ xem bếp & danh sách đơn
+$orderScope = (string)($_GET['scope'] ?? '');
+if ($orderScope === '' && !isset($_GET['slot_id'])) {
+    $orderScope = 'today_all';
+} elseif (isset($_GET['slot_id'])) {
+    $orderScope = 'by_slot';
+}
+
+$selectedSlotId = (int)($_GET['slot_id'] ?? 0);
+$todayDate = date('Y-m-d');
+
+if ($orderScope === 'today_all') {
+    $kitchenSummary = $orderService->getKitchenSummaryByDate($todayDate);
+    $slotOrders = $orderService->getOrdersByDate($todayDate);
+} elseif ($selectedSlotId > 0) {
+    $kitchenSummary = $orderService->getKitchenSummaryBySlot($selectedSlotId);
+    $slotOrders = $orderService->getOrdersBySlot($selectedSlotId);
+} else {
+    $kitchenSummary = $orderService->getKitchenSummaryByDate($todayDate);
+    $slotOrders = $orderService->getOrdersByDate($todayDate);
+}
 
 // Tab Customers
 $customerSearch = (string)($_GET['search_cust'] ?? '');
@@ -361,6 +389,22 @@ $currentConfig = $configService->getAll();
                 </form>
             </div>
 
+            <!-- Bộ lọc thời gian ca phục vụ -->
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                <a href="admin.php?tab=slots&slot_filter=upcoming" class="action-btn" style="text-decoration: none; padding: 6px 12px; border-radius: 8px; <?= $slotFilter === 'upcoming' ? 'background: var(--brand-tea-green); color: white;' : '' ?>">
+                    🌿 Hôm nay & Sắp tới
+                </a>
+                <a href="admin.php?tab=slots&slot_filter=today" class="action-btn" style="text-decoration: none; padding: 6px 12px; border-radius: 8px; <?= $slotFilter === 'today' ? 'background: var(--brand-tea-green); color: white;' : '' ?>">
+                    ☀️ Chỉ hôm nay
+                </a>
+                <a href="admin.php?tab=slots&slot_filter=history" class="action-btn" style="text-decoration: none; padding: 6px 12px; border-radius: 8px; <?= $slotFilter === 'history' ? 'background: var(--brand-tea-green); color: white;' : '' ?>">
+                    📜 Lịch sử đã qua
+                </a>
+                <a href="admin.php?tab=slots&slot_filter=all" class="action-btn" style="text-decoration: none; padding: 6px 12px; border-radius: 8px; <?= $slotFilter === 'all' ? 'background: var(--brand-tea-green); color: white;' : '' ?>">
+                    Toàn bộ
+                </a>
+            </div>
+
             <div class="zen-card" style="padding: 0; overflow-x: auto;">
                 <table class="data-table">
                     <thead>
@@ -374,34 +418,47 @@ $currentConfig = $configService->getAll();
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($adminSlots as $s): ?>
-                            <tr>
-                                <td><strong><?= htmlspecialchars($s['slot_date'], ENT_QUOTES, 'UTF-8') ?></strong></td>
-                                <td><?= htmlspecialchars($s['slot_time'], ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= (int)$s['booked_count'] ?> / <?= (int)$s['max_capacity'] ?> suất</td>
-                                <td>
-                                    <?php if ((int)$s['remaining_capacity'] <= 0): ?>
-                                        <span style="color: #DC2626; font-weight: 700;">Hết suất</span>
-                                    <?php else: ?>
-                                        <span style="color: var(--brand-tea-green); font-weight: 700;">Còn <?= (int)$s['remaining_capacity'] ?></span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?= (int)$s['is_active'] === 1 ? '<span style="color:#059669;">Đang mở</span>' : '<span style="color:#9CA3AF;">Đóng</span>' ?>
-                                </td>
-                                <td>
-                                    <form method="POST" style="display: inline;">
-                                        <input type="hidden" name="admin_action" value="toggle_slot">
-                                        <input type="hidden" name="slot_id" value="<?= (int)$s['id'] ?>">
-                                        <input type="hidden" name="is_active" value="<?= (int)$s['is_active'] === 1 ? '0' : '1' ?>">
-                                        <button type="submit" class="action-btn">
-                                            <?= (int)$s['is_active'] === 1 ? 'Đóng ca' : 'Mở lại' ?>
-                                        </button>
-                                    </form>
-                                    <a href="admin.php?tab=orders&slot_id=<?= (int)$s['id'] ?>" class="action-btn" style="text-decoration: none; margin-left: 4px;">Xem đơn</a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
+                        <?php if (empty($adminSlots)): ?>
+                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted-warm); padding: 20px;">Không có ca nào trong mục này.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($adminSlots as $s): ?>
+                                <tr style="<?= !empty($s['is_past']) ? 'opacity: 0.75; background: #FAF9F6;' : '' ?>">
+                                    <td>
+                                        <strong><?= htmlspecialchars($s['slot_date'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                        <?php if (!empty($s['is_past'])): ?>
+                                            <span style="font-size: 0.65rem; background: #E5E7EB; color: #4B5563; padding: 2px 5px; border-radius: 4px; margin-left: 4px;">Đã qua</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= htmlspecialchars($s['slot_time'], ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td><?= (int)$s['booked_count'] ?> / <?= (int)$s['max_capacity'] ?> suất</td>
+                                    <td>
+                                        <?php if ((int)$s['remaining_capacity'] <= 0): ?>
+                                            <span style="color: #DC2626; font-weight: 700;">Hết suất</span>
+                                        <?php else: ?>
+                                            <span style="color: var(--brand-tea-green); font-weight: 700;">Còn <?= (int)$s['remaining_capacity'] ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($s['is_past'])): ?>
+                                            <span style="color:#6B7280; font-size: 0.78rem;">Đã kết thúc</span>
+                                        <?php else: ?>
+                                            <?= (int)$s['is_active'] === 1 ? '<span style="color:#059669;">Đang mở</span>' : '<span style="color:#9CA3AF;">Đóng</span>' ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <form method="POST" style="display: inline;">
+                                            <input type="hidden" name="admin_action" value="toggle_slot">
+                                            <input type="hidden" name="slot_id" value="<?= (int)$s['id'] ?>">
+                                            <input type="hidden" name="is_active" value="<?= (int)$s['is_active'] === 1 ? '0' : '1' ?>">
+                                            <button type="submit" class="action-btn">
+                                                <?= (int)$s['is_active'] === 1 ? 'Đóng ca' : 'Mở lại' ?>
+                                            </button>
+                                        </form>
+                                        <a href="admin.php?tab=orders&scope=by_slot&slot_id=<?= (int)$s['id'] ?>" class="action-btn" style="text-decoration: none; margin-left: 4px;">Xem đơn</a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -410,43 +467,55 @@ $currentConfig = $configService->getAll();
             <!-- TAB 2: Bếp Chuẩn Bị & Đơn Hàng -->
             <div class="zen-card" style="margin-bottom: 16px;">
                 <label style="font-size: 0.8rem; font-weight: 600; color: var(--brand-tea-green); margin-bottom: 6px; display: block;">
-                    Chọn ca phục vụ để kiểm tra nguyên liệu & danh sách đơn:
+                    Chế độ xem Bếp & Đơn Hàng:
                 </label>
-                <select onchange="window.location.href='admin.php?tab=orders&slot_id=' + this.value" class="zen-input" style="max-width: 400px;">
-                    <?php foreach ($adminSlots as $s): ?>
-                        <option value="<?= (int)$s['id'] ?>" <?= (int)$s['id'] === $selectedSlotId ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($s['slot_date'] . ' (' . $s['slot_time'] . ') - Đặt: ' . $s['booked_count'] . '/' . $s['max_capacity'], ENT_QUOTES, 'UTF-8') ?>
-                        </option>
-                    <?php endforeach; ?>
+                <select onchange="window.location.href=this.value" class="zen-input" style="max-width: 480px;">
+                    <option value="admin.php?tab=orders&scope=today_all" <?= $orderScope === 'today_all' ? 'selected' : '' ?>>
+                        🌟 TỔNG HỢP TOÀN BỘ HÔM NAY (<?= date('d/m/Y') ?>)
+                    </option>
+                    <optgroup label="Xem chi tiết theo từng ca:">
+                        <?php foreach ($allUpcomingAndTodaySlots as $s): ?>
+                            <option value="admin.php?tab=orders&scope=by_slot&slot_id=<?= (int)$s['id'] ?>" <?= ($orderScope === 'by_slot' && (int)$s['id'] === $selectedSlotId) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($s['slot_date'] . ' (' . $s['slot_time'] . ')' . (!empty($s['is_past']) ? ' [Đã qua]' : '') . ' - Đặt: ' . $s['booked_count'] . '/' . $s['max_capacity'], ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </optgroup>
                 </select>
             </div>
 
-            <!-- Tổng hợp bếp cần nấu cho ca này -->
+            <!-- Tổng hợp bếp cần nấu (Kitchen Prep Sheet) -->
             <div class="zen-card" style="background-color: var(--brand-sage-light); margin-bottom: 16px;">
-                <h3 style="font-size: 0.9rem; font-weight: 700; color: var(--brand-tea-dark); margin-bottom: 8px;">
-                    🍲 Bảng Chuẩn Bị Bếp (Batch Kitchen Summary)
-                </h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--brand-tea-dark); margin: 0;">
+                        🍲 <?= $orderScope === 'today_all' ? 'Bảng Chuẩn Bị Bếp Toàn Bộ Hôm Nay (' . date('d/m/Y') . ')' : 'Bảng Chuẩn Bị Bếp Cho Ca Này' ?>
+                    </h3>
+                    <span style="font-size: 0.78rem; color: var(--brand-tea-green); font-weight: 700;">
+                        Tổng: <?= (int)array_sum(array_column($kitchenSummary, 'total_qty')) ?> suất món
+                    </span>
+                </div>
+
                 <?php if (empty($kitchenSummary)): ?>
-                    <p style="font-size: 0.8rem; color: var(--text-muted-warm);">Chưa có món nào được đặt cho ca này.</p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted-warm); margin-top: 4px;">Chưa có món nào được đặt cho mục này.</p>
                 <?php else: ?>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px;">
                         <?php foreach ($kitchenSummary as $ks): ?>
-                            <div style="background: #FFFFFF; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--brand-border-soft); font-size: 0.82rem;">
+                            <div style="background: #FFFFFF; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--brand-border-soft); font-size: 0.82rem; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
                                 <strong><?= htmlspecialchars($ks['name'], ENT_QUOTES, 'UTF-8') ?>:</strong> 
-                                <span style="font-size: 1rem; color: var(--brand-tea-green); font-weight: 700;"><?= (int)$ks['total_qty'] ?></span> suất
+                                <span style="font-size: 1.05rem; color: var(--brand-tea-green); font-weight: 700;"><?= (int)$ks['total_qty'] ?></span> suất
                             </div>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
             </div>
 
-            <!-- Danh sách đơn hàng trong ca -->
+            <!-- Danh sách đơn hàng trong ca / ngày -->
             <div class="zen-card" style="padding: 0; overflow-x: auto;">
                 <table class="data-table">
                     <thead>
                         <tr>
                             <th>Mã Đơn</th>
-                            <th>Khách Hàng</th>
+                            <th>Khung Giờ</th>
+                            <th>Khách Hàng & Zalo</th>
                             <th>Hình Thức</th>
                             <th>Chi Tiết Món</th>
                             <th>Tổng Tiền</th>
@@ -456,23 +525,44 @@ $currentConfig = $configService->getAll();
                     </thead>
                     <tbody>
                         <?php if (empty($slotOrders)): ?>
-                            <tr><td colspan="7" style="text-align: center; color: var(--text-muted-warm); padding: 20px;">Chưa có đơn đặt nào trong ca này.</td></tr>
+                            <tr><td colspan="8" style="text-align: center; color: var(--text-muted-warm); padding: 24px;">Chưa có đơn đặt nào trong mục này.</td></tr>
                         <?php else: ?>
-                            <?php foreach ($slotOrders as $o): ?>
+                            <?php foreach ($slotOrders as $o): 
+                                $cleanPhone = preg_replace('/[^0-9]/', '', (string)$o['customer_phone']);
+                            ?>
                                 <tr>
                                     <td>
                                         <strong><?= htmlspecialchars($o['order_code'], ENT_QUOTES, 'UTF-8') ?></strong>
                                         <div style="font-size: 0.7rem; color: var(--text-muted-warm);"><?= date('H:i d/m', strtotime($o['created_at'])) ?></div>
                                     </td>
                                     <td>
-                                        <strong><?= htmlspecialchars($o['customer_name'], ENT_QUOTES, 'UTF-8') ?></strong>
-                                        <?php if ((int)$o['is_trusted'] === 1): ?>
-                                            <span style="font-size: 0.68rem; background: #E6F3E6; color: #2D5A27; padding: 2px 6px; border-radius: 6px;">Bạn quen</span>
-                                        <?php endif; ?>
+                                        <strong style="color: var(--brand-tea-dark); font-size: 0.82rem;"><?= htmlspecialchars((string)($o['slot_time'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong>
+                                        <div style="font-size: 0.7rem; color: var(--text-muted-warm);"><?= htmlspecialchars((string)($o['slot_date'] ?? ''), ENT_QUOTES, 'UTF-8') ?></div>
+                                    </td>
+                                    <td>
+                                        <div style="font-weight: 700; color: var(--brand-tea-dark);">
+                                            <?= htmlspecialchars($o['customer_name'], ENT_QUOTES, 'UTF-8') ?>
+                                            <?php if ((int)$o['is_trusted'] === 1): ?>
+                                                <span style="font-size: 0.65rem; background: #E6F3E6; color: #2D5A27; padding: 2px 5px; border-radius: 4px; font-weight: normal;">Bạn quen</span>
+                                            <?php endif; ?>
+                                        </div>
                                         <div style="font-size: 0.72rem; color: var(--text-muted-warm);"><?= htmlspecialchars($o['customer_phone'], ENT_QUOTES, 'UTF-8') ?></div>
                                         <?php if (!empty($o['customer_note'])): ?>
-                                            <div style="font-size: 0.7rem; color: #8C7A6B; font-style: italic;">"<?= htmlspecialchars($o['customer_note'], ENT_QUOTES, 'UTF-8') ?>"</div>
+                                            <div style="font-size: 0.7rem; color: #8C7A6B; font-style: italic; margin-top: 2px;">"<?= htmlspecialchars($o['customer_note'], ENT_QUOTES, 'UTF-8') ?>"</div>
                                         <?php endif; ?>
+
+                                        <!-- Nút liên lạc Zalo trực tiếp với khách (Issue #10) -->
+                                        <div style="margin-top: 5px; display: flex; align-items: center; gap: 5px;">
+                                            <a href="https://zalo.me/<?= htmlspecialchars($cleanPhone, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
+                                               style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; background: #0068FF; color: #FFFFFF; font-size: 0.7rem; font-weight: 600; text-decoration: none;">
+                                                <svg width="12" height="12" viewBox="0 0 48 48" fill="none"><path fill="#fff" d="M24 4C12.95 4 4 12.95 4 24c0 3.73 1.02 7.22 2.79 10.22L4 44l10.15-2.67C17.06 43.04 20.44 44 24 44c11.05 0 20-8.95 20-20S35.05 4 24 4z"/></svg>
+                                                <span>Nhắn Zalo</span>
+                                            </a>
+                                            <button type="button" class="copy-pill" style="margin-left: 0; padding: 2px 6px; font-size: 0.68rem;" 
+                                                    onclick="copyCustomerZaloTemplate('<?= htmlspecialchars(addslashes((string)$o['customer_name']), ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars((string)$o['order_code'], ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars((string)($o['slot_time'] ?? ''), ENT_QUOTES, 'UTF-8') ?>')">
+                                                Mẫu nhắn
+                                            </button>
+                                        </div>
                                     </td>
                                     <td>
                                         <?= $o['order_type'] === 'dine_in' ? '🍵 Tại chỗ' : '🥡 Ship về' ?>
@@ -672,6 +762,25 @@ $currentConfig = $configService->getAll();
                         <input type="text" name="notice_text" class="zen-input" value="<?= htmlspecialchars($currentConfig['notice_text'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                     </div>
 
+                    <!-- Cấu hình Đặt chỗ & Khóa ca -->
+                    <div style="border-top: 1px dashed var(--brand-border-soft); margin-top: 10px; padding-top: 14px;">
+                        <h3 style="font-size: 0.88rem; font-weight: 700; color: var(--brand-tea-dark); margin-bottom: 10px;">
+                            ⏰ Cấu hình Thời Gian Đặt Chỗ & Khóa Ca
+                        </h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Đặt trước tối thiểu (tiếng trước khi ca bắt đầu):</label>
+                                <input type="number" name="min_lead_time_hours" class="zen-input" value="<?= htmlspecialchars((string)($currentConfig['min_lead_time_hours'] ?? '3'), ENT_QUOTES, 'UTF-8') ?>" min="0" max="24" required>
+                                <p style="font-size: 0.7rem; color: var(--text-muted-warm); margin-top: 2px;">* Mặc định 3h để bếp kịp ninh nước dùng.</p>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Cho phép khách đặt trước tối đa (ngày):</label>
+                                <input type="number" name="advance_booking_days" class="zen-input" value="<?= htmlspecialchars((string)($currentConfig['advance_booking_days'] ?? '7'), ENT_QUOTES, 'UTF-8') ?>" min="1" max="30" required>
+                                <p style="font-size: 0.7rem; color: var(--text-muted-warm); margin-top: 2px;">* Mặc định 7 ngày (1 tuần trở lại).</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div style="border-top: 1px dashed var(--brand-border-soft); margin-top: 10px; padding-top: 14px;">
                         <h3 style="font-size: 0.88rem; font-weight: 700; color: var(--brand-tea-dark); margin-bottom: 10px;">
                             📱 Cấu hình mã VietQR nhận tiền chuyển khoản
@@ -763,5 +872,16 @@ $currentConfig = $configService->getAll();
 
     </div>
 
+    <script>
+        function copyCustomerZaloTemplate(name, code, slotTime) {
+            const timeDesc = slotTime ? ' (khung giờ ' + slotTime + ')' : '';
+            const text = 'Chào bạn ' + name + ', Bếp Chay An Yên nhắn bạn về đơn ' + code + timeDesc + ': Món thanh tịnh của bạn đang được bếp chuẩn bị chu đáo nhé! 🍃';
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Đã sao chép tin nhắn mẫu gửi cho ' + name + ':\n\n' + text);
+            }).catch(() => {
+                prompt('Bạn hãy copy tin nhắn dưới đây để gửi cho khách:', text);
+            });
+        }
+    </script>
 </body>
 </html>

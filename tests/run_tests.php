@@ -8,6 +8,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../src/autoload.php';
 
+// Cô lập môi trường test, không bị ảnh hưởng bởi config.local.php
+putenv('APP_CONFIG_FILE=' . __DIR__ . '/test_config.php');
+
 // Đăng ký autoloader cho thư mục Tests\
 spl_autoload_register(function (string $class): void {
     $prefix = 'Tests\\';
@@ -46,6 +49,7 @@ use Tests\Unit\Issue29_30_SlotOverdueAndFontSizeTest;
 use Tests\Unit\Issue31_IconAndOpenGraphPreviewTest;
 use Tests\Unit\Issue32_NoticeUiAndTakeawayFlowTest;
 use Tests\Unit\Issue33_DateSliderAndFutureSlotsTest;
+use Tests\Unit\Issue34_35_DynamicConfigAndNoHardcodeTest;
 use Tests\Integration\CreateOrderTransactionTest;
 use Tests\Integration\SlotConcurrencyTest;
 
@@ -70,6 +74,7 @@ $testSuites = [
     'Unit Tests - Issue 31 Thay Icon 🪷 & Open Graph Preview' => new Issue31_IconAndOpenGraphPreviewTest(),
     'Unit Tests - Issue 32 UI Thông Báo Góc Phải & Takeaway' => new Issue32_NoticeUiAndTakeawayFlowTest(),
     'Unit Tests - Issue 33 Nới Rộng Lịch Đặt & Slide Ngày' => new Issue33_DateSliderAndFutureSlotsTest(),
+    'Unit Tests - Issue 34 & 35 Dynamic Config & No Hardcode' => new Issue34_35_DynamicConfigAndNoHardcodeTest(),
     'Integration Tests - Transaction An Toàn' => new CreateOrderTransactionTest(),
     'Integration Tests - Khóa Suất Biên' => new SlotConcurrencyTest(),
 ];

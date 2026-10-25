@@ -173,7 +173,8 @@ class OrderService
 
                     // Tìm ca tiếp theo khả dụng để gợi ý lịch sự cho khách
                     $nextSlot = $this->slotService->getNextAvailableSlot((string)$slot['slot_date'], (int)$slot['id'], $currentTime);
-                    $sellerPhone = (string)$this->configService->get('seller_phone', '0901 234 567');
+                    $shopName = (string)$this->configService->get('shop_name', 'Bếp Chay An Yên');
+                    $sellerPhone = (string)$this->configService->get('seller_phone', '');
 
                     $nextSuggestion = '';
                     if ($nextSlot) {
@@ -184,12 +185,14 @@ class OrderService
                     }
 
                     if ($isExceeded3M) {
+                        $phoneContact = $sellerPhone !== '' ? " qua số {$sellerPhone} / Zalo" : " qua Zalo";
                         throw new ValidationException(sprintf(
-                            'Dạ Bếp An Yên xin thông báo: Khung giờ %s (%s) đã vượt quá thời gian nhận đặt lịch hơn 3 phút để bếp kịp ninh nước dùng và chuẩn bị chu đáo. Bạn thương vui lòng %s hoặc liên hệ trực tiếp với chủ bếp qua số %s / Zalo để được hỗ trợ nhé.',
+                            'Dạ %s xin thông báo: Khung giờ %s (%s) đã vượt quá thời gian nhận đặt lịch để bếp kịp ninh nước dùng và chuẩn bị chu đáo. Bạn thương vui lòng %s hoặc liên hệ trực tiếp với chủ bếp%s để được hỗ trợ nhé.',
+                            $shopName,
                             $slot['slot_time'],
                             date('d/m/Y', strtotime((string)$slot['slot_date'])),
                             $nextSuggestion,
-                            $sellerPhone
+                            $phoneContact
                         ));
                     }
 

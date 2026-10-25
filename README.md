@@ -248,6 +248,20 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Tự động kiểm tra độ rộng màn hình: Nếu số lượng ngày vượt quá bề rộng màn hình (bị che khuất trên mobile hoặc desktop), hai nút trượt sẽ hiển thị mượt mà; nếu không bị tràn, nút tự động ẩn để tối ưu diện tích.
       - Trạng thái nút trượt thông minh: Nút Prev tự động mờ/disabled (`.is-disabled`) khi ở đầu danh sách, nút Next tự động disabled khi cuộn tới mép cuối.
       - **Auto-scroll tâm điểm:** Tự động cuộn mượt đưa thẻ ngày đang chọn (`.date-chip.is-active`) vào ngay trung tâm tầm nhìn của khách khi tải trang hoặc khi đổi ngày.
+27. **Tinh Chỉnh Text Quá Giờ Đặt, Nâng Cấp ConfigService 3 Tầng & Cá Nhân Hóa Không Hard-Code (v1.16.0 - Issues #34 & #35):**
+    - **Tinh Chỉnh Text Thông Báo Quá Hạn (Issue #34):**
+      - Tinh giản thông báo quá giờ đặt: Bỏ cụm từ chi tiết `"hơn 3 phút"`, chỉ cần thông báo ngắn gọn, ấm áp: `"đã vượt quá thời gian nhận đặt lịch"`, tránh gây cảm giác rườm rà và áp lực thời gian cho thực khách.
+      - Đồng bộ nội dung thông báo trên cả client-side (`app.js`), backend exception (`OrderService.php`) và trang chi tiết đơn (`process_order.php`).
+    - **Nâng Cấp `ConfigService` Cơ Chế 3 Tầng (Issues #34 & #35):**
+      - Khắc phục lỗi không đọc được cấu hình từ file: Trước đây `$configService->get()` chỉ truy vấn bảng `system_config`, khi DB chưa có bản ghi thì rơi thẳng về default mà bỏ qua tệp cấu hình.
+      - Nâng cấp `ConfigService` hỗ trợ mô hình 3 tầng:
+        1. **Tầng 1 (Ưu tiên nhất):** CSDL SQLite (`system_config`) - do quản trị viên cấu hình trên `admin.php`.
+        2. **Tầng 2 (Dự phòng từ tệp):** Tự động đọc và tra cứu từ `config/config.local.php` và `config/config.php` với hệ thống alias thông minh (`seller_phone`, `shop_name`, `shop_address`, `seller_email`, `shop_quote`...).
+        3. **Tầng 3 (Mặc định chung):** Giá trị mặc định chung mang tính gợi ý, không hard-code dữ liệu của quán cụ thể.
+    - **Cá Nhân Hóa Toàn Diện & Không Hard-Code Thông Tin Quán (Issue #35):**
+      - Loại bỏ toàn bộ các đoạn text hard-code tên riêng, địa chỉ, số điện thoại quán, email liên hệ, slogan... trên toàn bộ các trang (`index.php`, `about.php`, `reviews.php`, `process_order.php`, `admin.php`).
+      - Trang Quản Trị `admin.php` tab Cấu hình bổ sung đầy đủ các trường nhập liệu trực quan: *Hotline chủ bếp (`seller_phone`)*, *Email liên hệ (`seller_email`)*, *Địa chỉ quán (`shop_address`)*, *Tên quán (`shop_name`)*, *Câu châm ngôn (`shop_quote`)*.
+      - Bất kỳ chủ bếp nào khi tải mã nguồn về cũng có thể vận hành và cá nhân hóa quán của mình dễ dàng thông qua tệp `config/config.php` hoặc qua giao diện Admin mà không cần can thiệp vào mã nguồn.
       - Hỗ trợ cuộn mượt (`scroll-behavior: smooth`), kéo chuột tự nhiên (drag-to-scroll trên Desktop) và chạm lướt (`touch swipe`, `scroll-snap` trên Mobile) mang đúng phong cách Zen / Ghibli.
 
 ---

@@ -15,9 +15,11 @@ use App\Services\ConfigService;
 
 $db = Connection::getInstance();
 $configService = new ConfigService($db);
-$brandName = $configService->get('brand_name', 'Bếp Chay An Yên');
-$sellerAddress = $configService->get('seller_address', 'Số 12 Ngõ An Bình, Phố Tràng An, Hà Nội');
-$sellerPhone = $configService->get('seller_phone', '0987654321');
+$shopName = $configService->get('shop_name', 'Bếp Chay An Yên');
+$brandName = $shopName;
+$sellerAddress = $configService->get('shop_address', 'Số 12 ngõ An Yên, phố Chùa Láng, Hà Nội');
+$sellerPhone = $configService->get('seller_phone', '');
+$sellerEmail = $configService->get('seller_email', '');
 
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443 || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https://' : 'http://';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8008';

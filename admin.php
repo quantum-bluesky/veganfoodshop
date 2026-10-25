@@ -289,6 +289,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'update_config':
             $shopName = (string)$_POST['shop_name'];
             $shopQuote = (string)$_POST['shop_quote'];
+            $sellerPhone = trim((string)($_POST['seller_phone'] ?? ''));
+            $sellerEmail = trim((string)($_POST['seller_email'] ?? ''));
+            $shopAddress = trim((string)($_POST['shop_address'] ?? ''));
             $noticeText = (string)$_POST['notice_text'];
             $bankId = (string)$_POST['bank_id'];
             $bankName = (string)$_POST['bank_name'];
@@ -318,6 +321,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $configService->set('shop_name', $shopName);
             $configService->set('shop_quote', $shopQuote);
+            $configService->set('seller_phone', $sellerPhone);
+            $configService->set('seller_email', $sellerEmail);
+            $configService->set('shop_address', $shopAddress);
             $configService->set('notice_text', $noticeText);
             $configService->set('bank_id', $bankId);
             $configService->set('bank_name', $bankName);
@@ -2804,13 +2810,26 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
                         <div>
-                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-charcoal); display: block; margin-bottom: 4px;">Tên quán:</label>
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-charcoal); display: block; margin-bottom: 4px;">Tên quán / Bếp:</label>
                             <input type="text" name="shop_name" class="zen-input" value="<?= htmlspecialchars($currentConfig['shop_name'] ?? 'Bếp Chay An Yên', ENT_QUOTES, 'UTF-8') ?>">
                         </div>
                         <div>
-                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-charcoal); display: block; margin-bottom: 4px;">Châm ngôn quán:</label>
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-charcoal); display: block; margin-bottom: 4px;">Châm ngôn / Slogan:</label>
                             <input type="text" name="shop_quote" class="zen-input" value="<?= htmlspecialchars($currentConfig['shop_quote'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                         </div>
+                        <div>
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-charcoal); display: block; margin-bottom: 4px;">Hotline / SĐT chủ bếp (Nhận đơn & Zalo):</label>
+                            <input type="text" name="seller_phone" class="zen-input" placeholder="ví dụ: 0987862241" value="<?= htmlspecialchars($currentConfig['seller_phone'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-charcoal); display: block; margin-bottom: 4px;">Email liên hệ chủ bếp / quán:</label>
+                            <input type="email" name="seller_email" class="zen-input" placeholder="ví dụ: bepchayan@gmail.com" value="<?= htmlspecialchars($currentConfig['seller_email'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-charcoal); display: block; margin-bottom: 4px;">Địa chỉ quán (hiển thị trên trang giới thiệu & footer):</label>
+                        <input type="text" name="shop_address" class="zen-input" placeholder="ví dụ: Số 12 ngõ An Yên, phố Chùa Láng, Đống Đa, Hà Nội" value="<?= htmlspecialchars($currentConfig['shop_address'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                     </div>
 
                     <div>

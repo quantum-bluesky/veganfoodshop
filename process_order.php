@@ -27,10 +27,10 @@ $bankId = $configService->get('bank_id', '970422');
 $bankName = $configService->get('bank_name', 'MBBank');
 $accountNo = $configService->get('account_no', '0987654321');
 $accountName = $configService->get('account_name', 'BEP CHAY AN YEN');
-$sellerZaloUrl = (string)($zaloConfig['seller_zalo_url'] ?? 'https://zalo.me/0987862241');
-$sellerPhone = (string)$configService->get('seller_phone', '0901 234 567');
-$orderNoteShipping = (string)($zaloConfig['order_note_shipping'] ?? '');
-$zaloConfirmTemplate = (string)($zaloConfig['zalo_confirm_template'] ?? '');
+$sellerZaloUrl = (string)$configService->get('seller_zalo_url', (string)($zaloConfig['seller_zalo_url'] ?? ''));
+$sellerPhone = (string)$configService->get('seller_phone', (string)($zaloConfig['seller_phone'] ?? ''));
+$orderNoteShipping = (string)$configService->get('order_note_shipping', (string)($zaloConfig['order_note_shipping'] ?? ''));
+$zaloConfirmTemplate = (string)$configService->get('zalo_confirm_template', (string)($zaloConfig['zalo_confirm_template'] ?? ''));
 
 $error = null;
 $order = null;

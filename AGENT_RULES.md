@@ -44,6 +44,18 @@ Hệ thống tuân thủ kiến trúc phân tầng rõ ràng, không viết code
   - Ghi log lỗi có đầy đủ timestamp, ngữ cảnh và stack trace vào `logs/app.log` hoặc PHP error log.
   - Tuyệt đối không để lộ thông tin nhạy cảm (stack trace, path server, câu lệnh SQL lỗi) ra màn hình client.
 
+### 2.3. Không hard-code các thông tin nhận diện riêng của quán (No Hardcoded Identifiers)
+Để đảm bảo khả năng cá nhân hóa linh hoạt cho các chủ bếp khác nhau sử dụng lại mã nguồn:
+1. **Tuyệt đối không gán cứng (hard-code) các thông tin định danh cá nhân / quán:**
+   - Bao gồm: Tên quán (`shop_name` / `brand_name`), Địa chỉ (`shop_address` / `seller_address`), Số điện thoại / Hotline (`seller_phone`), Email liên hệ (`seller_email`), Câu châm ngôn (`shop_quote`), Đường link Zalo (`seller_zalo_url`), Thông tin tài khoản ngân hàng VietQR...
+   - Mọi thông tin này phải được truy xuất động qua `ConfigService::get($key, $default)`.
+2. **Cơ chế 3 tầng phân giải cấu hình (3-Tier Config Resolution):**
+   - **Tầng 1 (Ưu tiên cao nhất):** CSDL SQLite (`system_config`). Chủ bếp có thể tùy chỉnh trực tiếp qua giao diện Quản trị `admin.php` và lưu vào DB.
+   - **Tầng 2 (Dự phòng từ tệp tin):** Tệp cấu hình `config/config.local.php` hoặc `config/config.php`. `ConfigService` bắt buộc tự động nạp và tra cứu từ các tệp này khi DB chưa có giá trị.
+   - **Tầng 3 (Fallback cuối cùng):** Giá trị mặc định chung chung (placeholder) mang tính mẫu chuẩn, không được gán số điện thoại hay địa chỉ ngẫu nhiên.
+3. **Cung cấp form cấu hình đầy đủ trong Trang Quản Trị (`admin.php`):**
+   - Tab Cấu hình hệ thống phải có đầy đủ các trường nhận diện: Tên quán, Địa chỉ, Hotline, Email, Zalo URL... để bất kỳ người dùng nào khi tải mã nguồn về cũng có thể vận hành quán của mình một cách trọn vẹn.
+
 ---
 
 ## 3. Quản lý Cơ sở dữ liệu SQLite & Xử lý đồng thời (Concurrency)

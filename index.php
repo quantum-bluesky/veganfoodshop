@@ -59,9 +59,9 @@ $shopName = $configService->get('shop_name', 'Bếp Chay An Yên');
 $shopTagline = $configService->get('shop_tagline', 'Chốn dừng chân thanh tĩnh');
 $shopQuote = $configService->get('shop_quote', 'Một bát canh thanh ngọt, vỗ về những bộn bề ngày thường');
 $noticeText = $configService->get('notice_text', 'Lịch bếp hôm nay: Ca trưa 11:30 - 13:30 (Chỉ nhận tối đa 12 suất)');
-$orderNoteShipping = (string)($zaloConfig['order_note_shipping'] ?? '');
-$sellerZaloUrl = (string)($zaloConfig['seller_zalo_url'] ?? 'https://zalo.me/0987862241');
-$sellerPhone = (string)$configService->get('seller_phone', '0901 234 567');
+$orderNoteShipping = (string)$configService->get('order_note_shipping', (string)($zaloConfig['order_note_shipping'] ?? ''));
+$sellerZaloUrl = (string)$configService->get('seller_zalo_url', (string)($zaloConfig['seller_zalo_url'] ?? ''));
+$sellerPhone = (string)$configService->get('seller_phone', (string)($zaloConfig['seller_phone'] ?? ''));
 $minLeadTimeHours = (int)$configService->get('min_lead_time_hours', '3');
 $advanceBookingDays = (int)$configService->get('advance_booking_days', '7');
 $requireZaloLogin = (bool)($zaloConfig['require_zalo_login'] ?? false);
@@ -847,7 +847,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                     <span>🌸</span> Góc Cảm Nhận & Kỷ Niệm
                 </a>
             </div>
-            <p style="margin: 0;">Bếp Chay An Yên • Bình an trong từng bát bún phở</p>
+            <p style="margin: 0;"><?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?> • <?= htmlspecialchars($shopQuote, ENT_QUOTES, 'UTF-8') ?></p>
         </footer>
 
         <!-- Floating Bottom Summary Bar (Thanh tóm tắt đơn nổi ở đáy mobile - Issue #19) -->
@@ -868,6 +868,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
     <!-- Client Script & Config -->
     <script>
         window.REQUIRE_ZALO_LOGIN = <?= $requireZaloLogin ? 'true' : 'false' ?>;
+        window.SHOP_NAME = <?= json_encode($shopName, JSON_UNESCAPED_UNICODE) ?>;
         window.SELLER_PHONE = <?= json_encode($sellerPhone, JSON_UNESCAPED_UNICODE) ?>;
         window.SELLER_ZALO_URL = <?= json_encode($sellerZaloUrl, JSON_UNESCAPED_UNICODE) ?>;
     </script>

@@ -151,6 +151,10 @@ Hệ thống sử dụng SQLite3 với 4 bảng dữ liệu chính theo thiết 
 4. **Không làm rò rỉ thông tin nhạy cảm:**
    - Không in chi tiết lỗi hệ thống (traceback, SQL error) ra giao diện người dùng. Log lỗi vào file hoặc màn hình console/syslog.
    - Không hiển thị số điện thoại đầy đủ của khách hàng khác ra giao diện công khai.
+5. **Không hard-code các thông tin nhận diện riêng của quán (Cá nhân hóa dự án):**
+   - Tuyệt đối không gán cứng tên quán, địa chỉ, hotline, email liên hệ, slogan... trong mã nguồn hoặc HTML.
+   - Mọi thông tin nhận diện phải truy xuất qua `ConfigService` với cơ chế 3 tầng: CSDL SQLite (`system_config`) -> File cấu hình (`config/config.local.php` / `config/config.php`) -> Fallback mặc định chung.
+   - Luôn cung cấp đầy đủ các trường nhập liệu trong trang Quản trị (`admin.php` tab Cấu hình) để chủ bếp dễ dàng cá nhân hóa.
 
 ---
 

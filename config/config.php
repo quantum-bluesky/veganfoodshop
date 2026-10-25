@@ -9,10 +9,14 @@ declare(strict_types=1);
 $baseConfig = [
     'app' => [
         'name' => 'Bếp Chay An Yên',
+        'phone' => '0987862241',
+        'email' => 'bepchayan@gmail.com',
+        'address' => 'Số 12 ngõ An Yên, phố Chùa Láng, Đống Đa, Hà Nội',
+        'quote' => 'Một bát canh thanh ngọt, vỗ về những bộn bề ngày thường',
         'env' => 'development',
         'debug' => true,
         'timezone' => 'Asia/Ho_Chi_Minh',
-        'version' => '1.15.1',
+        'version' => '1.16.0',
     ],
     'database' => [
         'path' => __DIR__ . '/../database/bep_an_yen.db',
@@ -34,6 +38,7 @@ $baseConfig = [
         'require_zalo_group_to_order' => false,
         'callback_url' => '', // Để trống sẽ tự động nhận diện clean URL (vd: https://qts-home.duckdns.org/chaytt/api/public/zalo-callback)
         'seller_zalo_url' => 'https://zalo.me/0987862241',
+        'seller_phone' => '0987862241',
         'order_note_shipping' => 'Chưa bao gồm chi phí vận chuyển',
         'zalo_confirm_template' => 'Chào Bếp, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!',
     ],

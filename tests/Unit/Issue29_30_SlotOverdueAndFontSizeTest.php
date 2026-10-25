@@ -178,8 +178,8 @@ class Issue29_30_SlotOverdueAndFontSizeTest
             $errorMessage = $e->getMessage();
         }
 
-        $this->assertTrue($caught, 'Phải ném ValidationException khi vượt quá thời gian đặt lịch hơn 3 phút');
-        $this->assertStringContainsString('vượt quá thời gian nhận đặt lịch hơn 3 phút', $errorMessage, 'Thông báo nêu rõ vượt quá thời gian nhận đặt hơn 3 phút');
+        $this->assertTrue($caught, 'Phải ném ValidationException khi vượt quá thời gian đặt lịch');
+        $this->assertStringContainsString('vượt quá thời gian nhận đặt lịch', $errorMessage, 'Thông báo nêu rõ vượt quá thời gian nhận đặt');
         $this->assertStringContainsString('đặt vào ca tiếp theo', $errorMessage, 'Thông báo gợi ý lựa chọn đặt vào ca tiếp theo');
         $this->assertStringContainsString('12:30 - 13:15', $errorMessage, 'Thông báo gợi ý chính xác khung giờ ca tiếp theo');
         $this->assertStringContainsString('liên hệ trực tiếp với chủ bếp', $errorMessage, 'Thông báo gợi ý liên hệ trực tiếp chủ bếp');
@@ -212,7 +212,7 @@ class Issue29_30_SlotOverdueAndFontSizeTest
         $this->assertStringContainsString('vegan_font_size_large', $appJsContent, 'app.js lưu trạng thái vào localStorage vegan_font_size_large');
         $this->assertStringContainsString('zen-font-large', $appJsContent, 'app.js toggle class zen-font-large');
         $this->assertStringContainsString('data-is-overdue', $appJsContent, 'app.js gắn attribute data-is-overdue cho slot');
-        $this->assertStringContainsString('vượt quá thời gian nhận đặt lịch hơn 3 phút', $appJsContent, 'app.js có thông báo lịch sự khi bấm ca quá hạn');
+        $this->assertStringContainsString('vượt quá thời gian nhận đặt lịch', $appJsContent, 'app.js có thông báo lịch sự khi bấm ca quá hạn');
 
         // 4. Kiểm tra process_order.php có 2 lựa chọn hành động khi lỗi
         $this->assertStringContainsString('Lựa chọn đặt vào ca tiếp theo', $processOrderHtml, 'process_order.php có nút Lựa chọn đặt vào ca tiếp theo');

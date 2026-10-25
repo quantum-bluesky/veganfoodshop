@@ -576,9 +576,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const isExceeded3M = opt.getAttribute('data-is-exceeded-3m') === '1';
             const slotTime = opt.getAttribute('data-slot-time') || '';
             if (isOverdue) {
-                const sellerPhone = window.SELLER_PHONE || '0901 234 567';
-                const reason = isExceeded3M ? 'đã vượt quá thời gian nhận đặt lịch hơn 3 phút' : 'đã qua thời gian nhận đặt trước';
-                alert(`Dạ Bếp An Yên xin thông báo:\n\nKhung giờ ${slotTime} ${reason} để bếp kịp ninh nước dùng và chuẩn bị chu đáo.\n\nBạn thương có thể:\n1. Lựa chọn đặt vào ca tiếp theo còn trống\n2. Hoặc liên hệ trực tiếp với chủ bếp qua số ${sellerPhone} / Zalo để được hỗ trợ nhé.`);
+                const shopName = window.SHOP_NAME || 'Bếp An Yên';
+                const sellerPhone = window.SELLER_PHONE || '';
+                const contactInfo = sellerPhone ? ` qua số ${sellerPhone} / Zalo` : ' qua Zalo';
+                const reason = isExceeded3M ? 'đã vượt quá thời gian nhận đặt lịch' : 'đã qua thời gian nhận đặt trước';
+                alert(`Dạ ${shopName} xin thông báo:\n\nKhung giờ ${slotTime} ${reason} để bếp kịp ninh nước dùng và chuẩn bị chu đáo.\n\nBạn thương có thể:\n1. Lựa chọn đặt vào ca tiếp theo còn trống\n2. Hoặc liên hệ trực tiếp với chủ bếp${contactInfo} để được hỗ trợ nhé.`);
                 const urgentZaloNote = document.getElementById('urgentZaloNote');
                 if (urgentZaloNote) {
                     urgentZaloNote.style.display = 'block';

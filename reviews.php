@@ -19,6 +19,8 @@ use App\Exceptions\ValidationException;
 
 $db = Connection::getInstance();
 $configService = new ConfigService($db);
+$shopName = $configService->get('shop_name', 'Bếp Chay An Yên');
+$shopQuote = $configService->get('shop_quote', 'Bình an trong từng bữa ăn thanh tịnh');
 $reviewService = new ReviewService($db, $configService);
 $customerService = new CustomerService($db);
 
@@ -594,7 +596,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                 <span>•</span>
                 <a href="admin.php" style="color: #9CA3AF; text-decoration: none;">Quản Trị Bếp</a>
             </div>
-            Bếp Chay An Yên • Bình an trong từng bữa ăn thanh tịnh
+            <?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?> • <?= htmlspecialchars($shopQuote, ENT_QUOTES, 'UTF-8') ?>
         </footer>
 
     </main>

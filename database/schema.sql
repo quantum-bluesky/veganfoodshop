@@ -141,11 +141,16 @@ CREATE TABLE IF NOT EXISTS customer_reviews (
     kitchen_reply TEXT NULL,
     status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'hidden'
     is_verified_buyer INTEGER NOT NULL DEFAULT 0,
+    is_featured INTEGER NOT NULL DEFAULT 0,
+    testimonial_note TEXT NULL,
+    type TEXT NOT NULL DEFAULT 'review', -- 'review', 'testimonial'
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     replied_at DATETIME NULL,
     FOREIGN KEY (customer_phone) REFERENCES customers(phone) ON UPDATE CASCADE ON DELETE SET NULL,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_customer_reviews_featured ON customer_reviews(is_featured);
 
 -- 9. Bảng Chương Trình Khuyến Mại & Giảm Giá (Promotions - Issue #20)
 CREATE TABLE IF NOT EXISTS promotions (

@@ -173,13 +173,115 @@ class ReviewService
             FROM customer_reviews r
             LEFT JOIN orders o ON r.order_id = o.id
             WHERE r.status = \'approved\'
-            ORDER BY r.created_at DESC
+            ORDER BY r.created_at DESC, r.id DESC
             LIMIT :limit OFFSET :offset
         ');
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll() ?: [];
+    }
+
+    /**
+     * Lấy danh sách các cảm nhận đặc biệt, lời đề tặng, kỷ niệm (Testimonials)
+     * Dùng cho khu vực hiển thị trầm mặc sâu lắng trên trang công khai
+     */
+    public function getFeaturedTestimonials(int $limit = 10): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT r.*, o.order_code
+            FROM customer_reviews r
+            LEFT JOIN orders o ON r.order_id = o.id
+            WHERE r.status = \'approved\' AND r.is_featured = 1
+            ORDER BY r.created_at DESC, r.id DESC
+            LIMIT :limit
+        ');
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    }
+
+    /**
+     * Bật/tắt ghim cảm nhận đặc biệt (Testimonial / Featured)
+     */
+    public function toggleFeatured(int $id, ?int $forceStatus = null): bool
+    {
+        if ($forceStatus !== null) {
+            $stmt = $this->db->prepare('UPDATE customer_reviews SET is_featured = :feat WHERE id = :id');
+            return $stmt->execute([':feat' => $forceStatus ? 1 : 0, ':id' => $id]);
+        }
+
+        $stmt = $this->db->prepare('
+            UPDATE customer_reviews 
+            SET is_featured = CASE WHEN is_featured = 1 THEN 0 ELSE 1 END 
+            WHERE id = :id
+        ');
+        return $stmt->execute([':id' => $id]);
+    }
+
+    /**
+     * Cập nhật lời đề tựa / ghi chú kỷ niệm hoặc kiểu đánh giá
+     */
+    public function updateTestimonialNote(int $id, ?string $note, ?string $type = null): bool
+    {
+        $fields = ['testimonial_note = :note'];
+        $params = [
+            ':note' => $note !== null && trim($note) !== '' ? trim($note) : null,
+            ':id' => $id,
+        ];
+
+        if ($type !== null && in_array($type, ['review', 'testimonial'], true)) {
+            $fields[] = 'type = :type';
+            $params[':type'] = $type;
+        }
+
+        $sql = 'UPDATE customer_reviews SET ' . implode(', ', $fields) . ' WHERE id = :id';
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute($params);
+    }
+
+    /**
+     * Tạo một lời đề tặng, kỷ niệm mới trực tiếp từ quản trị (Ví dụ chép lại từ sổ lưu bút)
+     */
+    public function createTestimonial(array $data): int
+    {
+        $customerName = trim((string)($data['customer_name'] ?? ''));
+        if ($customerName === '' || $this->strLen($customerName) < 2) {
+            throw new ValidationException('Vui lòng nhập tên người gửi đề tặng (tối thiểu 2 ký tự).');
+        }
+
+        $comment = trim((string)($data['comment'] ?? ''));
+        if ($comment === '' || $this->strLen($comment) < 5) {
+            throw new ValidationException('Vui lòng nhập nội dung cảm nhận / lời đề tặng (tối thiểu 5 ký tự).');
+        }
+
+        $title = trim((string)($data['title'] ?? ''));
+        $note = trim((string)($data['testimonial_note'] ?? ''));
+        $kitchenReply = trim((string)($data['kitchen_reply'] ?? ''));
+        $rating = (int)($data['rating'] ?? 5);
+        if ($rating < 1 || $rating > 5) {
+            $rating = 5;
+        }
+
+        $stmt = $this->db->prepare('
+            INSERT INTO customer_reviews (
+                customer_name, customer_phone, rating, title, comment, kitchen_reply,
+                status, is_verified_buyer, is_featured, testimonial_note, type, created_at
+            ) VALUES (
+                :name, NULL, :rating, :title, :comment, :kitchen_reply,
+                \'approved\', 0, 1, :note, \'testimonial\', CURRENT_TIMESTAMP
+            )
+        ');
+        $stmt->execute([
+            ':name' => $customerName,
+            ':rating' => $rating,
+            ':title' => $title !== '' ? $title : null,
+            ':comment' => $comment,
+            ':kitchen_reply' => $kitchenReply !== '' ? $kitchenReply : null,
+            ':note' => $note !== '' ? $note : null,
+        ]);
+
+        return (int)$this->db->lastInsertId();
     }
 
     /**

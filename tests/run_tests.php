@@ -37,6 +37,7 @@ use Tests\Unit\Issue17_MenuSuitesTest;
 use Tests\Unit\Issue18_CustomerReviewsTest;
 use Tests\Unit\Issue19_LunarCalendarAndLayoutTest;
 use Tests\Unit\Issue20_PromotionsTest;
+use Tests\Unit\Issue21_TestimonialsTest;
 use Tests\Integration\CreateOrderTransactionTest;
 use Tests\Integration\SlotConcurrencyTest;
 
@@ -52,6 +53,7 @@ $testSuites = [
     'Unit Tests - Issue 18 Trang Đánh Giá Khách' => new Issue18_CustomerReviewsTest(),
     'Unit Tests - Issue 19 Lịch Âm & Bố Cục Giao Diện' => new Issue19_LunarCalendarAndLayoutTest(),
     'Unit Tests - Issue 20 Khuyến Mại & Giảm Giá' => new Issue20_PromotionsTest(),
+    'Unit Tests - Issue 21 Lời Đề Tặng & Kỷ Niệm Testimonial' => new Issue21_TestimonialsTest(),
     'Integration Tests - Transaction An Toàn' => new CreateOrderTransactionTest(),
     'Integration Tests - Khóa Suất Biên' => new SlotConcurrencyTest(),
 ];

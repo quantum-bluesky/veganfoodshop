@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Trang Đánh Giá & Cảm Nhận Của Khách Hàng (Issue #18)
+ * Trang Đánh Giá & Cảm Nhận Của Khách Hàng (Issue #18 & Issue #21)
  * VeganFoodShop - Bếp Chay An Yên
  * UTF-8 No BOM, chuẩn PHP 8.4+
  */
@@ -29,7 +29,7 @@ $zaloService = new ZaloAuthService(
     $config['zalo_login'] ?? []
 );
 
-// Trạng thái bật/tắt của tính năng
+// Trạng thái bật/tắt của tính năng đánh giá
 $isReviewsEnabled = $reviewService->isReviewsEnabled();
 
 // Lấy thông tin khách đã đăng nhập Zalo (nếu có)
@@ -50,11 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Lấy dữ liệu đánh giá và tổng kết sao
+// Lấy dữ liệu cảm nhận đặc biệt (Testimonials) & đánh giá thường
+$featuredTestimonials = $reviewService->getFeaturedTestimonials(10);
 $reviewSummary = $reviewService->getReviewSummary();
 $approvedReviews = $reviewService->getApprovedReviews(30);
 
-// Mã đơn hàng truyền qua URL (ví dụ từ trang thành công hoặc link SMS/Zalo)
+// Mã đơn hàng truyền qua URL
 $prefillOrderCode = trim((string)($_GET['order_code'] ?? ''));
 $prefillPhone = $currentCustomer['phone'] ?? trim((string)($_GET['phone'] ?? ''));
 $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
@@ -64,23 +65,136 @@ $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Góc Cảm Nhận & Đánh Giá - Bếp Chay An Yên</title>
+    <title>Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Yên</title>
     
-    <!-- Google Fonts: Lora (Tiêu đề thiền vị) & Quicksand (Nội dung mộc mạc) -->
+    <!-- Google Fonts: Lora (Tiêu đề thiền vị, sâu lắng) & Quicksand (Mộc mạc) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,400&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="assets/css/style.css">
     <style>
         .page-container {
             width: 100%;
             max-width: 480px;
-            padding: 24px 16px 60px 16px;
+            padding: 20px 16px 64px 16px;
             display: flex;
             flex-direction: column;
-            gap: 18px;
+            gap: 20px;
             margin: 0 auto;
+        }
+
+        /* Thanh điều hướng tối giản */
+        .zen-nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            background: #FAF7F2;
+            border: 1px solid var(--brand-border-soft);
+            border-radius: 999px;
+            font-size: 0.76rem;
+            margin-bottom: 6px;
+        }
+        .zen-nav-link {
+            text-decoration: none;
+            color: var(--brand-tea-dark);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: color 0.15s ease;
+        }
+        .zen-nav-link:hover {
+            color: var(--brand-tea-green);
+        }
+
+        /* Testimonial Gallery - Phong cách Trầm Mặc Sâu Lắng (Issue #21) */
+        .testimonial-gallery {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .testimonial-card-zen {
+            background: linear-gradient(145deg, #FCFAF6 0%, #F5EFEB 100%);
+            border: 1px solid #E5DCD2;
+            border-radius: 22px;
+            padding: 22px 20px 18px 20px;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(91, 112, 101, 0.05);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .testimonial-card-zen:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(91, 112, 101, 0.08);
+        }
+        .testimonial-card-zen::before {
+            content: "“";
+            position: absolute;
+            top: 4px;
+            left: 14px;
+            font-family: 'Lora', serif;
+            font-size: 4.2rem;
+            line-height: 1;
+            color: rgba(91, 112, 101, 0.12);
+            pointer-events: none;
+            user-select: none;
+        }
+        .testimonial-quote {
+            font-family: 'Lora', serif;
+            font-style: italic;
+            font-size: 0.92rem;
+            color: #2F2B28;
+            line-height: 1.68;
+            position: relative;
+            z-index: 1;
+            margin: 0 0 14px 0;
+            text-align: justify;
+        }
+        .testimonial-title {
+            font-family: 'Lora', serif;
+            font-weight: 600;
+            font-size: 0.96rem;
+            color: var(--brand-tea-dark);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .testimonial-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-top: 1px dashed #DDD2C4;
+            padding-top: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .testimonial-author {
+            font-family: 'Lora', serif;
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--brand-tea-dark);
+        }
+        .testimonial-badge {
+            font-size: 0.72rem;
+            color: #8C7A6B;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 2px;
+        }
+        .testimonial-kitchen-reply {
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.85);
+            border-left: 2.5px solid var(--brand-tea-green);
+            border-radius: 8px;
+            font-size: 0.78rem;
+            color: var(--brand-tea-dark);
+            line-height: 1.5;
+            font-style: italic;
         }
 
         .star-rating {
@@ -153,27 +267,33 @@ $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
 
     <main class="page-container">
 
-        <!-- Header lời ngỏ -->
-        <header style="text-align: center; padding: 10px 0 6px 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <a href="index.php" class="action-btn" style="text-decoration: none; font-size: 0.78rem; border-radius: 999px; padding: 5px 12px;">
-                    ← Về Đặt Chỗ
-                </a>
-                <span style="font-size: 0.75rem; color: var(--text-muted-warm); font-weight: 600;">
-                    Bếp Chay An Yên
-                </span>
-            </div>
+        <!-- Thanh điều hướng đầu trang -->
+        <nav class="zen-nav-bar">
+            <a href="index.php" class="zen-nav-link">
+                🍲 Đặt Chỗ
+            </a>
+            <span style="color: #D1D5DB;">•</span>
+            <a href="about.php" class="zen-nav-link">
+                🌿 Về Bếp An Yên
+            </a>
+            <span style="color: #D1D5DB;">•</span>
+            <span style="font-weight: 700; color: var(--brand-tea-green);">
+                🌸 Cảm Nhận
+            </span>
+        </nav>
 
-            <div style="font-size: 2.2rem; margin-bottom: 4px;">🌸</div>
-            <h1 class="font-serif-zen" style="font-size: 1.55rem; color: var(--brand-tea-dark); margin-bottom: 4px;">
-                Góc Cảm Nhận & Sẻ Chia
+        <!-- Header Lời ngỏ sâu lắng -->
+        <header style="text-align: center; padding: 10px 0 4px 0;">
+            <div style="font-size: 2.2rem; margin-bottom: 4px;">🪷</div>
+            <h1 class="font-serif-zen" style="font-size: 1.55rem; color: var(--brand-tea-dark); margin-bottom: 6px;">
+                Nhật Ký & Cảm Nhận
             </h1>
-            <p style="font-size: 0.82rem; color: var(--text-muted-warm); line-height: 1.4;">
-                Mỗi góp ý chân thành của bạn là một hạt giống an lành giúp Bếp hoàn thiện từng món chay thanh khiết.
+            <p style="font-size: 0.82rem; color: var(--text-muted-warm); line-height: 1.5; font-style: italic; max-width: 380px; margin: 0 auto;">
+                "Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua..."
             </p>
         </header>
 
-        <!-- Thông báo thao tác -->
+        <!-- Thông báo thao tác (nếu có) -->
         <?php if ($successMessage): ?>
             <div style="background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; padding: 12px 16px; border-radius: 14px; font-size: 0.82rem; line-height: 1.4;">
                 🌸 <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
@@ -186,18 +306,88 @@ $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
             </div>
         <?php endif; ?>
 
+        <!-- ========================================== -->
+        <!-- MỤC 1: LỜI ĐỀ TẶNG & KỶ NIỆM (TESTIMONIALS)  -->
+        <!-- Phong cách Trầm Mặc Sâu Lắng (Issue #21)    -->
+        <!-- ========================================== -->
+        <?php if (!empty($featuredTestimonials)): ?>
+            <section class="testimonial-gallery">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px;">
+                    <h2 class="font-serif-zen" style="font-size: 1.05rem; color: var(--brand-tea-dark); display: flex; align-items: center; gap: 6px;">
+                        <span>📜</span> Lời Đề Tặng & Kỷ Niệm
+                    </h2>
+                    <span style="font-size: 0.72rem; color: #8C7A6B; font-style: italic;">
+                        Lưu bút an lành
+                    </span>
+                </div>
+
+                <?php foreach ($featuredTestimonials as $t): ?>
+                    <article class="testimonial-card-zen">
+                        <?php if (!empty($t['title'])): ?>
+                            <h3 class="testimonial-title">
+                                <span>🌿</span> <?= htmlspecialchars($t['title'], ENT_QUOTES, 'UTF-8') ?>
+                            </h3>
+                        <?php endif; ?>
+
+                        <blockquote class="testimonial-quote">
+                            <?= nl2br(htmlspecialchars($t['comment'], ENT_QUOTES, 'UTF-8')) ?>
+                        </blockquote>
+
+                        <div class="testimonial-footer">
+                            <div>
+                                <div class="testimonial-author">
+                                    <?= htmlspecialchars($t['customer_name'], ENT_QUOTES, 'UTF-8') ?>
+                                    <?php if (!empty($t['is_verified_buyer'])): ?>
+                                        <span style="background: #ECFDF5; color: #047857; font-size: 0.65rem; padding: 2px 6px; border-radius: 999px; font-weight: 700; margin-left: 4px; font-family: 'Quicksand', sans-serif;">
+                                            ✓ Đã dùng bữa
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (!empty($t['testimonial_note'])): ?>
+                                    <div class="testimonial-badge">
+                                        <span>📌</span> <?= htmlspecialchars($t['testimonial_note'], ENT_QUOTES, 'UTF-8') ?>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="testimonial-badge">
+                                        <span>🍃</span> Kỷ niệm ngày <?= date('d/m/Y', strtotime($t['created_at'])) ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+
+                            <div style="color: #D97706; font-size: 0.85rem;">
+                                <?= str_repeat('★', (int)$t['rating']) ?>
+                            </div>
+                        </div>
+
+                        <?php if (!empty($t['kitchen_reply'])): ?>
+                            <div class="testimonial-kitchen-reply">
+                                <span style="font-weight: 600; color: var(--brand-tea-green); font-style: normal;">
+                                    🌸 Bếp Chay An Yên tri ân:
+                                </span>
+                                <?= nl2br(htmlspecialchars($t['kitchen_reply'], ENT_QUOTES, 'UTF-8')) ?>
+                            </div>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            </section>
+        <?php endif; ?>
+
+        <!-- ========================================== -->
+        <!-- MỤC 2: FORM ĐÁNH GIÁ CỦA THỰC KHÁCH         -->
+        <!-- Có cơ chế Feature Flag Bật / Tắt             -->
+        <!-- ========================================== -->
         <?php if (!$isReviewsEnabled): ?>
-            <!-- Trạng thái CHƯA BẬT (Feature Flag = OFF) -->
-            <div class="zen-card" style="text-align: center; padding: 32px 20px; background: #FAF7F2; border: 1.5px dashed var(--brand-border-soft);">
-                <div style="font-size: 2.4rem; margin-bottom: 10px;">🍃</div>
-                <h2 class="font-serif-zen" style="font-size: 1.15rem; color: var(--brand-tea-dark); margin-bottom: 8px;">
-                    Trang Cảm Nhận Sẽ Sớm Mở Cửa
-                </h2>
-                <p style="font-size: 0.82rem; color: var(--text-muted-warm); line-height: 1.5; margin-bottom: 18px;">
-                    Hiện tại Bếp Chay An Yên đang chuẩn bị những mẻ nấm tươi và hoàn thiện thực đơn ấm cúng. Góc đánh giá sẽ được mở trong thời gian tới để lắng nghe trải nghiệm của bạn.
+            <!-- Trạng thái CHƯA BẬT FORM GỬI MỚI (Feature Flag = OFF) -->
+            <div class="zen-card" style="text-align: center; padding: 28px 18px; background: #FAF7F2; border: 1.5px dashed var(--brand-border-soft);">
+                <div style="font-size: 2.2rem; margin-bottom: 8px;">🍃</div>
+                <h3 class="font-serif-zen" style="font-size: 1.1rem; color: var(--brand-tea-dark); margin-bottom: 6px;">
+                    Cổng Gửi Đánh Giá Trực Tuyến Sẽ Sớm Mở Lại
+                </h3>
+                <p style="font-size: 0.82rem; color: var(--text-muted-warm); line-height: 1.5; margin-bottom: 16px;">
+                    Hiện tại Bếp đang tập trung vào từng nồi canh, mẻ nấm để phục vụ các ca đặt trước trọn vẹn nhất. Bạn hãy thưởng thức các dòng lưu bút kỷ niệm phía trên hoặc ghé thực đơn hôm nay nhé!
                 </p>
                 <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-                    <a href="index.php" class="zen-btn-primary" style="text-decoration: none; display: inline-block; padding: 10px 20px; font-size: 0.85rem; border-radius: 12px;">
+                    <a href="index.php" class="zen-btn-primary" style="text-decoration: none; display: inline-block; padding: 10px 20px; font-size: 0.84rem; border-radius: 12px;">
                         Ghé Xem Thực Đơn & Đặt Chỗ 🍲
                     </a>
                 </div>
@@ -285,6 +475,14 @@ $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
                         <input type="text" name="order_code" class="zen-input" value="<?= htmlspecialchars($prefillOrderCode, ENT_QUOTES, 'UTF-8') ?>" placeholder="Ví dụ: AY-20261025-0001 (được huy hiệu Đã dùng bữa)">
                     </div>
 
+                    <!-- Tiêu đề cảm nhận -->
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">
+                            Tựa đề cảm nhận (tùy chọn):
+                        </label>
+                        <input type="text" name="title" class="zen-input" placeholder="Ví dụ: Bát canh nấm thơm nức chiều mưa...">
+                    </div>
+
                     <!-- Nội dung cảm nhận -->
                     <div>
                         <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">
@@ -299,74 +497,81 @@ $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
                 </form>
             </section>
 
-        <?php endif; ?>
-
-        <!-- Danh sách các cảm nhận đã duyệt -->
-        <section style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px;">
-                <h3 class="font-serif-zen" style="font-size: 1rem; color: var(--brand-tea-dark);">
-                    Cảm Nhận Từ Khách Thương (<?= count($approvedReviews) ?>)
-                </h3>
-            </div>
-
-            <?php if (empty($approvedReviews)): ?>
-                <div class="zen-card" style="text-align: center; padding: 28px; color: var(--text-muted-warm); font-size: 0.82rem;">
-                    Bếp đang chờ đón những dòng cảm nhận đầu tiên từ bạn. Chúc bạn một ngày thanh tịnh! 🍃
+            <!-- Danh sách các cảm nhận đã duyệt -->
+            <section style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px;">
+                    <h3 class="font-serif-zen" style="font-size: 1rem; color: var(--brand-tea-dark);">
+                        Cảm Nhận Từ Khách Thương (<?= count($approvedReviews) ?>)
+                    </h3>
                 </div>
-            <?php else: ?>
-                <?php foreach ($approvedReviews as $rev): ?>
-                    <article class="review-card">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                            <div>
-                                <strong style="font-size: 0.88rem; color: var(--brand-tea-dark);">
-                                    <?= htmlspecialchars($rev['customer_name'], ENT_QUOTES, 'UTF-8') ?>
-                                </strong>
-                                <?php if (!empty($rev['is_verified_buyer'])): ?>
-                                    <span style="background: #ECFDF5; color: #047857; font-size: 0.65rem; padding: 2px 6px; border-radius: 999px; font-weight: 700; margin-left: 4px;">
-                                        ✓ Đã dùng bữa
-                                    </span>
+
+                <?php if (empty($approvedReviews)): ?>
+                    <div class="zen-card" style="text-align: center; padding: 28px; color: var(--text-muted-warm); font-size: 0.82rem;">
+                        Bếp đang chờ đón những dòng cảm nhận đầu tiên từ bạn. Chúc bạn một ngày thanh tịnh! 🍃
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($approvedReviews as $rev): ?>
+                        <article class="review-card">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <strong style="font-size: 0.88rem; color: var(--brand-tea-dark);">
+                                        <?= htmlspecialchars($rev['customer_name'], ENT_QUOTES, 'UTF-8') ?>
+                                    </strong>
+                                    <?php if (!empty($rev['is_verified_buyer'])): ?>
+                                        <span style="background: #ECFDF5; color: #047857; font-size: 0.65rem; padding: 2px 6px; border-radius: 999px; font-weight: 700; margin-left: 4px;">
+                                            ✓ Đã dùng bữa
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                                <div style="color: #F59E0B; font-size: 0.78rem;">
+                                    <?= str_repeat('★', (int)$rev['rating']) ?><?= str_repeat('☆', 5 - (int)$rev['rating']) ?>
+                                </div>
+                            </div>
+
+                            <?php if (!empty($rev['title'])): ?>
+                                <div style="font-weight: 600; font-size: 0.82rem; color: var(--brand-tea-green);">
+                                    <?= htmlspecialchars($rev['title'], ENT_QUOTES, 'UTF-8') ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <p style="font-size: 0.8rem; color: #374151; line-height: 1.45; margin: 2px 0;">
+                                <?= nl2br(htmlspecialchars($rev['comment'], ENT_QUOTES, 'UTF-8')) ?>
+                            </p>
+
+                            <div style="font-size: 0.68rem; color: var(--text-muted-warm); display: flex; justify-content: space-between;">
+                                <span><?= date('d/m/Y', strtotime($rev['created_at'])) ?></span>
+                                <?php if (!empty($rev['order_code'])): ?>
+                                    <span>Đơn #<?= htmlspecialchars($rev['order_code'], ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php endif; ?>
                             </div>
-                            <div style="color: #F59E0B; font-size: 0.78rem;">
-                                <?= str_repeat('★', (int)$rev['rating']) ?><?= str_repeat('☆', 5 - (int)$rev['rating']) ?>
-                            </div>
-                        </div>
 
-                        <?php if (!empty($rev['title'])): ?>
-                            <div style="font-weight: 600; font-size: 0.82rem; color: var(--brand-tea-green);">
-                                <?= htmlspecialchars($rev['title'], ENT_QUOTES, 'UTF-8') ?>
-                            </div>
-                        <?php endif; ?>
-
-                        <p style="font-size: 0.8rem; color: #374151; line-height: 1.45; margin: 2px 0;">
-                            <?= nl2br(htmlspecialchars($rev['comment'], ENT_QUOTES, 'UTF-8')) ?>
-                        </p>
-
-                        <div style="font-size: 0.68rem; color: var(--text-muted-warm); display: flex; justify-content: space-between;">
-                            <span><?= date('d/m/Y', strtotime($rev['created_at'])) ?></span>
-                            <?php if (!empty($rev['order_code'])): ?>
-                                <span>Đơn #<?= htmlspecialchars($rev['order_code'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php if (!empty($rev['kitchen_reply'])): ?>
+                                <div class="kitchen-reply-box">
+                                    <div style="font-weight: 700; color: var(--brand-tea-green); margin-bottom: 2px; font-size: 0.75rem;">
+                                        🌿 Bếp Chay An Yên phản hồi:
+                                    </div>
+                                    <div>
+                                        <?= nl2br(htmlspecialchars($rev['kitchen_reply'], ENT_QUOTES, 'UTF-8')) ?>
+                                    </div>
+                                </div>
                             <?php endif; ?>
-                        </div>
+                        </article>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </section>
 
-                        <?php if (!empty($rev['kitchen_reply'])): ?>
-                            <div class="kitchen-reply-box">
-                                <div style="font-weight: 700; color: var(--brand-tea-green); margin-bottom: 2px; font-size: 0.75rem;">
-                                    🌿 Bếp Chay An Yên phản hồi:
-                                </div>
-                                <div>
-                                    <?= nl2br(htmlspecialchars($rev['kitchen_reply'], ENT_QUOTES, 'UTF-8')) ?>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                    </article>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </section>
+        <?php endif; ?>
 
         <!-- Footer -->
         <footer style="text-align: center; padding-top: 10px; font-size: 0.75rem; color: var(--text-muted-warm);">
-            Bếp Chay An Yên • Bình an trong từng bữa ăn
+            <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 6px;">
+                <a href="index.php" style="color: var(--brand-tea-green); text-decoration: none;">Trang Chủ Đặt Món</a>
+                <span>•</span>
+                <a href="about.php" style="color: var(--brand-tea-green); text-decoration: none;">Về Bếp An Yên</a>
+                <span>•</span>
+                <a href="admin.php" style="color: #9CA3AF; text-decoration: none;">Quản Trị Bếp</a>
+            </div>
+            Bếp Chay An Yên • Bình an trong từng bữa ăn thanh tịnh
         </footer>
 
     </main>

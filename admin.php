@@ -517,6 +517,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 : 'Đã TẮT trang đánh giá của khách hàng (chế độ tạm đóng).';
             break;
 
+        case 'toggle_review_featured':
+            $revId = (int)($_POST['review_id'] ?? 0);
+            if ($revId > 0) {
+                $reviewService->toggleFeatured($revId);
+                $message = 'Đã cập nhật trạng thái Ghim Đề Tặng / Cảm Nhận Nổi Bật (Testimonial).';
+            }
+            break;
+
+        case 'update_testimonial_note':
+            $revId = (int)($_POST['review_id'] ?? 0);
+            $note = (string)($_POST['testimonial_note'] ?? '');
+            $type = (string)($_POST['review_type'] ?? 'testimonial');
+            if ($revId > 0) {
+                $reviewService->updateTestimonialNote($revId, $note, $type);
+                $message = 'Đã cập nhật lời đề tựa / ghi chú kỷ niệm.';
+            }
+            break;
+
+        case 'create_testimonial':
+            try {
+                $newId = $reviewService->createTestimonial($_POST);
+                $message = 'Đã thêm lời đề tặng, kỷ niệm mới thành công (ID #' . $newId . ')!';
+            } catch (\Throwable $e) {
+                $message = 'Lỗi thêm kỷ niệm: ' . $e->getMessage();
+            }
+            break;
+
         // 10. Quản lý Khuyến Mại & Ưu Đãi (Issue #20)
         case 'create_promotion':
             try {
@@ -2438,6 +2465,9 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                         </p>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" onclick="document.getElementById('addTestimonialBox').style.display = document.getElementById('addTestimonialBox').style.display === 'none' ? 'block' : 'none';" class="action-btn" style="background: #FDF4E7; color: #B45309; font-weight: 700; border-color: #FDE68A;">
+                            ✨ + Thêm Lời Đề Tặng / Kỷ Niệm
+                        </button>
                         <form method="POST" style="display: inline;">
                             <input type="hidden" name="admin_action" value="toggle_reviews_feature">
                             <input type="hidden" name="reviews_enabled" value="<?= $isReviewsEnabled ? '0' : '1' ?>">
@@ -2449,6 +2479,61 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                             Xem Trang Đánh Giá ↗
                         </a>
                     </div>
+                </div>
+
+                <!-- Form thêm lời đề tặng, kỷ niệm mới (ẩn mặc định) -->
+                <div id="addTestimonialBox" style="display: none; margin-top: 14px; padding: 16px; background: #FFFDF9; border: 1.5px dashed #D5C7B7; border-radius: 14px;">
+                    <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--brand-tea-green); margin-bottom: 10px;">
+                        ✨ Ghi Lại Lời Đề Tặng / Kỷ Niệm (Sổ Lưu Bút Quán Chay)
+                    </h3>
+                    <form method="POST" style="display: flex; flex-direction: column; gap: 10px;">
+                        <input type="hidden" name="admin_action" value="create_testimonial">
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 3px; font-weight: 600;">
+                                    Tên người gửi đề tặng / khách thương: <span style="color:#DC2626;">*</span>
+                                </label>
+                                <input type="text" name="customer_name" class="zen-input" placeholder="VD: Bác Minh Tuệ, Cư sĩ Thanh Phong..." required style="padding: 6px 10px; font-size: 0.8rem;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 3px; font-weight: 600;">
+                                    Bối cảnh / Lời đề tựa:
+                                </label>
+                                <input type="text" name="testimonial_note" class="zen-input" placeholder="VD: Lưu bút bàn trà số 3 • Ngày Rằm tháng Bảy" style="padding: 6px 10px; font-size: 0.8rem;">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 3px; font-weight: 600;">
+                                Tiêu đề cảm nhận:
+                            </label>
+                            <input type="text" name="title" class="zen-input" placeholder="VD: Một chiều mưa tìm lại sự an yên..." style="padding: 6px 10px; font-size: 0.8rem;">
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 3px; font-weight: 600;">
+                                Nội dung cảm nhận / Lời đề tặng: <span style="color:#DC2626;">*</span>
+                            </label>
+                            <textarea name="comment" class="zen-input" rows="3" placeholder="Đôi dòng lưu bút, cảm nhận sâu lắng của khách gửi tặng quán..." required style="padding: 8px 10px; font-size: 0.8rem;"></textarea>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.72rem; color: var(--text-muted-warm); display: block; margin-bottom: 3px; font-weight: 600;">
+                                Lời phản hồi tri ân của Bếp:
+                            </label>
+                            <input type="text" name="kitchen_reply" class="zen-input" placeholder="VD: Bếp nhớ mãi nụ cười hiền của Bác chiều hôm ấy..." style="padding: 6px 10px; font-size: 0.8rem;">
+                        </div>
+
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px;">
+                            <button type="button" onclick="document.getElementById('addTestimonialBox').style.display='none';" class="action-btn">
+                                Hủy Bỏ
+                            </button>
+                            <button type="submit" class="action-btn" style="background: var(--brand-tea-green); color: #FFF; font-weight: 700; border: none; padding: 6px 16px;">
+                                Lưu Lời Đề Tặng 🌸
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -2523,14 +2608,22 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                                                     ✓ Đã dùng bữa
                                                 </span>
                                             <?php endif; ?>
+                                            <?php if (!empty($rev['is_featured'])): ?>
+                                                <span style="background: #FEF3C7; color: #92400E; font-size: 0.65rem; padding: 2px 6px; border-radius: 999px; font-weight: 700;">
+                                                    ⭐ Đề Tặng / Testimonial
+                                                </span>
+                                            <?php endif; ?>
                                             <?php if (!empty($rev['order_code'])): ?>
                                                 <span style="font-size: 0.72rem; color: #2563EB; background: #EFF6FF; padding: 2px 6px; border-radius: 4px;">
                                                     Đơn #<?= htmlspecialchars($rev['order_code'], ENT_QUOTES, 'UTF-8') ?>
                                                 </span>
                                             <?php endif; ?>
                                         </div>
-                                        <div style="font-size: 0.72rem; color: var(--text-muted-warm); margin-top: 2px;">
-                                            Gửi lúc: <?= date('H:i d/m/Y', strtotime($rev['created_at'])) ?>
+                                        <div style="font-size: 0.72rem; color: var(--text-muted-warm); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                                            <span>Gửi lúc: <?= date('H:i d/m/Y', strtotime($rev['created_at'])) ?></span>
+                                            <?php if (!empty($rev['testimonial_note'])): ?>
+                                                <span style="color: #8C7A6B; font-style: italic;">• "<?= htmlspecialchars($rev['testimonial_note'], ENT_QUOTES, 'UTF-8') ?>"</span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -2572,6 +2665,15 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                                 <!-- Thao tác kiểm duyệt & Phản hồi -->
                                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 4px;">
                                     <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                        <!-- Nút Ghim Kỷ Niệm / Testimonial -->
+                                        <form method="POST" style="display: inline;">
+                                            <input type="hidden" name="admin_action" value="toggle_review_featured">
+                                            <input type="hidden" name="review_id" value="<?= (int)$rev['id'] ?>">
+                                            <button type="submit" class="action-btn" style="<?= !empty($rev['is_featured']) ? 'background: #FEF3C7; color: #B45309; font-weight: 700; border-color: #FCD34D;' : 'color: #6B7280;' ?>" title="Bật/tắt ghim lên góc kỷ niệm trầm mặc">
+                                                <?= !empty($rev['is_featured']) ? '⭐ Đang Ghim Kỷ Niệm' : '☆ Ghim Testimonial' ?>
+                                            </button>
+                                        </form>
+
                                         <?php if ($rev['status'] !== 'approved'): ?>
                                             <form method="POST" style="display: inline;">
                                                 <input type="hidden" name="admin_action" value="update_review_status">
@@ -2613,6 +2715,17 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                                         </button>
                                     </form>
                                 </div>
+
+                                <!-- Form chỉnh sửa Lời đề tựa / bối cảnh kỷ niệm -->
+                                <form method="POST" style="display: flex; gap: 4px; align-items: center; padding-top: 2px;">
+                                    <input type="hidden" name="admin_action" value="update_testimonial_note">
+                                    <input type="hidden" name="review_id" value="<?= (int)$rev['id'] ?>">
+                                    <span style="font-size: 0.7rem; color: #8C7A6B; white-space: nowrap;">📌 Lời đề tựa:</span>
+                                    <input type="text" name="testimonial_note" class="zen-input" value="<?= htmlspecialchars((string)($rev['testimonial_note'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="VD: Lưu bút bàn trà số 3 • Ngày Rằm tháng Bảy..." style="padding: 3px 8px; font-size: 0.74rem; flex: 1;">
+                                    <button type="submit" class="action-btn" style="white-space: nowrap; font-size: 0.7rem; padding: 3px 8px;">
+                                        Lưu Đề Tựa
+                                    </button>
+                                </form>
                             </div>
                         <?php endforeach; ?>
                     </div>

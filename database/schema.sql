@@ -168,6 +168,11 @@ CREATE TABLE IF NOT EXISTS promotions (
     end_date TEXT NOT NULL,
     apply_on_lunar_days TEXT NULL,
     badge_text TEXT NULL,
+    target_customer_phone TEXT NULL,
+    target_customer_group TEXT NOT NULL DEFAULT 'all',
+    target_order_type TEXT NOT NULL DEFAULT 'all',
+    first_order_only INTEGER NOT NULL DEFAULT 0,
+    target_order_code TEXT NULL,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

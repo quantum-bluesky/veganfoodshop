@@ -27,7 +27,7 @@ $notificationService = new NotificationService();
 $orderService = new OrderService();
 $slotService = new SlotService();
 $reviewService = new ReviewService(\App\Database\Connection::getInstance(), $configService);
-$promotionService = new PromotionService();
+$promotionService = new PromotionService(\App\Database\Connection::getInstance(), $configService, $customerService);
 
 $config = require __DIR__ . '/config/config.php';
 $defaultPassword = $config['admin']['default_password'] ?? 'AnYen@2026';
@@ -2335,6 +2335,40 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                         </div>
                     </div>
 
+                    <!-- Thiết lập mục tiêu khách hàng & đơn hàng (Issue #26) -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; background: #F4EFEA; padding: 12px; border-radius: 12px; border: 1px dashed #D6C7B2;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;"><strong>Nhóm khách hàng:</strong></label>
+                            <select name="target_customer_group" class="zen-input">
+                                <option value="all">Tất cả khách hàng</option>
+                                <option value="trusted">⭐️ Khách quen đã xác thực (is_trusted = 1)</option>
+                                <option value="new">🌱 Khách mới (chưa có đơn trước đó)</option>
+                                <option value="loyal">💎 Khách thân thiết (≥ 3 đơn hoàn thành / quen)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Khách hàng cụ thể (SĐT):</label>
+                            <input type="text" name="target_customer_phone" class="zen-input" placeholder="Để trống = áp dụng chung">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;"><strong>Nhóm đơn hàng:</strong></label>
+                            <select name="target_order_type" class="zen-input">
+                                <option value="all">Tất cả hình thức</option>
+                                <option value="dine_in">🍽 Chỉ dùng tại quán (dine_in)</option>
+                                <option value="takeaway">🛵 Chỉ giao ship mang về (takeaway)</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; flex-direction: column; justify-content: center;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 700; color: #166534;">
+                                <input type="checkbox" name="first_order_only" value="1" style="width: 16px; height: 16px;">
+                                <span>🌱 Chỉ áp dụng cho đơn đầu tiên</span>
+                            </label>
+                            <span style="font-size: 0.68rem; color: var(--text-muted-warm); margin-top: 2px;">
+                                Tự động giới hạn mỗi số điện thoại chỉ áp dụng 1 lần
+                            </span>
+                        </div>
+                    </div>
+
                     <div>
                         <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Mô tả / Lưu ý cho khách:</label>
                         <input type="text" name="description" class="zen-input" placeholder="Ví dụ: Áp dụng cho cả ăn tại quán và mang về">
@@ -2414,9 +2448,36 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                                             $appliesText = 'Món ID #' . (int)$promo['target_id'];
                                         }
                                         ?>
-                                        <span style="font-size: 0.75rem; background: #EEF2E6; color: var(--brand-tea-green); padding: 2px 6px; border-radius: 4px; font-weight: 600;">
-                                            <?= htmlspecialchars($appliesText) ?>
-                                        </span>
+                                        <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                                            <span style="font-size: 0.75rem; background: #EEF2E6; color: var(--brand-tea-green); padding: 2px 6px; border-radius: 4px; font-weight: 600;">
+                                                <?= htmlspecialchars($appliesText) ?>
+                                            </span>
+                                            <?php if (!empty($promo['target_customer_phone'])): ?>
+                                                <span style="font-size: 0.68rem; background: #E0E7FF; color: #3730A3; padding: 1px 5px; border-radius: 4px; font-weight: 600;">
+                                                    👤 Khách: <?= htmlspecialchars($promo['target_customer_phone']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($promo['target_customer_group']) && $promo['target_customer_group'] !== 'all'): ?>
+                                                <span style="font-size: 0.68rem; background: #FEF3C7; color: #92400E; padding: 1px 5px; border-radius: 4px; font-weight: 600;">
+                                                    <?= match ($promo['target_customer_group']) {
+                                                        'trusted' => '⭐️ Khách quen',
+                                                        'new' => '🌱 Khách mới',
+                                                        'loyal' => '💎 Khách thân thiết',
+                                                        default => htmlspecialchars($promo['target_customer_group'])
+                                                    } ?>
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($promo['target_order_type']) && $promo['target_order_type'] !== 'all'): ?>
+                                                <span style="font-size: 0.68rem; background: #F3E8FF; color: #6B21A8; padding: 1px 5px; border-radius: 4px; font-weight: 600;">
+                                                    <?= $promo['target_order_type'] === 'dine_in' ? '🍽 Tại quán' : '🛵 Ship mang về' ?>
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($promo['first_order_only'])): ?>
+                                                <span style="font-size: 0.68rem; background: #DCFCE7; color: #166534; padding: 1px 5px; border-radius: 4px; font-weight: 700;">
+                                                    1️⃣ Chỉ đơn đầu
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td>
                                         <div style="font-size: 0.75rem;">

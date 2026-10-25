@@ -17,10 +17,16 @@ use InvalidArgumentException;
 class PromotionService
 {
     private PDO $db;
+    private CustomerService $customerService;
 
-    public function __construct(?PDO $db = null)
+    public function __construct(?PDO $db = null, mixed $customerService = null)
     {
         $this->db = $db ?? Connection::getInstance();
+        if ($customerService instanceof CustomerService) {
+            $this->customerService = $customerService;
+        } else {
+            $this->customerService = new CustomerService($this->db);
+        }
     }
 
     /**
@@ -95,15 +101,29 @@ class PromotionService
         }
         $isActive = isset($data['is_active']) ? (int)(bool)$data['is_active'] : 1;
 
+        $targetCustomerPhone = !empty($data['target_customer_phone']) ? trim((string)$data['target_customer_phone']) : null;
+        $targetCustomerGroup = (string)($data['target_customer_group'] ?? 'all');
+        if (!in_array($targetCustomerGroup, ['all', 'trusted', 'new', 'loyal'], true)) {
+            $targetCustomerGroup = 'all';
+        }
+        $targetOrderType = (string)($data['target_order_type'] ?? 'all');
+        if (!in_array($targetOrderType, ['all', 'dine_in', 'takeaway'], true)) {
+            $targetOrderType = 'all';
+        }
+        $firstOrderOnly = isset($data['first_order_only']) ? (int)(bool)$data['first_order_only'] : 0;
+        $targetOrderCode = !empty($data['target_order_code']) ? trim((string)$data['target_order_code']) : null;
+
         $stmt = $this->db->prepare("
             INSERT INTO promotions (
                 code, title, description, discount_type, discount_value, min_order_amount,
                 applies_to, target_id, target_category, start_date, end_date,
-                apply_on_lunar_days, badge_text, is_active
+                apply_on_lunar_days, badge_text, target_customer_phone, target_customer_group,
+                target_order_type, first_order_only, target_order_code, is_active
             ) VALUES (
                 :code, :title, :description, :discount_type, :discount_value, :min_order_amount,
                 :applies_to, :target_id, :target_category, :start_date, :end_date,
-                :apply_on_lunar_days, :badge_text, :is_active
+                :apply_on_lunar_days, :badge_text, :target_customer_phone, :target_customer_group,
+                :target_order_type, :first_order_only, :target_order_code, :is_active
             )
         ");
 
@@ -120,6 +140,11 @@ class PromotionService
         $stmt->bindValue(':end_date', $endDate, PDO::PARAM_STR);
         $stmt->bindValue(':apply_on_lunar_days', $applyOnLunarDays, $applyOnLunarDays !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
         $stmt->bindValue(':badge_text', $badgeText, PDO::PARAM_STR);
+        $stmt->bindValue(':target_customer_phone', $targetCustomerPhone, $targetCustomerPhone !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':target_customer_group', $targetCustomerGroup, PDO::PARAM_STR);
+        $stmt->bindValue(':target_order_type', $targetOrderType, PDO::PARAM_STR);
+        $stmt->bindValue(':first_order_only', $firstOrderOnly, PDO::PARAM_INT);
+        $stmt->bindValue(':target_order_code', $targetOrderCode, $targetOrderCode !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
         $stmt->bindValue(':is_active', $isActive, PDO::PARAM_INT);
 
         $stmt->execute();
@@ -157,6 +182,17 @@ class PromotionService
         $targetCategory = isset($data['target_category']) ? (!empty($data['target_category']) ? trim((string)$data['target_category']) : null) : $existing['target_category'];
         $applyOnLunarDays = isset($data['apply_on_lunar_days']) ? (!empty($data['apply_on_lunar_days']) ? trim((string)$data['apply_on_lunar_days']) : null) : $existing['apply_on_lunar_days'];
         $badgeText = isset($data['badge_text']) ? (!empty($data['badge_text']) ? trim((string)$data['badge_text']) : null) : $existing['badge_text'];
+        $targetCustomerPhone = isset($data['target_customer_phone']) ? (!empty($data['target_customer_phone']) ? trim((string)$data['target_customer_phone']) : null) : ($existing['target_customer_phone'] ?? null);
+        $targetCustomerGroup = (string)($data['target_customer_group'] ?? ($existing['target_customer_group'] ?? 'all'));
+        if (!in_array($targetCustomerGroup, ['all', 'trusted', 'new', 'loyal'], true)) {
+            $targetCustomerGroup = 'all';
+        }
+        $targetOrderType = (string)($data['target_order_type'] ?? ($existing['target_order_type'] ?? 'all'));
+        if (!in_array($targetOrderType, ['all', 'dine_in', 'takeaway'], true)) {
+            $targetOrderType = 'all';
+        }
+        $firstOrderOnly = isset($data['first_order_only']) ? (int)(bool)$data['first_order_only'] : (int)($existing['first_order_only'] ?? 0);
+        $targetOrderCode = isset($data['target_order_code']) ? (!empty($data['target_order_code']) ? trim((string)$data['target_order_code']) : null) : ($existing['target_order_code'] ?? null);
         $isActive = isset($data['is_active']) ? (int)(bool)$data['is_active'] : (int)$existing['is_active'];
 
         $stmt = $this->db->prepare("
@@ -174,6 +210,11 @@ class PromotionService
                 end_date = :end_date,
                 apply_on_lunar_days = :apply_on_lunar_days,
                 badge_text = :badge_text,
+                target_customer_phone = :target_customer_phone,
+                target_customer_group = :target_customer_group,
+                target_order_type = :target_order_type,
+                first_order_only = :first_order_only,
+                target_order_code = :target_order_code,
                 is_active = :is_active
             WHERE id = :id
         ");
@@ -192,6 +233,11 @@ class PromotionService
         $stmt->bindValue(':end_date', $endDate, PDO::PARAM_STR);
         $stmt->bindValue(':apply_on_lunar_days', $applyOnLunarDays, $applyOnLunarDays !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
         $stmt->bindValue(':badge_text', $badgeText, PDO::PARAM_STR);
+        $stmt->bindValue(':target_customer_phone', $targetCustomerPhone, $targetCustomerPhone !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':target_customer_group', $targetCustomerGroup, PDO::PARAM_STR);
+        $stmt->bindValue(':target_order_type', $targetOrderType, PDO::PARAM_STR);
+        $stmt->bindValue(':first_order_only', $firstOrderOnly, PDO::PARAM_INT);
+        $stmt->bindValue(':target_order_code', $targetOrderCode, $targetOrderCode !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
         $stmt->bindValue(':is_active', $isActive, PDO::PARAM_INT);
 
         return $stmt->execute();
@@ -325,14 +371,80 @@ class PromotionService
     }
 
     /**
+     * Đếm số đơn đã thanh toán hoặc hoàn thành của một số điện thoại
+     */
+    public function getCompletedOrderCountByPhone(string $phone): int
+    {
+        $cleanPhone = trim($phone);
+        if ($cleanPhone === '') {
+            return 0;
+        }
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) FROM orders 
+            WHERE customer_phone = :phone 
+              AND payment_status IN ('paid', 'completed')
+        ");
+        $stmt->bindValue(':phone', $cleanPhone, PDO::PARAM_STR);
+        $stmt->execute();
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Đếm tổng số đơn của một số điện thoại (trừ đơn huỷ)
+     */
+    public function getTotalOrderCountByPhone(string $phone): int
+    {
+        $cleanPhone = trim($phone);
+        if ($cleanPhone === '') {
+            return 0;
+        }
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) FROM orders 
+            WHERE customer_phone = :phone 
+              AND payment_status != 'cancelled'
+        ");
+        $stmt->bindValue(':phone', $cleanPhone, PDO::PARAM_STR);
+        $stmt->execute();
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Kiểm tra khách hàng có thuộc nhóm khách mục tiêu hay không
+     */
+    public function isCustomerEligibleForGroup(string $phone, string $group): bool
+    {
+        if ($group === 'all' || empty($group)) {
+            return true;
+        }
+
+        $cleanPhone = trim($phone);
+        if ($cleanPhone === '') {
+            return false;
+        }
+
+        $customer = $this->customerService ? $this->customerService->findByPhone($cleanPhone) : null;
+        $isTrusted = !empty($customer['is_trusted']);
+        $completedOrders = $this->getCompletedOrderCountByPhone($cleanPhone);
+        $totalOrders = $this->getTotalOrderCountByPhone($cleanPhone);
+
+        return match ($group) {
+            'trusted' => $isTrusted,
+            'new' => !$isTrusted && ($totalOrders === 0),
+            'loyal' => $isTrusted || ($completedOrders >= 3),
+            default => true,
+        };
+    }
+
+    /**
      * Tính toán tổng tiền chiết khấu cho đơn hàng (Order Calculation)
      * 
      * @param string $dateString Ngày nhận món
      * @param array $itemsWithDetails Danh sách món trong giỏ kèm giá: [['item' => $itemData, 'quantity' => $qty]]
      * @param int $subtotal Tổng tiền món trước giảm
+     * @param array|null $context Thông tin ngữ cảnh [customer_phone, order_type, order_code, coupon_code]
      * @return array [discount_amount, final_total, primary_promotion]
      */
-    public function calculateOrderDiscount(string $dateString, array $itemsWithDetails, int $subtotal): array
+    public function calculateOrderDiscount(string $dateString, array $itemsWithDetails, int $subtotal, ?array $context = null): array
     {
         $activePromos = $this->getActivePromotionsForDate($dateString);
         if (empty($activePromos) || $subtotal <= 0) {
@@ -344,10 +456,53 @@ class PromotionService
             ];
         }
 
+        $customerPhone = trim((string)($context['customer_phone'] ?? ''));
+        $orderType = (string)($context['order_type'] ?? 'all');
+        $orderCode = trim((string)($context['order_code'] ?? ''));
+
         $maxDiscount = 0;
         $appliedPromo = null;
 
         foreach ($activePromos as $promo) {
+            // 1. Kiểm tra giới hạn theo từng khách hàng cụ thể
+            $targetPhone = trim((string)($promo['target_customer_phone'] ?? ''));
+            if ($targetPhone !== '') {
+                if ($customerPhone === '' || $targetPhone !== $customerPhone) {
+                    continue;
+                }
+            }
+
+            // 2. Kiểm tra nhóm khách hàng (all, trusted, new, loyal)
+            $targetGroup = (string)($promo['target_customer_group'] ?? 'all');
+            if ($targetGroup !== 'all' && $targetGroup !== '') {
+                if (!$this->isCustomerEligibleForGroup($customerPhone, $targetGroup)) {
+                    continue;
+                }
+            }
+
+            // 3. Kiểm tra nhóm đơn hàng (all, dine_in, takeaway)
+            $targetOrderType = (string)($promo['target_order_type'] ?? 'all');
+            if ($targetOrderType !== 'all' && $targetOrderType !== '') {
+                if ($orderType !== $targetOrderType) {
+                    continue;
+                }
+            }
+
+            // 4. Kiểm tra chỉ đơn đầu tiên
+            if (!empty($promo['first_order_only'])) {
+                if ($customerPhone === '' || $this->getTotalOrderCountByPhone($customerPhone) > 0) {
+                    continue;
+                }
+            }
+
+            // 5. Kiểm tra theo mã đơn cụ thể (nếu có chỉ định)
+            $targetOrderCode = trim((string)($promo['target_order_code'] ?? ''));
+            if ($targetOrderCode !== '') {
+                if ($orderCode === '' || $targetOrderCode !== $orderCode) {
+                    continue;
+                }
+            }
+
             $minOrder = (int)$promo['min_order_amount'];
             if ($subtotal < $minOrder) {
                 continue; // Chưa đạt giá trị đơn tối thiểu
@@ -425,3 +580,4 @@ class PromotionService
         ];
     }
 }
+

@@ -175,7 +175,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </p>
             </header>
 
-            <?php if ($order['payment_status'] === 'paid'): ?>
+            <?php if ($order['order_status'] === 'cancelled'): ?>
+                <!-- Đơn hàng đã bị huỷ (Issue #27) -->
+                <section class="zen-card" style="background-color: #FEF2F2; border: 1.5px solid #F87171; text-align: center; padding: 22px 16px;">
+                    <div style="font-size: 2.2rem; margin-bottom: 8px;">🍃</div>
+                    <h2 style="font-size: 1.15rem; color: #991B1B; font-weight: 700; margin-bottom: 6px;">
+                        Đơn Hàng Đã Được Huỷ
+                    </h2>
+                    <p style="font-size: 0.82rem; color: #7F1D1D; line-height: 1.5;">
+                        Suất đặt này đã được huỷ theo yêu cầu hoặc do thay đổi lịch phục vụ của bếp.
+                    </p>
+                    <p style="font-size: 0.76rem; color: #B91C1C; margin-top: 6px;">
+                        Nếu bạn cần hỗ trợ thêm, xin vui lòng liên hệ trực tiếp với chủ bếp qua Zalo nhé.
+                    </p>
+                </section>
+
+            <?php elseif ($order['order_status'] === 'completed'): ?>
+                <!-- Đơn hàng đã hoàn tất (Issue #27) -->
+                <section class="zen-card" style="background-color: #F0FDF4; border: 1.5px solid #86EFAC; text-align: center; padding: 22px 16px;">
+                    <div style="font-size: 2.2rem; margin-bottom: 8px;">✨</div>
+                    <h2 style="font-size: 1.15rem; color: #166534; font-weight: 700; margin-bottom: 6px;">
+                        Đơn Hàng Đã Hoàn Tất
+                    </h2>
+                    <p style="font-size: 0.82rem; color: #15803D; line-height: 1.5;">
+                        Bếp An Yên xin gửi lời tri ân sâu sắc vì bạn đã ghé thăm và thưởng thức bữa chay an lành!
+                    </p>
+                </section>
+
+            <?php elseif ($order['payment_status'] === 'paid'): ?>
                 <!-- Đã thanh toán thành công (Issue #16) -->
                 <section class="zen-card" style="background-color: #ECFDF5; border: 1.5px solid #10B981; text-align: center; padding: 22px 16px;">
                     <div style="font-size: 2.2rem; margin-bottom: 8px;">🌸</div>

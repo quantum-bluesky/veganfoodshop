@@ -363,7 +363,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const btnOpenMyBookings = document.getElementById('btnOpenMyBookings');
         const myBookingsModal = document.getElementById('myBookingsModal');
         const btnCloseMyBookings = document.getElementById('btnCloseMyBookings');
+        const btnRefreshMyBookings = document.getElementById('btnRefreshMyBookings');
         const myBookingsList = document.getElementById('myBookingsList');
+
+        // Top Navigation Zalo Profile Elements (Issue #27)
+        const topZaloLoggedIn = document.getElementById('topZaloLoggedIn');
+        const topZaloLoggedOut = document.getElementById('topZaloLoggedOut');
+        const topZaloAvatar = document.getElementById('topZaloAvatar');
+        const topZaloName = document.getElementById('topZaloName');
+        const btnTopMyBookings = document.getElementById('btnTopMyBookings');
+        const btnTopLogout = document.getElementById('btnTopLogout');
 
         let myOrdersData = [];
 
@@ -442,7 +451,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         function loadMyBookings(identifier) {
+            if (!identifier) {
+                try {
+                    const raw = localStorage.getItem('public_customer_info');
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        identifier = parsed.zalo_id || parsed.phone;
+                    }
+                } catch (e) {
+                    identifier = null;
+                }
+            }
             if (!identifier) return;
+
+            if (btnRefreshMyBookings) {
+                btnRefreshMyBookings.innerHTML = '<span>⏳</span> Đang tải...';
+                btnRefreshMyBookings.disabled = true;
+            }
+
             fetch(`api.php?action=get_my_orders&identifier=${encodeURIComponent(identifier)}`)
                 .then(res => res.json())
                 .then(data => {
@@ -460,10 +486,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                             if (btnViewUpcoming) {
                                 btnViewUpcoming.onclick = function() {
-                                    if (myBookingsModal) {
-                                        myBookingsModal.classList.remove('hidden');
-                                        myBookingsModal.style.display = 'flex';
-                                    }
+                                    openMyBookingsModal();
                                 };
                             }
                         } else if (upcomingBookingBanner) {
@@ -474,7 +497,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                 .catch(err => {
                     console.error('Lỗi tải lịch đặt của tôi:', err);
+                })
+                .finally(() => {
+                    if (btnRefreshMyBookings) {
+                        btnRefreshMyBookings.innerHTML = '<span>🔄</span> Làm mới';
+                        btnRefreshMyBookings.disabled = false;
+                    }
                 });
+        }
+
+        function openMyBookingsModal() {
+            if (!myBookingsModal) return;
+            myBookingsModal.classList.remove('hidden');
+            myBookingsModal.style.display = 'flex';
+            // Luôn gọi làm mới dữ liệu để hiển thị trạng thái mới nhất từ server (Issue #27)
+            loadMyBookings();
         }
 
         function checkZaloSession() {
@@ -487,7 +524,25 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (savedZalo && (savedZalo.zalo_id || savedZalo.name)) {
-                // Hiển thị phần profile Zalo
+                // 1. Cập nhật thanh Top Nav Bar Zalo Pill (Issue #27)
+                if (topZaloLoggedIn) {
+                    topZaloLoggedIn.classList.remove('hidden');
+                    topZaloLoggedIn.style.display = 'flex';
+                }
+                if (topZaloLoggedOut) {
+                    topZaloLoggedOut.classList.add('hidden');
+                    topZaloLoggedOut.style.display = 'none';
+                }
+                if (topZaloName) topZaloName.textContent = savedZalo.name || 'Khách Zalo';
+                if (topZaloAvatar) {
+                    if (savedZalo.avatar_url) {
+                        topZaloAvatar.innerHTML = `<img src="${savedZalo.avatar_url}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='${(savedZalo.name || 'Z').charAt(0).toUpperCase()}';">`;
+                    } else {
+                        topZaloAvatar.textContent = (savedZalo.name || 'Z').charAt(0).toUpperCase();
+                    }
+                }
+
+                // 2. Hiển thị phần profile Zalo ở khu vực form
                 if (zaloLoginSection) zaloLoginSection.classList.add('hidden');
                 if (zaloProfileSection) {
                     zaloProfileSection.classList.remove('hidden');
@@ -497,7 +552,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (zaloProfileName) zaloProfileName.textContent = savedZalo.name || 'Khách Zalo';
                 if (zaloProfilePhone) zaloProfilePhone.textContent = savedZalo.phone ? `SĐT: ${savedZalo.phone}` : '';
 
-                // Avatar
+                // Avatar form
                 if (zaloAvatarWrapper) {
                     if (savedZalo.avatar_url) {
                         zaloAvatarWrapper.innerHTML = `<img src="${savedZalo.avatar_url}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='${(savedZalo.name || 'Z').charAt(0).toUpperCase()}';">`;
@@ -523,6 +578,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 loadMyBookings(savedZalo.zalo_id || savedZalo.phone);
             } else {
                 // Chưa đăng nhập Zalo
+                if (topZaloLoggedIn) {
+                    topZaloLoggedIn.classList.add('hidden');
+                    topZaloLoggedIn.style.display = 'none';
+                }
+                if (topZaloLoggedOut) {
+                    topZaloLoggedOut.classList.remove('hidden');
+                    topZaloLoggedOut.style.display = 'flex';
+                }
+
                 if (zaloLoginSection) zaloLoginSection.classList.remove('hidden');
                 if (zaloProfileSection) {
                     zaloProfileSection.classList.add('hidden');
@@ -538,13 +602,22 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        if (btnOpenMyBookings && myBookingsModal) {
-            btnOpenMyBookings.addEventListener('click', function () {
-                myBookingsModal.classList.remove('hidden');
-                myBookingsModal.style.display = 'flex';
+        // Sự kiện mở modal Đơn của tôi
+        if (btnOpenMyBookings) {
+            btnOpenMyBookings.addEventListener('click', openMyBookingsModal);
+        }
+        if (btnTopMyBookings) {
+            btnTopMyBookings.addEventListener('click', openMyBookingsModal);
+        }
+
+        // Sự kiện làm mới modal
+        if (btnRefreshMyBookings) {
+            btnRefreshMyBookings.addEventListener('click', function () {
+                loadMyBookings();
             });
         }
 
+        // Sự kiện đóng modal
         if (btnCloseMyBookings && myBookingsModal) {
             btnCloseMyBookings.addEventListener('click', function () {
                 myBookingsModal.classList.add('hidden');
@@ -561,11 +634,17 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // Đăng xuất Zalo
+        function handleZaloLogout() {
+            localStorage.removeItem('public_customer_info');
+            checkZaloSession();
+        }
+
         if (zaloLogoutBtn) {
-            zaloLogoutBtn.addEventListener('click', function () {
-                localStorage.removeItem('public_customer_info');
-                checkZaloSession();
-            });
+            zaloLogoutBtn.addEventListener('click', handleZaloLogout);
+        }
+        if (btnTopLogout) {
+            btnTopLogout.addEventListener('click', handleZaloLogout);
         }
 
         checkZaloSession();

@@ -18,9 +18,10 @@ use App\Services\PromotionService;
 use App\Services\SlotService;
 
 $configService = new ConfigService();
+$customerService = new \App\Services\CustomerService();
 $menuService = new MenuService();
 $slotService = new SlotService();
-$promotionService = new PromotionService();
+$promotionService = new PromotionService(\App\Database\Connection::getInstance(), $configService, $customerService);
 $zaloService = new \App\Services\ZaloAuthService();
 $zaloConfig = $zaloService->getConfig();
 
@@ -184,6 +185,38 @@ foreach ($menuItems as $it) {
                 🌸 Cảm Nhận & Kỷ Niệm
             </a>
         </nav>
+
+        <!-- Top Zalo Profile / Connection Pill (Issue #27) -->
+        <div id="topZaloPill" style="display: flex; justify-content: space-between; align-items: center; padding: 5px 12px; background: #FAF7F2; border: 1px solid var(--brand-border-soft); border-radius: 999px; font-size: 0.75rem; margin-bottom: 8px;">
+            <!-- Khi đã đăng nhập Zalo: icon avatar + Tên + Nút Đơn của tôi + Nút Đăng xuất -->
+            <div id="topZaloLoggedIn" class="hidden" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 7px; overflow: hidden;">
+                    <div id="topZaloAvatar" style="width: 24px; height: 24px; border-radius: 50%; overflow: hidden; background: #0068FF; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.72rem; flex-shrink: 0;">
+                        Z
+                    </div>
+                    <span id="topZaloName" style="font-weight: 700; color: #1E40AF; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Khách Zalo</span>
+                    <span style="font-size: 0.62rem; background: #DBEAFE; color: #1E40AF; padding: 1px 6px; border-radius: 999px; font-weight: 600; flex-shrink: 0;">✓ Đã nối</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                    <button type="button" id="btnTopMyBookings" style="background: #E0E7FF; border: 1px solid #C7D2FE; color: #3730A3; font-size: 0.72rem; border-radius: 999px; padding: 3px 9px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                        📅 Đơn của tôi
+                    </button>
+                    <button type="button" id="btnTopLogout" title="Đăng xuất tài khoản Zalo" style="background: none; border: none; color: #9CA3AF; font-size: 0.74rem; cursor: pointer; padding: 2px 4px; text-decoration: underline;">
+                        Thoát
+                    </button>
+                </div>
+            </div>
+            <!-- Khi chưa đăng nhập Zalo: gợi ý kết nối Zalo tinh tế -->
+            <div id="topZaloLoggedOut" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--text-muted-warm); font-size: 0.73rem;">
+                    <span>💬</span>
+                    <span>Kết nối Zalo để xem đơn & nhận tin</span>
+                </div>
+                <a href="api/public/zalo-login" style="display: inline-flex; align-items: center; gap: 4px; background: #0068FF; color: #FFFFFF; font-size: 0.72rem; padding: 3px 9px; border-radius: 999px; text-decoration: none; font-weight: 600; box-shadow: 0 1px 4px rgba(0, 104, 255, 0.2);">
+                    <span>Nối Zalo</span>
+                </a>
+            </div>
+        </div>
 
         <!-- Header: Không gian an yên mộc mạc -->
         <header style="text-align: center; margin-bottom: 6px;">
@@ -690,7 +723,12 @@ foreach ($menuItems as $it) {
                     <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--brand-tea-dark); display: flex; align-items: center; gap: 6px; margin: 0;">
                         <span>🌿</span> Lịch Đặt Của Tôi
                     </h3>
-                    <button type="button" id="btnCloseMyBookings" style="background: none; border: none; font-size: 1.3rem; color: var(--text-muted-warm); cursor: pointer; padding: 4px 8px;">✕</button>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button type="button" id="btnRefreshMyBookings" title="Làm mới trạng thái đơn hàng" style="background: #F3F4F6; border: 1px solid var(--brand-border-soft); font-size: 0.74rem; color: var(--brand-tea-dark); cursor: pointer; padding: 4px 10px; border-radius: 999px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                            <span>🔄</span> Làm mới
+                        </button>
+                        <button type="button" id="btnCloseMyBookings" style="background: none; border: none; font-size: 1.3rem; color: var(--text-muted-warm); cursor: pointer; padding: 4px 8px;">✕</button>
+                    </div>
                 </div>
                 <div id="myBookingsList" style="overflow-y: auto; display: flex; flex-direction: column; gap: 12px; flex: 1;">
                     <p style="text-align: center; color: var(--text-muted-warm); font-size: 0.82rem; padding: 20px 0;">Đang tải lịch đặt...</p>

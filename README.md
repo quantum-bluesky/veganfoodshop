@@ -175,6 +175,32 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Sửa lỗi Fatal Error `Call to undefined method ZaloAuthService::getCurrentCustomer()` bằng cách bổ sung hàm `getCurrentCustomer(?string $phone)` hỗ trợ truy xuất linh hoạt qua SĐT, session hoặc cookie.
       - Tích hợp JavaScript tự động điền (autofill) thông tin tên và số điện thoại từ `localStorage` khi khách đã từng đăng nhập Zalo hoặc đặt hàng trước đó.
       - Bổ sung nút liên kết từ màn hình xác nhận đơn (`process_order.php`) chuyển sang gửi cảm nhận/lưu bút đến Bếp An Yên.
+20. **Thiết Lập Khuyến Mại Đa Chiều Theo Khách Hàng & Đơn Hàng (v1.13.0 - Issue #26):**
+    - **Phân Khúc Khuyến Mại Linh Hoạt (Targeting Engine):**
+      - **Theo từng khách hàng cụ thể (`target_customer_phone`):** Đặt mã ưu đãi hoặc quà tặng giảm giá tri ân riêng cho từng số điện thoại thực khách.
+      - **Theo nhóm khách hàng (`target_customer_group`):**
+        - `all`: Toàn bộ khách hàng.
+        - `trusted`: Đặc quyền dành riêng cho khách quen đã xác thực (`is_trusted = 1`).
+        - `new`: Khuyến mại "Chào bạn mới" dành cho khách chưa từng có đơn hàng trước đó.
+        - `loyal`: Ưu đãi khách thân thiết (thực khách đã có từ 3 đơn hoàn tất trở lên hoặc khách quen).
+      - **Theo nhóm đơn hàng (`target_order_type`):**
+        - `all`: Cả dùng tại quán và ship mang về.
+        - `dine_in`: Chỉ áp dụng cho khách ghé ăn tại bếp.
+        - `takeaway`: Trợ giá phí ship hoặc giảm giá riêng cho đơn mang về.
+      - **Theo đơn hàng đầu tiên (`first_order_only`):** Tự động nhận diện mỗi số điện thoại chỉ được nhận khuyến mại này đúng 1 lần duy nhất trong đời.
+      - **Theo mã đơn hàng cụ thể (`target_order_code`):** Áp dụng chiết khấu khi đơn khớp đúng mã đơn chỉ định.
+    - **Giao Diện Quản Trị Khuyến Mại Mở Rộng (`admin.php?tab=promotions`):**
+      - Bổ sung bảng điều khiển Targeting Options với dropdown nhóm khách, nhóm đơn, ô nhập SĐT và checkbox đơn đầu tiên.
+      - Bảng danh sách hiển thị các huy hiệu phân loại trực quan: `👤 Khách: 090...`, `⭐️ Khách quen`, `🌱 Khách mới`, `💎 Thân thiết`, `🍽 Tại quán`, `🛵 Ship mang về`, `1️⃣ Chỉ đơn đầu`.
+21. **Thanh Trạng Thái Zalo Header, Đăng Xuất & Xem Lịch Đặt Của Tôi Thời Gian Thực (v1.13.0 - Issue #27):**
+    - **Thanh Trạng Thái Zalo Nhỏ Gọn Trên Navigation (`#topZaloPill`):**
+      - Khi đã đăng nhập Zalo: Hiển thị avatar tròn thu nhỏ + Tên thực khách + Huy hiệu `✓ Đã nối` + Nút *"📅 Đơn của tôi"* + Nút *"Thoát"* (Logout) tinh tế ngay trên đầu trang.
+      - Khi chưa kết nối: Hiển thị lời mời mộc mạc kèm nút *"Nối Zalo"* màu xanh dịu dàng.
+      - Thao tác đăng xuất 1-chạm xóa session an toàn và cập nhật giao diện tức thời mà không cần reload trang.
+    - **Làm Mới Lịch Đặt Của Tôi (Realtime Order Status Synchronization):**
+      - Modal *"🌿 Lịch Đặt Của Tôi"* bổ sung nút *"🔄 Làm mới"* ở góc trên giúp khách chủ động cập nhật trạng thái đơn tức thì.
+      - Tự động gọi API `get_my_orders` lấy dữ liệu mới nhất mỗi khi khách bấm mở modal từ thanh điều hướng, banner hoặc form.
+      - Trang chi tiết đơn (`process_order.php`) hiển thị trạng thái chính xác, tương thích đầy đủ khi đơn chuyển sang `completed` ("✨ Đơn Hàng Đã Hoàn Tất") hoặc `cancelled` ("🍃 Đơn Hàng Đã Được Huỷ").
 
 ---
 

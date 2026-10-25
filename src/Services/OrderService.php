@@ -234,7 +234,13 @@ class OrderService
                     'quantity' => $qty,
                 ];
             }
-            $promoCalc = $this->promotionService->calculateOrderDiscount((string)$slot['slot_date'], $itemsForPromo, $totalAmount);
+            $promoContext = [
+                'customer_phone' => $customerPhone,
+                'order_type' => $orderType,
+                'customer_name' => $customerName,
+                'zalo_id' => $zaloId,
+            ];
+            $promoCalc = $this->promotionService->calculateOrderDiscount((string)$slot['slot_date'], $itemsForPromo, $totalAmount, $promoContext);
             $subtotalBeforeDiscount = $totalAmount;
             $discountAmount = (int)$promoCalc['discount_amount'];
             $finalTotalAmount = (int)$promoCalc['final_total'];

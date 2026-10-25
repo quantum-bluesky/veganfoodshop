@@ -20,7 +20,7 @@ $baseConfig = [
     ],
     'admin' => [
         'session_key' => 'bep_an_yen_admin_auth',
-        'default_password' => 'AnYen@2026',
+        'default_password' => 'abc123',
     ],
     'vietqr' => [
         'api_url' => 'https://img.vietqr.io/image',

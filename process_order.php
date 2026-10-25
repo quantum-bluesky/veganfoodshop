@@ -100,6 +100,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 }
+
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443 || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https://' : 'http://';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost:8008';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$fullCurrentUrl = $protocol . $host . $requestUri;
+$scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+$previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '/assets/images/preview.jpg';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -107,6 +114,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Xác nhận đơn - <?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?></title>
+    <meta name="description" content="Chi tiết xác nhận đơn đặt chỗ và món chay tại <?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?>.">
+
+    <!-- Các thẻ Open Graph cơ bản (Issue #31) -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="<?= htmlspecialchars($fullCurrentUrl, ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:site_name" content="<?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:title" content="Xác nhận đơn - <?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:description" content="Chi tiết xác nhận đơn đặt chỗ và món chay tại <?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?>.">
+    <meta property="og:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
+
+    <!-- Thẻ hỗ trợ riêng cho Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Xác nhận đơn - <?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?>">
+    <meta name="twitter:description" content="Chi tiết xác nhận đơn đặt chỗ và món chay tại <?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?>.">
+    <meta name="twitter:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">

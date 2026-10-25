@@ -217,6 +217,12 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Khi bấm kích hoạt `A+`: Chuyển sang class `.zen-font-large`, toàn bộ các vùng chú ý, ghi chú món ăn, thông báo âm lịch, lưu ý khung giờ và hướng dẫn nhận đơn được tăng kích thước rõ ràng (+25% đến +30%), tăng độ tương phản màu mực sắc nét, chống mỏi mắt cho người lớn tuổi hoặc người mắt kém.
       - Khi bấm lại `[ A- Cỡ vừa ]`: Tự động khôi phục về kích thước chuẩn ban đầu.
       - Tự động ghi nhớ lựa chọn của khách qua `localStorage` (`vegan_font_size_large`), đảm bảo trải nghiệm xuyên suốt khi chuyển trang.
+24. **Chuẩn Hóa Icon Tương Thích & Thẻ Open Graph Preview Graph Cho Toàn Bộ Trang (v1.14.1 - Issue #31):**
+    - **Chuẩn Hóa Icon Hoa Sen:** Thay thế ký tự Unicode mới `🪷` (bị lỗi ô vuông trên một số trình duyệt/hệ điều hành cũ) bằng biểu tượng `🌸` hiển thị chuẩn 100% trên mọi nền tảng tại tiêu đề tôn chỉ trong `about.php` và phần header trong `reviews.php`.
+    - **Thẻ Open Graph & Twitter Card Preview:**
+      - Tích hợp toàn diện các thẻ `og:type`, `og:url`, `og:site_name`, `og:title`, `og:description`, `og:image` cùng thẻ Twitter Card `twitter:card = 'summary_large_image'`, `twitter:title`, `twitter:description`, `twitter:image` trên toàn bộ các trang công khai (`index.php`, `about.php`, `reviews.php`, `process_order.php`).
+      - Tự động nhận diện động `og:url` và `og:image` theo tên miền và đường dẫn thực tế của server (hỗ trợ cả đường dẫn gốc `/assets/images/preview.jpg` lẫn thư mục `/images/preview.jpg`).
+      - Khi copy và gửi liên kết website qua các ứng dụng chat (Zalo, Messenger, Telegram, Viber, Facebook, Skype, Twitter/X), khung chat sẽ tự động hiển thị card preview đẹp mắt với hình ảnh minh họa ấm cúng phong cách Ghibli và mô tả mộc mạc của quán chay.
 
 ---
 

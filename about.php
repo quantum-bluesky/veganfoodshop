@@ -18,6 +18,13 @@ $configService = new ConfigService($db);
 $brandName = $configService->get('brand_name', 'Bếp Chay An Yên');
 $sellerAddress = $configService->get('seller_address', 'Số 12 Ngõ An Bình, Phố Tràng An, Hà Nội');
 $sellerPhone = $configService->get('seller_phone', '0987654321');
+
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443 || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https://' : 'http://';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost:8008';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$fullCurrentUrl = $protocol . $host . $requestUri;
+$scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+$previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '/assets/images/preview.jpg';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -26,6 +33,21 @@ $sellerPhone = $configService->get('seller_phone', '0987654321');
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Về Bếp Chay An Yên - Nguồn Gốc & Tôn Chỉ Thuần Chay</title>
     <meta name="description" content="Khám phá câu chuyện khởi nguồn và 4 tôn chỉ ẩm thực thuần chay thanh tịnh tại Bếp Chay An Yên: Thuần khiết tự nhiên, nấu theo ca giới hạn suất, nuôi dưỡng lòng từ và trân quý từng thực khách.">
+
+    <!-- Các thẻ Open Graph cơ bản (Issue #31) -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="<?= htmlspecialchars($fullCurrentUrl, ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:site_name" content="<?= htmlspecialchars($brandName, ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:title" content="Về Bếp Chay An Yên - Nguồn Gốc & Bốn Tôn Chỉ Thuần Chay">
+    <meta property="og:description" content="Khám phá câu chuyện khởi nguồn và 4 tôn chỉ ẩm thực thuần chay thanh tịnh tại Bếp Chay An Yên: Thuần khiết tự nhiên, nấu theo ca giới hạn suất, nuôi dưỡng lòng từ và trân quý từng thực khách.">
+    <meta property="og:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:image:alt" content="Về Bếp Chay An Yên - Nguồn Gốc & Tôn Chỉ Thuần Chay">
+
+    <!-- Thẻ hỗ trợ riêng cho Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Về Bếp Chay An Yên - Nguồn Gốc & Bốn Tôn Chỉ Thuần Chay">
+    <meta name="twitter:description" content="Khám phá câu chuyện khởi nguồn và 4 tôn chỉ ẩm thực thuần chay thanh tịnh tại Bếp Chay An Yên: Thuần khiết tự nhiên, nấu theo ca giới hạn suất, nuôi dưỡng lòng từ và trân quý từng thực khách.">
+    <meta name="twitter:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
 
     <!-- Google Fonts: Lora (Tiêu đề thiền vị) & Quicksand (Nội dung mộc mạc) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -225,7 +247,7 @@ $sellerPhone = $configService->get('seller_phone', '0987654321');
         <!-- KHỐI 2: 4 TÔN CHỈ CỦA BẾP (THE 4 ZEN PRINCIPLES) -->
         <section class="story-card">
             <h2 class="story-title">
-                <span>🪷</span> Bốn Tôn Chỉ Ẩm Thực Cốt Lõi
+                <span>🌸</span> Bốn Tôn Chỉ Ẩm Thực Cốt Lõi
             </h2>
             <div class="principles-grid">
                 <!-- Tôn chỉ 1 -->

@@ -59,6 +59,13 @@ $approvedReviews = $reviewService->getApprovedReviews(30);
 $prefillOrderCode = trim((string)($_GET['order_code'] ?? ''));
 $prefillPhone = $currentCustomer['phone'] ?? trim((string)($_GET['phone'] ?? ''));
 $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
+
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443 || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https://' : 'http://';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost:8008';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$fullCurrentUrl = $protocol . $host . $requestUri;
+$scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+$previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '/assets/images/preview.jpg';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -66,7 +73,23 @@ $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Yên</title>
-    
+    <meta name="description" content="Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua tại Bếp Chay An Yên.">
+
+    <!-- Các thẻ Open Graph cơ bản (Issue #31) -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="<?= htmlspecialchars($fullCurrentUrl, ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:site_name" content="Bếp Chay An Yên">
+    <meta property="og:title" content="Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Yên">
+    <meta property="og:description" content="Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua tại Bếp Chay An Yên.">
+    <meta property="og:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
+    <meta property="og:image:alt" content="Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Yên">
+
+    <!-- Thẻ hỗ trợ riêng cho Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Yên">
+    <meta name="twitter:description" content="Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua tại Bếp Chay An Yên.">
+    <meta name="twitter:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
+
     <!-- Google Fonts: Lora (Tiêu đề thiền vị, sâu lắng) & Quicksand (Mộc mạc) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -284,7 +307,7 @@ $prefillName = $currentCustomer['name'] ?? trim((string)($_GET['name'] ?? ''));
 
         <!-- Header Lời ngỏ sâu lắng -->
         <header style="text-align: center; padding: 10px 0 4px 0;">
-            <div style="font-size: 2.2rem; margin-bottom: 4px;">🪷</div>
+            <div style="font-size: 2.2rem; margin-bottom: 4px;">🌸</div>
             <h1 class="font-serif-zen" style="font-size: 1.55rem; color: var(--brand-tea-dark); margin-bottom: 6px;">
                 Nhật Ký & Cảm Nhận
             </h1>

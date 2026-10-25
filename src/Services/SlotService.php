@@ -219,7 +219,7 @@ class SlotService
         $orderSql = ($filter === 'history') ? 'ORDER BY slot_date DESC, slot_time DESC' : 'ORDER BY slot_date ASC, slot_time ASC';
 
         $sql = "
-            SELECT id, slot_date, slot_time, max_capacity, is_active, created_at 
+            SELECT id, slot_date, slot_time, max_capacity, is_active, is_closed, created_at 
             FROM time_slots 
             $whereSql
             $orderSql 
@@ -241,9 +241,193 @@ class SlotService
             $slot['remaining_capacity'] = max(0, (int)$slot['max_capacity'] - $slot['booked_count']);
             $slotStart = $this->parseSlotStartTime((string)$slot['slot_date'], (string)$slot['slot_time']);
             $slot['is_past'] = ($now >= $slotStart);
+            $slot['is_closed'] = (int)($slot['is_closed'] ?? 0);
         }
         unset($slot);
 
         return $slots;
+    }
+
+    /**
+     * Nhân bản lịch ca hàng loạt cho 1 tuần hoặc 1 tháng từ 1 ngày mẫu (Issue #15)
+     *
+     * @param string $templateDate Ngày mẫu lấy lịch ca (Y-m-d)
+     * @param array<int> $selectedDaysOfWeek Danh sách các thứ trong tuần được mở ca (0=Chủ Nhật, 1=Thứ Hai, ..., 6=Thứ Bảy)
+     * @param string $startDate Ngày bắt đầu nhân bản (Y-m-d)
+     * @param string $endDate Ngày kết thúc nhân bản (Y-m-d)
+     * @param bool $overwriteExisting Có làm mới ca các ngày đã tồn tại chưa có đơn không
+     * @return array{created_count: int, days_count: int, template_slots: int}
+     */
+    public function replicateSlots(
+        string $templateDate,
+        array $selectedDaysOfWeek,
+        string $startDate,
+        string $endDate,
+        bool $overwriteExisting = false
+    ): array {
+        // Lấy danh sách các ca của ngày mẫu
+        $stmtTpl = $this->db->prepare('
+            SELECT slot_time, max_capacity, is_active 
+            FROM time_slots 
+            WHERE slot_date = :template_date 
+            ORDER BY slot_time ASC
+        ');
+        $stmtTpl->execute([':template_date' => $templateDate]);
+        $templateSlots = $stmtTpl->fetchAll();
+
+        if (empty($templateSlots)) {
+            throw new \App\Exceptions\ValidationException(sprintf('Ngày mẫu %s chưa có ca phục vụ nào để nhân bản.', $templateDate));
+        }
+
+        $startTs = strtotime($startDate);
+        $endTs = strtotime($endDate);
+        if ($startTs === false || $endTs === false || $startTs > $endTs) {
+            throw new \App\Exceptions\ValidationException('Khoảng ngày nhân bản không hợp lệ.');
+        }
+
+        $createdCount = 0;
+        $daysCount = 0;
+
+        $stmtCheck = $this->db->prepare('
+            SELECT id FROM time_slots WHERE slot_date = :date AND slot_time = :time LIMIT 1
+        ');
+        $stmtInsert = $this->db->prepare('
+            INSERT INTO time_slots (slot_date, slot_time, max_capacity, is_active, is_closed) 
+            VALUES (:date, :time, :capacity, :active, 0)
+        ');
+        $stmtDeleteUnbooked = $this->db->prepare('
+            DELETE FROM time_slots 
+            WHERE slot_date = :date 
+              AND id NOT IN (SELECT DISTINCT slot_id FROM orders)
+        ');
+
+        $currentTs = $startTs;
+        while ($currentTs <= $endTs) {
+            $curDate = date('Y-m-d', $currentTs);
+            $dayOfWeek = (int)date('w', $currentTs);
+
+            if (in_array($dayOfWeek, $selectedDaysOfWeek, true)) {
+                $daysCount++;
+
+                if ($overwriteExisting) {
+                    $stmtDeleteUnbooked->execute([':date' => $curDate]);
+                }
+
+                foreach ($templateSlots as $tpl) {
+                    // Kiểm tra xem ca đã tồn tại chưa
+                    $stmtCheck->execute([
+                        ':date' => $curDate,
+                        ':time' => $tpl['slot_time'],
+                    ]);
+                    $exists = $stmtCheck->fetchColumn();
+
+                    if (!$exists) {
+                        $stmtInsert->execute([
+                            ':date' => $curDate,
+                            ':time' => $tpl['slot_time'],
+                            ':capacity' => (int)$tpl['max_capacity'],
+                            ':active' => (int)$tpl['is_active'],
+                        ]);
+                        $createdCount++;
+                    }
+                }
+            }
+
+            $currentTs = strtotime('+1 day', $currentTs);
+        }
+
+        return [
+            'created_count' => $createdCount,
+            'days_count' => $daysCount,
+            'template_slots' => count($templateSlots),
+        ];
+    }
+
+    /**
+     * Đồng bộ các ngày mở ca trong tuần theo 1 ngày chỉnh sửa (Issue #15)
+     */
+    public function syncWeekSlotsFromDate(string $sourceDate, array $targetDaysOfWeek = []): array
+    {
+        $sourceTs = strtotime($sourceDate);
+        if ($sourceTs === false) {
+            throw new \App\Exceptions\ValidationException('Ngày nguồn không hợp lệ.');
+        }
+
+        // Tìm thứ 2 và Chủ nhật của tuần chứa ngày nguồn
+        $monday = date('Y-m-d', strtotime('monday this week', $sourceTs));
+        $sunday = date('Y-m-d', strtotime('sunday this week', $sourceTs));
+
+        // Mặc định chọn tất cả các thứ trong tuần trừ ngày nguồn
+        if (empty($targetDaysOfWeek)) {
+            $targetDaysOfWeek = [1, 2, 3, 4, 5, 6, 0];
+        }
+
+        return $this->replicateSlots($sourceDate, $targetDaysOfWeek, $monday, $sunday, false);
+    }
+
+    /**
+     * Cập nhật thông tin ca và tuỳ chọn đồng bộ sang các ca cùng giờ trong tuần (Issue #15)
+     */
+    public function updateSlot(int $slotId, string $newTime, int $newCapacity, bool $syncSameWeek = false): bool
+    {
+        $slot = $this->getSlot($slotId);
+        if (!$slot) {
+            return false;
+        }
+
+        $oldTime = (string)$slot['slot_time'];
+        $slotDate = (string)$slot['slot_date'];
+
+        $stmt = $this->db->prepare('
+            UPDATE time_slots 
+            SET slot_time = :time, max_capacity = :capacity 
+            WHERE id = :id
+        ');
+        $success = $stmt->execute([
+            ':time' => $newTime,
+            ':capacity' => max(1, $newCapacity),
+            ':id' => $slotId,
+        ]);
+
+        if ($success && $syncSameWeek) {
+            $sourceTs = strtotime($slotDate);
+            if ($sourceTs !== false) {
+                $monday = date('Y-m-d', strtotime('monday this week', $sourceTs));
+                $sunday = date('Y-m-d', strtotime('sunday this week', $sourceTs));
+
+                $stmtSync = $this->db->prepare('
+                    UPDATE time_slots 
+                    SET slot_time = :new_time, max_capacity = :new_capacity 
+                    WHERE slot_date >= :monday 
+                      AND slot_date <= :sunday 
+                      AND slot_time = :old_time
+                      AND id != :current_id
+                ');
+                $stmtSync->execute([
+                    ':new_time' => $newTime,
+                    ':new_capacity' => max(1, $newCapacity),
+                    ':monday' => $monday,
+                    ':sunday' => $sunday,
+                    ':old_time' => $oldTime,
+                    ':current_id' => $slotId,
+                ]);
+            }
+        }
+
+        return $success;
+    }
+
+    /**
+     * Xóa ca phục vụ nếu chưa có đơn đặt
+     */
+    public function deleteSlot(int $slotId): bool
+    {
+        $booked = $this->getBookedFoodCount($slotId);
+        if ($booked > 0) {
+            throw new \App\Exceptions\ValidationException('Không thể xóa ca đã có khách đặt chỗ. Bạn có thể tắt ca (Tạm ngưng) thay vì xóa.');
+        }
+
+        $stmt = $this->db->prepare('DELETE FROM time_slots WHERE id = :id');
+        return $stmt->execute([':id' => $slotId]);
     }
 }

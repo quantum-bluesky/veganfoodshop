@@ -14,19 +14,22 @@ class OrderService
 {
     private ConfigService $configService;
     private NotificationService $notificationService;
+    private ZaloAuthService $zaloAuthService;
 
     public function __construct(
         private ?PDO $db = null,
         private ?CustomerService $customerService = null,
         private ?SlotService $slotService = null,
         ?ConfigService $configService = null,
-        ?NotificationService $notificationService = null
+        ?NotificationService $notificationService = null,
+        ?ZaloAuthService $zaloAuthService = null
     ) {
         $this->db = $db ?? Connection::getInstance();
         $this->customerService = $customerService ?? new CustomerService($this->db);
         $this->slotService = $slotService ?? new SlotService($this->db);
         $this->configService = $configService ?? new ConfigService($this->db);
         $this->notificationService = $notificationService ?? new NotificationService($this->db);
+        $this->zaloAuthService = $zaloAuthService ?? new ZaloAuthService($this->db, $this->configService, $this->customerService);
     }
 
     /**
@@ -50,7 +53,9 @@ class OrderService
      *    payment_method: string,
      *    items: array<int, int>, // [menu_item_id => quantity]
      *    customer_note?: ?string,
-     *    current_time?: ?int
+     *    current_time?: ?int,
+     *    zalo_id?: ?string,
+     *    avatar_url?: ?string
      * } $data
      * @return array
      * @throws SlotFullException
@@ -68,6 +73,14 @@ class OrderService
         $paymentMethod = (string)($data['payment_method'] ?? 'vietqr');
         $customerNote = isset($data['customer_note']) ? trim((string)$data['customer_note']) : null;
         $items = (array)($data['items'] ?? []);
+
+        // Kiểm tra yêu cầu đăng nhập Zalo bắt buộc (Fix bug: bắt buộc Zalo login)
+        if ($this->zaloAuthService->isRequireLogin()) {
+            $zaloId = isset($data['zalo_id']) ? trim((string)$data['zalo_id']) : '';
+            if ($zaloId === '') {
+                throw new ValidationException('Bếp An Yên yêu cầu đăng nhập tài khoản Zalo trước khi gửi đơn để đảm bảo kết nối giữ chỗ.');
+            }
+        }
 
         if ($customerName === '') {
             throw new ValidationException('Xin vui lòng nhập tên của bạn.');
@@ -290,6 +303,7 @@ class OrderService
                 'payment_status' => $paymentStatus,
                 'order_status' => 'confirmed',
                 'customer_note' => $customerNote,
+                'zalo_id' => $zaloId,
                 'items' => $orderLines,
             ];
         } catch (Throwable $e) {
@@ -442,5 +456,247 @@ class OrderService
         }
         $stmt = $this->db->prepare('UPDATE orders SET payment_status = :status WHERE id = :id');
         return $stmt->execute([':status' => $status, ':id' => $orderId]);
+    }
+
+    /**
+     * Lấy danh sách đơn hàng của khách theo Zalo ID hoặc Số điện thoại (Issue #14)
+     */
+    public function getOrdersByCustomer(string $identifier, int $limit = 10): array
+    {
+        $cleanPhone = $this->customerService->normalizePhone($identifier);
+        $stmt = $this->db->prepare('
+            SELECT o.*, c.name as customer_name, c.is_trusted, c.zalo_id, ts.slot_time, ts.slot_date
+            FROM orders o
+            JOIN customers c ON o.customer_phone = c.phone
+            JOIN time_slots ts ON o.slot_id = ts.id
+            WHERE c.zalo_id = :identifier OR o.customer_phone = :identifier OR o.customer_phone = :clean_phone
+            ORDER BY ts.slot_date DESC, ts.slot_time DESC, o.id DESC
+            LIMIT :limit
+        ');
+        $stmt->bindValue(':identifier', trim($identifier));
+        $stmt->bindValue(':clean_phone', $cleanPhone);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $orders = $stmt->fetchAll();
+
+        foreach ($orders as &$order) {
+            $stmtItems = $this->db->prepare('SELECT * FROM order_items WHERE order_id = :order_id');
+            $stmtItems->execute([':order_id' => (int)$order['id']]);
+            $order['items'] = $stmtItems->fetchAll();
+        }
+        unset($order);
+
+        return $orders;
+    }
+
+    /**
+     * Lấy đơn hàng active gần nhất để hiển thị banner nhắc nhở khách trên website (Issue #14)
+     */
+    public function getUpcomingActiveOrder(string $identifier): ?array
+    {
+        $today = date('Y-m-d');
+        $cleanPhone = $this->customerService->normalizePhone($identifier);
+        $stmt = $this->db->prepare('
+            SELECT o.*, c.name as customer_name, c.is_trusted, c.zalo_id, ts.slot_time, ts.slot_date
+            FROM orders o
+            JOIN customers c ON o.customer_phone = c.phone
+            JOIN time_slots ts ON o.slot_id = ts.id
+            WHERE (c.zalo_id = :identifier OR o.customer_phone = :identifier OR o.customer_phone = :clean_phone)
+              AND o.order_status != \'cancelled\'
+              AND ts.slot_date >= :today
+            ORDER BY ts.slot_date ASC, ts.slot_time ASC
+            LIMIT 1
+        ');
+        $stmt->execute([
+            ':identifier' => trim($identifier),
+            ':clean_phone' => $cleanPhone,
+            ':today' => $today,
+        ]);
+        $order = $stmt->fetch();
+        if (!$order) {
+            return null;
+        }
+
+        $stmtItems = $this->db->prepare('SELECT * FROM order_items WHERE order_id = :order_id');
+        $stmtItems->execute([':order_id' => (int)$order['id']]);
+        $order['items'] = $stmtItems->fetchAll();
+        return $order;
+    }
+
+    /**
+     * Xác nhận thanh toán tự động hoặc đối soát (Issue #16)
+     */
+    public function reconcilePayment(string $orderCode, ?string $transactionRef = null, ?int $paidAmount = null): array
+    {
+        $order = $this->getOrderByCode($orderCode);
+        if (!$order) {
+            throw new ValidationException('Không tìm thấy đơn hàng với mã: ' . $orderCode);
+        }
+
+        if ($paidAmount !== null && $paidAmount < (int)$order['total_amount']) {
+            throw new ValidationException(sprintf(
+                'Số tiền nhận (%sđ) nhỏ hơn tổng đơn (%sđ). Cần kiểm tra lại.',
+                number_format($paidAmount, 0, ',', '.'),
+                number_format((int)$order['total_amount'], 0, ',', '.')
+            ));
+        }
+
+        $stmt = $this->db->prepare('
+            UPDATE orders 
+            SET payment_status = \'paid\', 
+                paid_at = CURRENT_TIMESTAMP, 
+                transaction_ref = :ref 
+            WHERE id = :id
+        ');
+        $stmt->execute([
+            ':ref' => $transactionRef,
+            ':id' => (int)$order['id'],
+        ]);
+
+        // Đẩy sự kiện thông báo xác nhận thanh toán vào Outbox
+        $this->notificationService->enqueue(
+            sprintf('payment_paid:%d:web', (int)$order['id']),
+            'PAYMENT_CONFIRMED',
+            (int)$order['id'],
+            'web',
+            [
+                'order_code' => $order['order_code'],
+                'amount' => $order['total_amount'],
+                'ref' => $transactionRef,
+            ]
+        );
+
+        $order['payment_status'] = 'paid';
+        $order['transaction_ref'] = $transactionRef;
+        return $order;
+    }
+
+    /**
+     * Chốt ca phục vụ (Issue #16): Đóng ca và chuyển các đơn đã qua sang completed
+     */
+    public function closeSlot(int $slotId, bool $completeOrders = true): array
+    {
+        // Đóng ca
+        $stmtClose = $this->db->prepare('UPDATE time_slots SET is_closed = 1 WHERE id = :id');
+        $stmtClose->execute([':id' => $slotId]);
+
+        if ($completeOrders) {
+            $stmtOrders = $this->db->prepare('
+                UPDATE orders 
+                SET order_status = \'completed\' 
+                WHERE slot_id = :slot_id AND order_status = \'confirmed\'
+            ');
+            $stmtOrders->execute([':slot_id' => $slotId]);
+        }
+
+        // Lấy thống kê chốt ca
+        $stmtStats = $this->db->prepare('
+            SELECT 
+                COUNT(*) as total_orders,
+                SUM(CASE WHEN order_status = \'completed\' THEN 1 ELSE 0 END) as completed_orders,
+                SUM(CASE WHEN order_status = \'cancelled\' THEN 1 ELSE 0 END) as cancelled_orders,
+                SUM(total_amount) as total_amount,
+                SUM(CASE WHEN payment_status = \'paid\' THEN total_amount ELSE 0 END) as paid_amount,
+                SUM(CASE WHEN payment_status IN (\'pending\', \'pay_later\') AND order_status != \'cancelled\' THEN total_amount ELSE 0 END) as pending_amount
+            FROM orders 
+            WHERE slot_id = :slot_id
+        ');
+        $stmtStats->execute([':slot_id' => $slotId]);
+        return $stmtStats->fetch() ?: [];
+    }
+
+    /**
+     * Chốt toàn bộ kết quả trong ngày (End-of-day closing - Issue #16)
+     */
+    public function closeDay(string $date, bool $completeOrders = true): array
+    {
+        $stmtSlots = $this->db->prepare('SELECT id FROM time_slots WHERE slot_date = :date');
+        $stmtSlots->execute([':date' => $date]);
+        $slotIds = $stmtSlots->fetchAll(PDO::FETCH_COLUMN) ?: [];
+
+        foreach ($slotIds as $sId) {
+            $this->closeSlot((int)$sId, $completeOrders);
+        }
+
+        return $this->getClosingReport($date);
+    }
+
+    /**
+     * Báo cáo tổng kết ngày / ca đã qua (Issue #16)
+     */
+    public function getClosingReport(string $date): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT 
+                COUNT(o.id) as total_orders,
+                SUM(CASE WHEN o.order_status = \'completed\' THEN 1 ELSE 0 END) as completed_orders,
+                SUM(CASE WHEN o.order_status = \'confirmed\' THEN 1 ELSE 0 END) as active_orders,
+                SUM(CASE WHEN o.order_status = \'cancelled\' THEN 1 ELSE 0 END) as cancelled_orders,
+                COALESCE(SUM(CASE WHEN o.order_status != \'cancelled\' THEN o.total_amount ELSE 0 END), 0) as total_revenue,
+                COALESCE(SUM(CASE WHEN o.payment_status = \'paid\' THEN o.total_amount ELSE 0 END), 0) as paid_revenue,
+                COALESCE(SUM(CASE WHEN o.payment_status IN (\'pending\', \'pay_later\') AND o.order_status != \'cancelled\' THEN o.total_amount ELSE 0 END), 0) as pending_revenue,
+                SUM(CASE WHEN o.payment_status IN (\'pending\', \'pay_later\') AND o.order_status != \'cancelled\' THEN 1 ELSE 0 END) as pending_payment_count
+            FROM orders o
+            JOIN time_slots ts ON o.slot_id = ts.id
+            WHERE ts.slot_date = :date
+        ');
+        $stmt->execute([':date' => $date]);
+        $report = $stmt->fetch() ?: [];
+
+        // Lấy danh sách các ca trong ngày và trạng thái đóng
+        $stmtSlots = $this->db->prepare('
+            SELECT id, slot_time, max_capacity, is_active, is_closed 
+            FROM time_slots 
+            WHERE slot_date = :date 
+            ORDER BY slot_time ASC
+        ');
+        $stmtSlots->execute([':date' => $date]);
+        $report['slots'] = $stmtSlots->fetchAll() ?: [];
+
+        // Tính tổng số suất món đã phục vụ trong ngày
+        $stmtItems = $this->db->prepare('
+            SELECT COALESCE(SUM(oi.quantity), 0)
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            JOIN time_slots ts ON o.slot_id = ts.id
+            WHERE ts.slot_date = :date AND o.order_status != \'cancelled\'
+        ');
+        $stmtItems->execute([':date' => $date]);
+        $report['total_items_served'] = (int)$stmtItems->fetchColumn();
+
+        // Thêm aliases để tương thích view và test
+        $report['paid_amount'] = (int)($report['paid_revenue'] ?? 0);
+        $report['pending_amount'] = (int)($report['pending_revenue'] ?? 0);
+
+        return $report;
+    }
+
+    /**
+     * Lấy danh sách các đơn hàng còn tồn đọng thanh toán cần đối soát (Issue #16)
+     */
+    public function getPendingReconcileOrders(int $limit = 50): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT o.*, c.name as customer_name, c.is_trusted, ts.slot_date, ts.slot_time
+            FROM orders o
+            JOIN customers c ON o.customer_phone = c.phone
+            JOIN time_slots ts ON o.slot_id = ts.id
+            WHERE o.payment_status IN (\'pending\', \'pay_later\')
+              AND o.order_status != \'cancelled\'
+            ORDER BY ts.slot_date ASC, ts.slot_time ASC, o.id ASC
+            LIMIT :limit
+        ');
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $orders = $stmt->fetchAll() ?: [];
+
+        foreach ($orders as &$o) {
+            $stmtItems = $this->db->prepare('SELECT * FROM order_items WHERE order_id = :order_id');
+            $stmtItems->execute([':order_id' => (int)$o['id']]);
+            $o['items'] = $stmtItems->fetchAll();
+        }
+        unset($o);
+
+        return $orders;
     }
 }

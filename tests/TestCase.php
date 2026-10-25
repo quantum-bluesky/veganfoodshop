@@ -65,11 +65,12 @@ abstract class TestCase
             (2, '$futureDate', '12:30 - 13:15', 12, 1);
         ");
 
-        // Cấu hình mẫu
+        // Cấu hình mẫu (cô lập test khỏi cài đặt môi trường ngoài)
         $this->db->exec("
             INSERT INTO system_config (config_key, config_value) VALUES 
             ('min_lead_time_hours', '3'),
-            ('advance_booking_days', '7');
+            ('advance_booking_days', '7'),
+            ('zalo_require_login', '0');
         ");
     }
 

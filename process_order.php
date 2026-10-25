@@ -47,6 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $avatarUrl = (string)($_POST['avatar_url'] ?? '');
         $items = (array)($_POST['items'] ?? []);
 
+        // Kiểm tra bắt buộc đăng nhập Zalo nếu shop bật cấu hình
+        if ($zaloService->isRequireLogin() && trim($zaloId) === '') {
+            throw new ValidationException('Bếp An Yên yêu cầu đăng nhập tài khoản Zalo trước khi gửi đơn để đảm bảo kết nối giữ chỗ.');
+        }
+
         $order = $orderService->createOrder([
             'customer_name' => $customerName,
             'customer_phone' => $customerPhone,
@@ -153,14 +158,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <header style="text-align: center;">
                 <div style="font-size: 2.2rem; margin-bottom: 6px;">🍃</div>
                 <h1 class="font-serif-zen" style="font-size: 1.5rem; color: var(--brand-tea-dark); margin-bottom: 4px;">
-                    <?= $order['payment_method'] === 'pay_later' ? 'Bếp Đã Nhận Đơn An Lành' : 'Bếp Đã Tạm Giữ Chỗ Cho Bạn' ?>
+                    <?php if ($order['payment_status'] === 'paid'): ?>
+                        Bếp Đã Nhận Thanh Toán An Lành
+                    <?php elseif ($order['payment_method'] === 'pay_later'): ?>
+                        Bếp Đã Nhận Đơn An Lành
+                    <?php else: ?>
+                        Bếp Đã Tạm Giữ Chỗ Cho Bạn
+                    <?php endif; ?>
                 </h1>
                 <p style="font-size: 0.8rem; color: var(--text-muted-warm);">
                     Mã đơn hàng: <strong style="color: var(--brand-tea-green);"><?= htmlspecialchars((string)$order['order_code'], ENT_QUOTES, 'UTF-8') ?></strong>
                 </p>
             </header>
 
-            <?php if ($order['payment_method'] === 'pay_later'): ?>
+            <?php if ($order['payment_status'] === 'paid'): ?>
+                <!-- Đã thanh toán thành công (Issue #16) -->
+                <section class="zen-card" style="background-color: #ECFDF5; border: 1.5px solid #10B981; text-align: center; padding: 22px 16px;">
+                    <div style="font-size: 2.2rem; margin-bottom: 8px;">🌸</div>
+                    <h2 style="font-size: 1.15rem; color: #065F46; font-weight: 700; margin-bottom: 6px;">
+                        Đã Nhận Chuyển Khoản Thành Công!
+                    </h2>
+                    <p style="font-size: 0.82rem; color: #047857; line-height: 1.5;">
+                        Bếp An Yên đã nhận được thanh toán <strong><?= number_format((int)$order['total_amount'], 0, ',', '.') ?>đ</strong> từ bạn.
+                    </p>
+                    <p style="font-size: 0.76rem; color: #059669; margin-top: 6px;">
+                        Nồi nước dùng đang sôi liu riu chờ bạn ghé vào khung giờ <strong><?= htmlspecialchars((string)$order['slot_time'], ENT_QUOTES, 'UTF-8') ?></strong> nhé.
+                    </p>
+                </section>
+
+            <?php elseif ($order['payment_method'] === 'pay_later'): ?>
                 <!-- Đơn dành cho khách quen (trả sau) -->
                 <section class="zen-card" style="background-color: var(--brand-sage-light); border-color: var(--brand-border-soft);">
                     <div style="display: flex; gap: 10px; align-items: flex-start;">
@@ -174,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </section>
 
             <?php else: ?>
-                <!-- Đơn chuyển khoản VietQR -->
+                <!-- Đơn chuyển khoản VietQR (Chưa thanh toán) -->
                 <section class="zen-card" style="text-align: center;">
                     <p style="font-size: 0.8rem; color: var(--text-muted-warm); margin-bottom: 12px;">
                         Quét mã VietQR chuyển khoản để bếp hoàn tất giữ suất bún/phở nhé:
@@ -213,6 +239,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <strong id="codeText"><?= htmlspecialchars((string)$order['order_code'], ENT_QUOTES, 'UTF-8') ?></strong>
                             <button type="button" class="copy-pill" onclick="copyText('codeText')">Sao chép</button>
                         </div>
+                    </div>
+
+                    <!-- Thông báo ứng dụng hỗ trợ & tự động xác nhận (Issue #16) -->
+                    <div style="margin-top: 10px; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px; padding: 10px; text-align: left; font-size: 0.74rem; color: #475569; line-height: 1.45;">
+                        <p style="margin-bottom: 4px;">
+                            📱 <strong>Ứng dụng hỗ trợ:</strong> Hầu hết 40+ ứng dụng Ngân hàng (VCB, MB, Techcombank, BIDV, VPBank, ACB, Agribank...) và Ví MoMo, ZaloPay (chuyển Napas 247 bằng VietQR).
+                        </p>
+                        <p style="color: #047857;">
+                            ⚡ <strong>Xác nhận tức thời:</strong> Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống tự động xác nhận trong 5 - 15 giây.
+                        </p>
+                    </div>
+
+                    <div id="paymentCheckingIndicator" style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.74rem; color: var(--brand-tea-green); margin-top: 12px;">
+                        <span style="animation: pulse 1.5s infinite;">⏳</span>
+                        <span>Hệ thống đang tự động lắng nghe xác nhận từ ngân hàng...</span>
                     </div>
                 </section>
             <?php endif; ?>
@@ -297,9 +338,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         function copyRaw(val) {
             navigator.clipboard.writeText(val).then(() => {
-                alert('Đã sao chép số tiền: ' + val);
+                alert('Đã sao chép: ' + val);
             });
         }
+
+        // Tự động kiểm tra trạng thái thanh toán theo thời gian thực (Issue #16)
+        (function() {
+            const isPaid = <?= ($order && $order['payment_status'] === 'paid') ? 'true' : 'false' ?>;
+            const isPayLater = <?= ($order && $order['payment_method'] === 'pay_later') ? 'true' : 'false' ?>;
+            const orderCode = '<?= $order ? htmlspecialchars((string)$order['order_code'], ENT_QUOTES, 'UTF-8') : '' ?>';
+
+            if (!isPaid && !isPayLater && orderCode) {
+                const interval = setInterval(function() {
+                    fetch(`api.php?action=check_payment_status&order_code=${encodeURIComponent(orderCode)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data && data.success && data.is_paid) {
+                                clearInterval(interval);
+                                // Tải lại trang để hiển thị màn hình xác nhận thanh toán thành công
+                                window.location.reload();
+                            }
+                        })
+                        .catch(() => {});
+                }, 3500);
+            }
+        })();
     </script>
 </body>
 </html>

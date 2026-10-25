@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS time_slots (
     slot_time TEXT NOT NULL,
     max_capacity INTEGER NOT NULL DEFAULT 12,
     is_active INTEGER NOT NULL DEFAULT 1,
+    is_closed INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -53,6 +54,8 @@ CREATE TABLE IF NOT EXISTS orders (
     order_status TEXT NOT NULL DEFAULT 'confirmed' CHECK(order_status IN ('pending', 'confirmed', 'completed', 'cancelled')),
     customer_note TEXT NULL,
     admin_note TEXT NULL,
+    paid_at DATETIME NULL,
+    transaction_ref TEXT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_phone) REFERENCES customers(phone) ON UPDATE CASCADE,
     FOREIGN KEY (slot_id) REFERENCES time_slots(id) ON DELETE RESTRICT

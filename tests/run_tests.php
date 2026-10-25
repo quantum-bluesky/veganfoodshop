@@ -32,6 +32,7 @@ use Tests\Unit\OrderCalculationTest;
 use Tests\Unit\ZaloAuthServiceTest;
 use Tests\Unit\MigrationServiceTest;
 use Tests\Unit\NotificationOutboxTest;
+use Tests\Unit\Issue14_15_16_FeaturesTest;
 use Tests\Integration\CreateOrderTransactionTest;
 use Tests\Integration\SlotConcurrencyTest;
 
@@ -42,6 +43,7 @@ $testSuites = [
     'Unit Tests - Zalo OAuth Service' => new ZaloAuthServiceTest(),
     'Unit Tests - Auto-Migration Service' => new MigrationServiceTest(),
     'Unit Tests - Hàng Đợi Thông Báo SQLite' => new NotificationOutboxTest(),
+    'Unit Tests - Issue 14, 15, 16 Tính Năng Mới' => new Issue14_15_16_FeaturesTest(),
     'Integration Tests - Transaction An Toàn' => new CreateOrderTransactionTest(),
     'Integration Tests - Khóa Suất Biên' => new SlotConcurrencyTest(),
 ];

@@ -163,6 +163,26 @@ $menuItems = $menuService->getActiveMenu();
             </div>
         </section>
 
+        <!-- Thẻ Nhắc Nhở Lịch Hẹn Sắp Tới Cá Nhân Hóa (Issue #14) -->
+        <section id="upcomingBookingBanner" class="hidden" style="background: #ECFDF5; border: 1.5px solid #10B981; border-radius: var(--radius-input); padding: 12px 14px; margin-top: -6px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 1.25rem;">🌿</span>
+                    <div>
+                        <div style="font-weight: 700; font-size: 0.8rem; color: #065F46;">
+                            Nhắc bạn lịch hẹn sắp tới
+                        </div>
+                        <div id="upcomingBookingText" style="font-size: 0.74rem; color: #047857; line-height: 1.4;">
+                            <!-- JS tự động điền -->
+                        </div>
+                    </div>
+                </div>
+                <button type="button" id="btnViewUpcoming" style="background: #059669; color: #FFFFFF; border: none; border-radius: 6px; padding: 5px 9px; font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                    Xem đơn ↗
+                </button>
+            </div>
+        </section>
+
         <?php if ($shopClosedStatusToday['is_closed']): ?>
             <!-- Thông báo Bếp Tạm Nghỉ / Đi Vắng (Issue #12) -->
             <section style="background-color: #FDF6EE; border: 1.5px solid #EBD5BE; border-radius: var(--radius-card); padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start;" aria-label="Thông báo tạm nghỉ">
@@ -370,9 +390,14 @@ $menuItems = $menuService->getActiveMenu();
                                 <div id="zaloProfilePhone" style="font-size: 0.75rem; color: #4B5563;"></div>
                             </div>
                         </div>
-                        <button type="button" id="zaloLogoutBtn" style="background: none; border: none; color: #6B7280; font-size: 0.75rem; cursor: pointer; text-decoration: underline; padding: 4px;">
-                            Đổi tài khoản
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button type="button" id="btnOpenMyBookings" style="background: #DBEAFE; border: 1px solid #BFDBFE; color: #1E40AF; font-size: 0.72rem; border-radius: 6px; padding: 4px 8px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                📅 Đơn của tôi
+                            </button>
+                            <button type="button" id="zaloLogoutBtn" style="background: none; border: none; color: #6B7280; font-size: 0.75rem; cursor: pointer; text-decoration: underline; padding: 4px;">
+                                Đổi
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -454,13 +479,31 @@ $menuItems = $menuService->getActiveMenu();
             <?php endif; ?>
         </form>
 
+        <!-- MODAL: Lịch Đặt Của Tôi (Issue #14) -->
+        <div id="myBookingsModal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999; display: flex; align-items: flex-end; justify-content: center;">
+            <div style="background: #FAF7F2; width: 100%; max-width: 448px; max-height: 85vh; border-radius: 24px 24px 0 0; padding: 20px 18px 30px 18px; display: flex; flex-direction: column; box-shadow: 0 -4px 20px rgba(0,0,0,0.15); animation: slideUp 0.25s ease-out;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--brand-border-soft); padding-bottom: 12px; margin-bottom: 14px;">
+                    <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--brand-tea-dark); display: flex; align-items: center; gap: 6px; margin: 0;">
+                        <span>🌿</span> Lịch Đặt Của Tôi
+                    </h3>
+                    <button type="button" id="btnCloseMyBookings" style="background: none; border: none; font-size: 1.3rem; color: var(--text-muted-warm); cursor: pointer; padding: 4px 8px;">✕</button>
+                </div>
+                <div id="myBookingsList" style="overflow-y: auto; display: flex; flex-direction: column; gap: 12px; flex: 1;">
+                    <p style="text-align: center; color: var(--text-muted-warm); font-size: 0.82rem; padding: 20px 0;">Đang tải lịch đặt...</p>
+                </div>
+            </div>
+        </div>
+
         <footer style="text-align: center; font-size: 0.72rem; color: var(--text-muted-warm); margin-top: 10px;">
             <p>Bếp Chay An Yên • Bình an trong từng bát bún phở</p>
         </footer>
 
     </main>
 
-    <!-- Client Script -->
+    <!-- Client Script & Config -->
+    <script>
+        window.REQUIRE_ZALO_LOGIN = <?= $requireZaloLogin ? 'true' : 'false' ?>;
+    </script>
     <script src="assets/js/app.js"></script>
 </body>
 </html>

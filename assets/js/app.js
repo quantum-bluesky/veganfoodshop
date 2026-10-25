@@ -240,6 +240,125 @@ document.addEventListener('DOMContentLoaded', function () {
         const zaloLogoutBtn = document.getElementById('zaloLogoutBtn');
         const custZaloId = document.getElementById('custZaloId');
         const custAvatarUrl = document.getElementById('custAvatarUrl');
+        const upcomingBookingBanner = document.getElementById('upcomingBookingBanner');
+        const upcomingBookingText = document.getElementById('upcomingBookingText');
+        const btnViewUpcoming = document.getElementById('btnViewUpcoming');
+        const btnOpenMyBookings = document.getElementById('btnOpenMyBookings');
+        const myBookingsModal = document.getElementById('myBookingsModal');
+        const btnCloseMyBookings = document.getElementById('btnCloseMyBookings');
+        const myBookingsList = document.getElementById('myBookingsList');
+
+        let myOrdersData = [];
+
+        function renderMyBookings(orders) {
+            if (!myBookingsList) return;
+            if (!orders || orders.length === 0) {
+                myBookingsList.innerHTML = `
+                    <div style="text-align: center; padding: 30px 10px; color: var(--text-muted-warm); font-size: 0.85rem;">
+                        <span style="font-size: 2rem; display: block; margin-bottom: 8px;">🍃</span>
+                        Bạn chưa có đơn đặt món nào gần đây.<br>Hãy chọn một ca lành hôm nay để bếp phục vụ nhé!
+                    </div>
+                `;
+                return;
+            }
+
+            myBookingsList.innerHTML = orders.map(order => {
+                const isPaid = order.payment_status === 'paid';
+                const isPayLater = order.payment_status === 'pay_later';
+                const isCancelled = order.order_status === 'cancelled';
+                
+                let paymentBadge = '<span style="font-size: 0.7rem; background: #FEF3C7; color: #92400E; padding: 2px 6px; border-radius: 6px; font-weight: 600;">Chờ VietQR</span>';
+                if (isPaid) {
+                    paymentBadge = '<span style="font-size: 0.7rem; background: #D1FAE5; color: #065F46; padding: 2px 6px; border-radius: 6px; font-weight: 600;">✓ Đã thanh toán</span>';
+                } else if (isPayLater) {
+                    paymentBadge = '<span style="font-size: 0.7rem; background: #E0E7FF; color: #3730A3; padding: 2px 6px; border-radius: 6px; font-weight: 600;">Trả sau tại bếp</span>';
+                }
+
+                let statusBadge = '<span style="font-size: 0.7rem; background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 6px;">Đã xác nhận</span>';
+                if (order.order_status === 'completed') {
+                    statusBadge = '<span style="font-size: 0.7rem; background: #E5E7EB; color: #374151; padding: 2px 6px; border-radius: 6px;">Hoàn tất</span>';
+                } else if (isCancelled) {
+                    statusBadge = '<span style="font-size: 0.7rem; background: #FEE2E2; color: #991B1B; padding: 2px 6px; border-radius: 6px;">Đã hủy</span>';
+                }
+
+                const itemsText = (order.items || []).map(it => `${it.item_name} x${it.quantity}`).join(', ');
+
+                return `
+                    <div style="background: #FFFFFF; border: 1px solid var(--brand-border-soft); border-radius: 14px; padding: 12px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                            <div>
+                                <strong style="font-size: 0.88rem; color: var(--brand-tea-dark);">${order.order_code}</strong>
+                                <div style="font-size: 0.74rem; color: var(--brand-tea-green); font-weight: 600; margin-top: 2px;">
+                                    ⏰ Ca ${order.slot_time} • ${order.slot_date}
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                                ${paymentBadge}
+                                ${statusBadge}
+                            </div>
+                        </div>
+
+                        <div style="font-size: 0.76rem; color: var(--text-muted-warm); margin-bottom: 6px; line-height: 1.4;">
+                            ${order.order_type === 'dine_in' ? '🍵 Ghé ăn tại bếp' : '🥡 Ship mang về'}: ${itemsText}
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--brand-border-soft); padding-top: 8px; margin-top: 6px;">
+                            <span style="font-size: 0.85rem; font-weight: 700; color: var(--brand-tea-dark);">
+                                ${new Intl.NumberFormat('vi-VN').format(order.total_amount)}đ
+                            </span>
+                            <div style="display: flex; gap: 6px;">
+                                ${(!isPaid && !isPayLater && !isCancelled) ? `
+                                    <a href="process_order.php?code=${encodeURIComponent(order.order_code)}" 
+                                       style="font-size: 0.72rem; background: #0068FF; color: #FFFFFF; padding: 4px 8px; border-radius: 6px; text-decoration: none; font-weight: 600;">
+                                        Mở VietQR ↗
+                                    </a>
+                                ` : ''}
+                                <a href="process_order.php?code=${encodeURIComponent(order.order_code)}" 
+                                   style="font-size: 0.72rem; background: #F3F4F6; color: #374151; padding: 4px 8px; border-radius: 6px; text-decoration: none;">
+                                    Chi tiết
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadMyBookings(identifier) {
+            if (!identifier) return;
+            fetch(`api.php?action=get_my_orders&identifier=${encodeURIComponent(identifier)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.success) {
+                        myOrdersData = data.orders || [];
+                        renderMyBookings(myOrdersData);
+
+                        // Xử lý Thẻ Nhắc Nhở Lịch Hẹn Sắp Tới (Issue #14)
+                        if (data.upcoming && upcomingBookingBanner && upcomingBookingText) {
+                            const up = data.upcoming;
+                            const typeStr = up.order_type === 'dine_in' ? 'tại chỗ' : 'ship mang về';
+                            upcomingBookingText.innerHTML = `Bạn có lịch hẹn dùng bữa <strong>${typeStr}</strong> vào <strong>Ca ${up.slot_time} - ${up.slot_date}</strong> (Đơn <strong>#${up.order_code}</strong>). Bếp đang chuẩn bị chu đáo để đón bạn ghé nhé!`;
+                            upcomingBookingBanner.classList.remove('hidden');
+                            upcomingBookingBanner.style.display = 'block';
+
+                            if (btnViewUpcoming) {
+                                btnViewUpcoming.onclick = function() {
+                                    if (myBookingsModal) {
+                                        myBookingsModal.classList.remove('hidden');
+                                        myBookingsModal.style.display = 'flex';
+                                    }
+                                };
+                            }
+                        } else if (upcomingBookingBanner) {
+                            upcomingBookingBanner.classList.add('hidden');
+                            upcomingBookingBanner.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Lỗi tải lịch đặt của tôi:', err);
+                });
+        }
 
         function checkZaloSession() {
             let savedZalo = null;
@@ -282,6 +401,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (custZaloId) custZaloId.value = savedZalo.zalo_id || '';
                 if (custAvatarUrl) custAvatarUrl.value = savedZalo.avatar_url || '';
+
+                // Tải lịch đặt cá nhân (Issue #14)
+                loadMyBookings(savedZalo.zalo_id || savedZalo.phone);
             } else {
                 // Chưa đăng nhập Zalo
                 if (zaloLoginSection) zaloLoginSection.classList.remove('hidden');
@@ -291,7 +413,35 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 if (custZaloId) custZaloId.value = '';
                 if (custAvatarUrl) custAvatarUrl.value = '';
+
+                if (upcomingBookingBanner) {
+                    upcomingBookingBanner.classList.add('hidden');
+                    upcomingBookingBanner.style.display = 'none';
+                }
             }
+        }
+
+        if (btnOpenMyBookings && myBookingsModal) {
+            btnOpenMyBookings.addEventListener('click', function () {
+                myBookingsModal.classList.remove('hidden');
+                myBookingsModal.style.display = 'flex';
+            });
+        }
+
+        if (btnCloseMyBookings && myBookingsModal) {
+            btnCloseMyBookings.addEventListener('click', function () {
+                myBookingsModal.classList.add('hidden');
+                myBookingsModal.style.display = 'none';
+            });
+        }
+
+        if (myBookingsModal) {
+            myBookingsModal.addEventListener('click', function (e) {
+                if (e.target === myBookingsModal) {
+                    myBookingsModal.classList.add('hidden');
+                    myBookingsModal.style.display = 'none';
+                }
+            });
         }
 
         if (zaloLogoutBtn) {
@@ -314,10 +464,24 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // 7. Kiểm tra validation trước khi gửi form (chống submit 2 lần liên tiếp)
+        // 7. Kiểm tra validation trước khi gửi form (Fix bug bắt buộc Zalo & chống submit 2 lần liên tiếp)
         orderForm.addEventListener('submit', function (e) {
             if (isSubmitting) {
                 e.preventDefault();
+                return false;
+            }
+
+            // Fix bug: Kiểm tra bắt buộc đăng nhập Zalo nếu hệ thống yêu cầu
+            if (window.REQUIRE_ZALO_LOGIN && (!custZaloId || !custZaloId.value.trim())) {
+                e.preventDefault();
+                alert('Bạn thương ơi, bếp cần bạn bấm "Đăng nhập Zalo để tự động điền" phía trên để kết nối giữ chỗ trước khi gửi đơn nhé.');
+                const zaloContainer = document.getElementById('zaloAuthContainer');
+                if (zaloContainer) {
+                    zaloContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    zaloContainer.style.transition = 'all 0.3s ease';
+                    zaloContainer.style.boxShadow = '0 0 0 3px rgba(0, 104, 255, 0.4)';
+                    setTimeout(() => zaloContainer.style.boxShadow = '', 2500);
+                }
                 return false;
             }
 

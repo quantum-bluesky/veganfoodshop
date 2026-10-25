@@ -58,6 +58,26 @@ class NotificationService
     }
 
     /**
+     * Đưa sự kiện thông báo tùy biến vào hàng đợi Outbox (Issue #13 & #16)
+     */
+    public function enqueue(string $eventKey, string $eventType, ?int $orderId, string $channel, array $payload): bool
+    {
+        $payloadJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        $stmt = $this->db->prepare('
+            INSERT OR IGNORE INTO notification_outbox 
+            (event_key, event_type, order_id, channel, status, payload_json, created_at)
+            VALUES (:key, :type, :order_id, :channel, \'pending\', :payload, CURRENT_TIMESTAMP)
+        ');
+        return $stmt->execute([
+            ':key' => $eventKey,
+            ':type' => $eventType,
+            ':order_id' => $orderId,
+            ':channel' => $channel,
+            ':payload' => $payloadJson,
+        ]);
+    }
+
+    /**
      * Lấy các bản ghi cần xử lý trong hàng đợi
      * Hỗ trợ tự động phục hồi các job kẹt 'processing' quá 5 phút
      */

@@ -63,6 +63,15 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - Nút bấm *"🚀 Xử Lý Hàng Đợi Ngay"* để gửi ngay trên web không cần đợi cron.
       - Nút *"🔄 Gửi lại"* thủ công cho từng thông báo bị lỗi.
     - **Worker linh hoạt:** Cung cấp cả Worker PHP CLI (`bin/notification_worker.php`) và Worker Python 3 (`bin/notification_worker.py`) hỗ trợ cả chế độ `--run-once` (Crontab) lẫn `--daemon --sleep=5` (Systemd service).
+11. **Lịch Đặt Zalo, Nhân Bản Ca Hàng Loạt & Tự Động Đối Soát Thanh Toán (v1.5.0 - Issues #14, #15, #16):**
+    - **Fix Bug Bắt Buộc Đăng Nhập Zalo:** Kiểm tra đa tầng (Backend `OrderService` + Server-side `process_order.php` + Client `app.js`), ngăn chặn hoàn toàn việc gửi đơn nếu bật `require_zalo_login` mà khách chưa đăng nhập Zalo.
+    - **Lịch Đặt & Nhắc Nhở Cá Nhân Hóa (Issue #14):** Khách đăng nhập Zalo có thể xem lại lịch sử đặt chỗ kèm trạng thái thanh toán và mã đơn; trang chủ tự động hiển thị Banner nhắc nhở nhẹ nhàng về đơn đặt sắp tới gần nhất.
+    - **Nhân Bản Lịch Ca Hàng Loạt & Đồng Bộ Tuần (Issue #15):** Chọn một ngày mẫu có sẵn để nhân bản nhanh cho 1 tuần hoặc 1 tháng; bộ lọc chọn thứ trong tuần mở ca linh hoạt (T2-T6, T7-CN, cả tuần); nút bấm đồng bộ các ca mở trong tuần theo ngày chỉnh sửa.
+    - **Báo Cáo Chốt Sổ Ngày & Đóng Ca Lịch Sử (Issue #16 - Phần 1):** Tách biệt các ca đang phục vụ với các ca đã qua (`is_closed`); hỗ trợ chốt ca và chốt sổ toàn bộ ngày, chuyển đơn đã xác nhận sang hoàn tất; bảng báo cáo thống kê doanh thu thực tế, doanh thu chờ thu và tổng suất món đã nấu.
+    - **Tự Động Xác Nhận Thanh Toán & Đối Soát Tài Chính (Issue #16 - Phần 2):**
+      - Tự động nhận diện thanh toán thành công theo thời gian thực (Polling JS chu kỳ 3.5s + API Webhook `api.php?action=bank_webhook`).
+      - Hướng dẫn VietQR minh bạch, hỗ trợ hơn 40 ứng dụng ngân hàng và ví điện tử, hướng dẫn giữ nguyên cú pháp nội dung chuyển khoản `AY-YYYYMMDD-XXXX`.
+      - Bảng đối soát tài chính trên Admin giúp bóc tách mã đơn tự động từ tin nhắn ngân hàng và xác nhận thu tiền tức thì.
 
 ---
 

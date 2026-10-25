@@ -267,6 +267,97 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $processedCount = $notificationService->processQueue(20);
             $message = sprintf('Đã chạy xử lý hàng đợi thông báo thành công (Đã xử lý %d thông báo).', $processedCount);
             break;
+
+        // 7. Nhân bản & đồng bộ lịch ca (Issue #15)
+        case 'replicate_slots':
+            $templateDate = trim((string)($_POST['template_date'] ?? ''));
+            $period = (string)($_POST['period'] ?? '1_week');
+            $rawDays = (array)($_POST['days_of_week'] ?? []);
+            $daysOfWeek = array_map('intval', $rawDays);
+            $overwrite = isset($_POST['overwrite_existing']) ? true : false;
+
+            $startDate = date('Y-m-d');
+            if ($period === '1_week') {
+                $endDate = date('Y-m-d', strtotime('+7 days'));
+            } elseif ($period === '2_weeks') {
+                $endDate = date('Y-m-d', strtotime('+14 days'));
+            } elseif ($period === '1_month') {
+                $endDate = date('Y-m-d', strtotime('+30 days'));
+            } else {
+                $startDate = trim((string)($_POST['start_date'] ?? date('Y-m-d')));
+                $endDate = trim((string)($_POST['end_date'] ?? date('Y-m-d', strtotime('+7 days'))));
+            }
+
+            if (empty($daysOfWeek)) {
+                $daysOfWeek = [1, 2, 3, 4, 5, 6, 0];
+            }
+
+            try {
+                $res = $slotService->replicateSlots($templateDate, $daysOfWeek, $startDate, $endDate, $overwrite);
+                $message = sprintf('Đã nhân bản thành công %d ca phục vụ cho %d ngày mở ca (theo ngày mẫu %s).', $res['created_count'], $res['days_count'], $templateDate);
+            } catch (\Throwable $e) {
+                $message = 'Lỗi nhân bản ca: ' . $e->getMessage();
+            }
+            break;
+
+        case 'sync_week_slots':
+            $sourceDate = trim((string)($_POST['source_date'] ?? ''));
+            try {
+                $res = $slotService->syncWeekSlotsFromDate($sourceDate);
+                $message = sprintf('Đã đồng bộ thành công %d ca phục vụ cho các ngày mở trong tuần theo ngày mẫu %s.', $res['created_count'], $sourceDate);
+            } catch (\Throwable $e) {
+                $message = 'Lỗi đồng bộ tuần: ' . $e->getMessage();
+            }
+            break;
+
+        case 'delete_slot':
+            $slotId = (int)$_POST['slot_id'];
+            try {
+                $slotService->deleteSlot($slotId);
+                $message = 'Đã xóa ca phục vụ thành công.';
+            } catch (\Throwable $e) {
+                $message = 'Không thể xóa ca: ' . $e->getMessage();
+            }
+            break;
+
+        // 8. Đối soát thanh toán & chốt ca / ngày (Issue #16)
+        case 'reconcile_payment':
+            $rawInput = trim((string)($_POST['raw_input'] ?? ''));
+            $ref = trim((string)($_POST['transaction_ref'] ?? ''));
+            $amount = !empty($_POST['paid_amount']) ? (int)$_POST['paid_amount'] : null;
+
+            $orderCode = trim((string)($_POST['order_code'] ?? ''));
+            if ($orderCode === '' && $rawInput !== '') {
+                if (preg_match('/AY-\d{8}-[A-Z0-9]{4}/i', $rawInput, $matches)) {
+                    $orderCode = strtoupper($matches[0]);
+                } else {
+                    $orderCode = $rawInput;
+                }
+            }
+
+            if ($orderCode === '') {
+                $message = 'Vui lòng nhập mã đơn hàng hoặc nội dung biến động số dư để đối soát.';
+            } else {
+                try {
+                    $reconciled = $orderService->reconcilePayment($orderCode, $ref ?: 'Admin-Manual', $amount);
+                    $message = sprintf('Đã đối soát & xác nhận thanh toán thành công cho đơn %s (%sđ).', $reconciled['order_code'], number_format((int)$reconciled['total_amount'], 0, ',', '.'));
+                } catch (\Throwable $e) {
+                    $message = 'Lỗi đối soát thanh toán: ' . $e->getMessage();
+                }
+            }
+            break;
+
+        case 'close_slot':
+            $slotId = (int)$_POST['slot_id'];
+            $summary = $orderService->closeSlot($slotId, true);
+            $message = sprintf('Đã chốt sổ ca phục vụ #%d thành công. Đã hoàn tất các đơn đang phục vụ.', $slotId);
+            break;
+
+        case 'close_day':
+            $closeDate = trim((string)($_POST['close_date'] ?? date('Y-m-d')));
+            $closingReport = $orderService->closeDay($closeDate, true);
+            $message = sprintf('Đã chốt sổ toàn bộ ngày %s thành công. Doanh thu ghi nhận: %sđ.', $closeDate, number_format((int)$closingReport['total_revenue'], 0, ',', '.'));
+            break;
     }
 }
 
@@ -288,8 +379,19 @@ if ($orderScope === '' && !isset($_GET['slot_id'])) {
 
 $selectedSlotId = (int)($_GET['slot_id'] ?? 0);
 $todayDate = date('Y-m-d');
+$closingReportDate = (string)($_GET['closing_date'] ?? $todayDate);
 
-if ($orderScope === 'today_all') {
+$kitchenSummary = [];
+$slotOrders = [];
+$pendingReconcileOrders = [];
+$dailyClosingReport = [];
+
+if ($orderScope === 'pending_reconcile') {
+    $pendingReconcileOrders = $orderService->getPendingReconcileOrders(100);
+} elseif ($orderScope === 'daily_closing') {
+    $dailyClosingReport = $orderService->getClosingReport($closingReportDate);
+    $slotOrders = $orderService->getOrdersByDate($closingReportDate);
+} elseif ($orderScope === 'today_all') {
     $kitchenSummary = $orderService->getKitchenSummaryByDate($todayDate);
     $slotOrders = $orderService->getOrdersByDate($todayDate);
 } elseif ($selectedSlotId > 0) {
@@ -299,6 +401,10 @@ if ($orderScope === 'today_all') {
     $kitchenSummary = $orderService->getKitchenSummaryByDate($todayDate);
     $slotOrders = $orderService->getOrdersByDate($todayDate);
 }
+
+// Thống kê tồn đọng đối soát để hiển thị badge
+$allPendingReconcile = $orderService->getPendingReconcileOrders(50);
+$pendingReconcileCount = count($allPendingReconcile);
 
 // Tab Customers
 $customerSearch = (string)($_GET['search_cust'] ?? '');
@@ -435,7 +541,14 @@ $notifStats = $notificationService->getStats();
         <!-- Thanh điều hướng Tab -->
         <nav class="admin-nav">
             <a href="admin.php?tab=slots" class="admin-tab <?= $currentTab === 'slots' ? 'active' : '' ?>">⏰ Lịch Ca (Slots)</a>
-            <a href="admin.php?tab=orders" class="admin-tab <?= $currentTab === 'orders' ? 'active' : '' ?>">🍲 Bếp & Đơn Hàng</a>
+            <a href="admin.php?tab=orders" class="admin-tab <?= $currentTab === 'orders' ? 'active' : '' ?>">
+                🍲 Bếp & Đơn Hàng
+                <?php if (!empty($pendingReconcileCount) && $pendingReconcileCount > 0): ?>
+                    <span style="background: #D97706; color: #FFFFFF; font-size: 0.65rem; padding: 2px 6px; border-radius: 999px; margin-left: 4px; font-weight: 700;" title="Đơn cần đối soát thanh toán">
+                        <?= $pendingReconcileCount ?>
+                    </span>
+                <?php endif; ?>
+            </a>
             <a href="admin.php?tab=customers" class="admin-tab <?= $currentTab === 'customers' ? 'active' : '' ?>">🌿 Khách Quen</a>
             <a href="admin.php?tab=menu" class="admin-tab <?= $currentTab === 'menu' ? 'active' : '' ?>">🥢 Thực Đơn</a>
             <a href="admin.php?tab=notifications" class="admin-tab <?= $currentTab === 'notifications' ? 'active' : '' ?>">
@@ -477,6 +590,66 @@ $notifStats = $notificationService->getStats();
                 </form>
             </div>
 
+            <!-- Nhân bản ca hàng loạt 1 tuần / 1 tháng từ ngày mẫu (Issue #15) -->
+            <div class="zen-card" style="margin-bottom: 16px; background: #FAF7F2; border: 1.5px dashed var(--brand-border-soft);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h2 style="font-size: 0.95rem; font-weight: 700; color: var(--brand-tea-dark); display: flex; align-items: center; gap: 6px; margin: 0;">
+                        <span>📅</span> Nhân Bản Lịch Ca Hàng Loạt (Tuần / Tháng)
+                    </h2>
+                    <span style="font-size: 0.72rem; color: var(--brand-tea-green); font-weight: 600;">Issue #15</span>
+                </div>
+                <p style="font-size: 0.78rem; color: var(--text-muted-warm); margin-bottom: 12px; line-height: 1.45;">
+                    Tạo sẵn các ca mẫu cho một ngày (ví dụ: hôm nay), sau đó nhân bản nhanh cho 1 tuần hoặc 1 tháng tới theo các thứ trong tuần được mở ca.
+                </p>
+                <form method="POST" style="display: flex; flex-direction: column; gap: 12px;">
+                    <input type="hidden" name="admin_action" value="replicate_slots">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Ngày lấy làm mẫu:</label>
+                            <input type="date" name="template_date" class="zen-input" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm); display: block; margin-bottom: 4px;">Khoảng thời gian nhân bản:</label>
+                            <select name="period" class="zen-input">
+                                <option value="1_week">1 Tuần tới (7 ngày)</option>
+                                <option value="2_weeks">2 Tuần tới (14 ngày)</option>
+                                <option value="1_month">1 Tháng tới (30 ngày)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm);">Chọn các thứ trong tuần được mở ca:</label>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" class="copy-pill" onclick="setSlotWeekdays('weekdays')">T2 - T6</button>
+                                <button type="button" class="copy-pill" onclick="setSlotWeekdays('weekends')">T7 & CN</button>
+                                <button type="button" class="copy-pill" onclick="setSlotWeekdays('all')">Cả tuần</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; background: #FFFFFF; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--brand-border-soft);" id="slotWeekdayGroup">
+                            <label style="font-size: 0.78rem; display: flex; align-items: center; gap: 4px;"><input type="checkbox" name="days_of_week[]" value="1" checked> Thứ 2</label>
+                            <label style="font-size: 0.78rem; display: flex; align-items: center; gap: 4px;"><input type="checkbox" name="days_of_week[]" value="2" checked> Thứ 3</label>
+                            <label style="font-size: 0.78rem; display: flex; align-items: center; gap: 4px;"><input type="checkbox" name="days_of_week[]" value="3" checked> Thứ 4</label>
+                            <label style="font-size: 0.78rem; display: flex; align-items: center; gap: 4px;"><input type="checkbox" name="days_of_week[]" value="4" checked> Thứ 5</label>
+                            <label style="font-size: 0.78rem; display: flex; align-items: center; gap: 4px;"><input type="checkbox" name="days_of_week[]" value="5" checked> Thứ 6</label>
+                            <label style="font-size: 0.78rem; display: flex; align-items: center; gap: 4px;"><input type="checkbox" name="days_of_week[]" value="6" checked> Thứ 7</label>
+                            <label style="font-size: 0.78rem; display: flex; align-items: center; gap: 4px;"><input type="checkbox" name="days_of_week[]" value="0" checked> Chủ Nhật</label>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 6px;">
+                        <label style="font-size: 0.76rem; color: var(--text-muted-warm); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" name="overwrite_existing" value="1">
+                            <span>Làm mới các ca chưa có đơn trong các ngày mở</span>
+                        </label>
+                        <button type="submit" class="zen-btn-primary" style="padding: 9px 18px; border-radius: 12px; font-size: 0.82rem;">
+                            🚀 Bắt Đầu Nhân Bản Ca
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             <!-- Bộ lọc thời gian ca phục vụ -->
             <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
                 <a href="admin.php?tab=slots&slot_filter=upcoming" class="action-btn" style="text-decoration: none; padding: 6px 12px; border-radius: 8px; <?= $slotFilter === 'upcoming' ? 'background: var(--brand-tea-green); color: white;' : '' ?>">
@@ -513,7 +686,9 @@ $notifStats = $notificationService->getStats();
                                 <tr style="<?= !empty($s['is_past']) ? 'opacity: 0.75; background: #FAF9F6;' : '' ?>">
                                     <td>
                                         <strong><?= htmlspecialchars($s['slot_date'], ENT_QUOTES, 'UTF-8') ?></strong>
-                                        <?php if (!empty($s['is_past'])): ?>
+                                        <?php if (!empty($s['is_closed'])): ?>
+                                            <span style="font-size: 0.65rem; background: #FEF3C7; color: #92400E; padding: 2px 5px; border-radius: 4px; margin-left: 4px;">Đã chốt</span>
+                                        <?php elseif (!empty($s['is_past'])): ?>
                                             <span style="font-size: 0.65rem; background: #E5E7EB; color: #4B5563; padding: 2px 5px; border-radius: 4px; margin-left: 4px;">Đã qua</span>
                                         <?php endif; ?>
                                     </td>
@@ -527,22 +702,43 @@ $notifStats = $notificationService->getStats();
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php if (!empty($s['is_past'])): ?>
+                                        <?php if (!empty($s['is_closed'])): ?>
+                                            <span style="color:#B45309; font-size: 0.78rem;">Đã chốt sổ</span>
+                                        <?php elseif (!empty($s['is_past'])): ?>
                                             <span style="color:#6B7280; font-size: 0.78rem;">Đã kết thúc</span>
                                         <?php else: ?>
                                             <?= (int)$s['is_active'] === 1 ? '<span style="color:#059669;">Đang mở</span>' : '<span style="color:#9CA3AF;">Đóng</span>' ?>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <form method="POST" style="display: inline;">
-                                            <input type="hidden" name="admin_action" value="toggle_slot">
-                                            <input type="hidden" name="slot_id" value="<?= (int)$s['id'] ?>">
-                                            <input type="hidden" name="is_active" value="<?= (int)$s['is_active'] === 1 ? '0' : '1' ?>">
-                                            <button type="submit" class="action-btn">
-                                                <?= (int)$s['is_active'] === 1 ? 'Đóng ca' : 'Mở lại' ?>
-                                            </button>
-                                        </form>
-                                        <a href="admin.php?tab=orders&scope=by_slot&slot_id=<?= (int)$s['id'] ?>" class="action-btn" style="text-decoration: none; margin-left: 4px;">Xem đơn</a>
+                                        <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                                            <form method="POST" style="display: inline;">
+                                                <input type="hidden" name="admin_action" value="toggle_slot">
+                                                <input type="hidden" name="slot_id" value="<?= (int)$s['id'] ?>">
+                                                <input type="hidden" name="is_active" value="<?= (int)$s['is_active'] === 1 ? '0' : '1' ?>">
+                                                <button type="submit" class="action-btn">
+                                                    <?= (int)$s['is_active'] === 1 ? 'Đóng ca' : 'Mở lại' ?>
+                                                </button>
+                                            </form>
+                                            
+                                            <!-- Đồng bộ lịch tuần theo ngày này (Issue #15) -->
+                                            <form method="POST" style="display: inline;" onsubmit="return confirm('Đồng bộ các ca ngày <?= $s['slot_date'] ?> cho tất cả các ngày mở trong tuần này?')">
+                                                <input type="hidden" name="admin_action" value="sync_week_slots">
+                                                <input type="hidden" name="source_date" value="<?= htmlspecialchars($s['slot_date'], ENT_QUOTES, 'UTF-8') ?>">
+                                                <button type="submit" class="action-btn" title="Đồng bộ cho các ngày trong tuần">🔄 Tuần</button>
+                                            </form>
+
+                                            <a href="admin.php?tab=orders&scope=by_slot&slot_id=<?= (int)$s['id'] ?>" class="action-btn" style="text-decoration: none;">Xem đơn</a>
+
+                                            <!-- Xóa ca chưa có đơn -->
+                                            <?php if ((int)$s['booked_count'] === 0): ?>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Bạn chắc chắn muốn xóa ca <?= $s['slot_time'] ?> ngày <?= $s['slot_date'] ?>?')">
+                                                    <input type="hidden" name="admin_action" value="delete_slot">
+                                                    <input type="hidden" name="slot_id" value="<?= (int)$s['id'] ?>">
+                                                    <button type="submit" class="action-btn" style="color: #DC2626;" title="Xóa ca chưa có đơn">✕</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -553,143 +749,444 @@ $notifStats = $notificationService->getStats();
 
         <?php elseif ($currentTab === 'orders'): ?>
             <!-- TAB 2: Bếp Chuẩn Bị & Đơn Hàng -->
-            <div class="zen-card" style="margin-bottom: 16px;">
-                <label style="font-size: 0.8rem; font-weight: 600; color: var(--brand-tea-green); margin-bottom: 6px; display: block;">
-                    Chế độ xem Bếp & Đơn Hàng:
-                </label>
-                <select onchange="window.location.href=this.value" class="zen-input" style="max-width: 480px;">
-                    <option value="admin.php?tab=orders&scope=today_all" <?= $orderScope === 'today_all' ? 'selected' : '' ?>>
-                        🌟 TỔNG HỢP TOÀN BỘ HÔM NAY (<?= date('d/m/Y') ?>)
-                    </option>
-                    <optgroup label="Xem chi tiết theo từng ca:">
+            
+            <!-- Thanh điều hướng phụ trong Tab Bếp & Đơn Hàng -->
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px;">
+                <a href="admin.php?tab=orders&scope=today_all" 
+                   class="action-btn" 
+                   style="padding: 8px 14px; font-weight: 600; text-decoration: none; border-radius: 10px; <?= $orderScope === 'today_all' ? 'background: var(--brand-tea-green); color: #FFFFFF; border-color: var(--brand-tea-green);' : '' ?>">
+                    🌟 Bếp Hôm Nay (<?= date('d/m') ?>)
+                </a>
+
+                <a href="admin.php?tab=orders&scope=pending_reconcile" 
+                   class="action-btn" 
+                   style="padding: 8px 14px; font-weight: 600; text-decoration: none; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; <?= $orderScope === 'pending_reconcile' ? 'background: #D97706; color: #FFFFFF; border-color: #D97706;' : '' ?>">
+                    <span>⚡ Chờ Đối Soát</span>
+                    <?php if ($pendingReconcileCount > 0): ?>
+                        <span style="background: <?= $orderScope === 'pending_reconcile' ? '#FFFFFF' : '#D97706' ?>; color: <?= $orderScope === 'pending_reconcile' ? '#D97706' : '#FFFFFF' ?>; font-size: 0.7rem; padding: 1px 6px; border-radius: 999px; font-weight: 700;">
+                            <?= $pendingReconcileCount ?>
+                        </span>
+                    <?php endif; ?>
+                </a>
+
+                <a href="admin.php?tab=orders&scope=daily_closing" 
+                   class="action-btn" 
+                   style="padding: 8px 14px; font-weight: 600; text-decoration: none; border-radius: 10px; <?= $orderScope === 'daily_closing' ? 'background: #4B5563; color: #FFFFFF; border-color: #4B5563;' : '' ?>">
+                    📊 Chốt Sổ Ngày & Báo Cáo
+                </a>
+
+                <div style="flex: 1; min-width: 200px;">
+                    <select onchange="window.location.href=this.value" class="zen-input" style="padding: 7px 10px; font-size: 0.8rem;">
+                        <option value="admin.php?tab=orders&scope=today_all" <?= $orderScope === 'today_all' ? 'selected' : '' ?>>-- Xem chi tiết theo từng ca --</option>
                         <?php foreach ($allUpcomingAndTodaySlots as $s): ?>
                             <option value="admin.php?tab=orders&scope=by_slot&slot_id=<?= (int)$s['id'] ?>" <?= ($orderScope === 'by_slot' && (int)$s['id'] === $selectedSlotId) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($s['slot_date'] . ' (' . $s['slot_time'] . ')' . (!empty($s['is_past']) ? ' [Đã qua]' : '') . ' - Đặt: ' . $s['booked_count'] . '/' . $s['max_capacity'], ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars($s['slot_date'] . ' (' . $s['slot_time'] . ')' . (!empty($s['is_closed']) ? ' [Đã chốt]' : (!empty($s['is_past']) ? ' [Đã qua]' : '')) . ' - Đặt: ' . $s['booked_count'] . '/' . $s['max_capacity'], ENT_QUOTES, 'UTF-8') ?>
                             </option>
                         <?php endforeach; ?>
-                    </optgroup>
-                </select>
+                    </select>
+                </div>
             </div>
 
-            <!-- Tổng hợp bếp cần nấu (Kitchen Prep Sheet) -->
-            <div class="zen-card" style="background-color: var(--brand-sage-light); margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--brand-tea-dark); margin: 0;">
-                        🍲 <?= $orderScope === 'today_all' ? 'Bảng Chuẩn Bị Bếp Toàn Bộ Hôm Nay (' . date('d/m/Y') . ')' : 'Bảng Chuẩn Bị Bếp Cho Ca Này' ?>
-                    </h3>
-                    <span style="font-size: 0.78rem; color: var(--brand-tea-green); font-weight: 700;">
-                        Tổng: <?= (int)array_sum(array_column($kitchenSummary, 'total_qty')) ?> suất món
-                    </span>
+            <?php if ($orderScope === 'pending_reconcile'): ?>
+                <!-- CHẾ ĐỘ XEM: ĐỐI SOÁT THANH TOÁN (Issue #16) -->
+                <div class="zen-card" style="margin-bottom: 16px; background: #FFFBEB; border: 1.5px solid #FCD34D;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h2 style="font-size: 0.95rem; font-weight: 700; color: #92400E; display: flex; align-items: center; gap: 6px; margin: 0;">
+                            <span>⚡</span> Đối Soát & Khớp Thanh Toán Nhanh
+                        </h2>
+                        <span style="font-size: 0.72rem; color: #B45309; font-weight: 600;">Tự động & Thủ công</span>
+                    </div>
+                    <p style="font-size: 0.78rem; color: #78350F; margin-bottom: 12px; line-height: 1.45;">
+                        Khi khách quét VietQR nhưng ứng dụng ngân hàng gửi tin nhắn/biến động số dư có độ trễ, bạn có thể dán mã đơn hàng hoặc nội dung tin nhắn ngân hàng vào đây để hệ thống tự động bóc tách mã <code>AY-...</code> và xác nhận thanh toán tức thì.
+                    </p>
+                    <form method="POST" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) 120px; gap: 10px; align-items: flex-end;">
+                        <input type="hidden" name="admin_action" value="reconcile_payment">
+                        <div>
+                            <label style="font-size: 0.72rem; color: #92400E; display: block; margin-bottom: 4px;">Mã đơn hoặc Nội dung SMS ngân hàng:</label>
+                            <input type="text" name="order_code" class="zen-input" placeholder="VD: AY-20261025-XXXX..." style="background: #FFFFFF;" required>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.72rem; color: #92400E; display: block; margin-bottom: 4px;">Mã chuẩn chi / Trace / GD ngân hàng:</label>
+                            <input type="text" name="transaction_ref" class="zen-input" placeholder="Tùy chọn: FT24..., 123456" style="background: #FFFFFF;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.72rem; color: #92400E; display: block; margin-bottom: 4px;">Số tiền khớp (đ):</label>
+                            <input type="number" name="paid_amount" class="zen-input" placeholder="Tùy chọn" style="background: #FFFFFF;">
+                        </div>
+                        <div>
+                            <button type="submit" class="zen-btn-primary" style="background: #D97706; border-color: #D97706; padding: 11px 14px; border-radius: 12px; font-size: 0.85rem; width: 100%;">
+                                ✓ Xác Nhận
+                            </button>
+                        </div>
+                    </form>
                 </div>
 
-                <?php if (empty($kitchenSummary)): ?>
-                    <p style="font-size: 0.8rem; color: var(--text-muted-warm); margin-top: 4px;">Chưa có món nào được đặt cho mục này.</p>
-                <?php else: ?>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px;">
-                        <?php foreach ($kitchenSummary as $ks): ?>
-                            <div style="background: #FFFFFF; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--brand-border-soft); font-size: 0.82rem; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
-                                <strong><?= htmlspecialchars($ks['name'], ENT_QUOTES, 'UTF-8') ?>:</strong> 
-                                <span style="font-size: 1.05rem; color: var(--brand-tea-green); font-weight: 700;"><?= (int)$ks['total_qty'] ?></span> suất
-                            </div>
-                        <?php endforeach; ?>
+                <div class="zen-card" style="padding: 0; overflow-x: auto;">
+                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--brand-border-soft); display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="font-size: 0.88rem; color: var(--brand-tea-dark);">
+                            Danh Sách Đơn Hàng Đang Chờ Thu / Đối Soát (<?= count($pendingReconcileOrders) ?> đơn)
+                        </strong>
+                        <span style="font-size: 0.75rem; color: var(--text-muted-warm);">Tồn đọng tài chính cần kiểm tra</span>
                     </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- Danh sách đơn hàng trong ca / ngày -->
-            <div class="zen-card" style="padding: 0; overflow-x: auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Mã Đơn</th>
-                            <th>Khung Giờ</th>
-                            <th>Khách Hàng & Zalo</th>
-                            <th>Hình Thức</th>
-                            <th>Chi Tiết Món</th>
-                            <th>Tổng Tiền</th>
-                            <th>Thanh Toán</th>
-                            <th>Trạng Thái Đơn</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (empty($slotOrders)): ?>
-                            <tr><td colspan="8" style="text-align: center; color: var(--text-muted-warm); padding: 24px;">Chưa có đơn đặt nào trong mục này.</td></tr>
-                        <?php else: ?>
-                            <?php foreach ($slotOrders as $o): 
-                                $cleanPhone = preg_replace('/[^0-9]/', '', (string)$o['customer_phone']);
-                            ?>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mã Đơn</th>
+                                <th>Thời Gian Đặt</th>
+                                <th>Khung Giờ</th>
+                                <th>Khách Hàng</th>
+                                <th>Món Đặt</th>
+                                <th>Số Tiền</th>
+                                <th>Thanh Toán</th>
+                                <th>Thao Tác Đối Soát</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($pendingReconcileOrders)): ?>
                                 <tr>
-                                    <td>
-                                        <strong><?= htmlspecialchars($o['order_code'], ENT_QUOTES, 'UTF-8') ?></strong>
-                                        <div style="font-size: 0.7rem; color: var(--text-muted-warm);"><?= date('H:i d/m', strtotime($o['created_at'])) ?></div>
-                                    </td>
-                                    <td>
-                                        <strong style="color: var(--brand-tea-dark); font-size: 0.82rem;"><?= htmlspecialchars((string)($o['slot_time'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong>
-                                        <div style="font-size: 0.7rem; color: var(--text-muted-warm);"><?= htmlspecialchars((string)($o['slot_date'] ?? ''), ENT_QUOTES, 'UTF-8') ?></div>
-                                    </td>
-                                    <td>
-                                        <div style="font-weight: 700; color: var(--brand-tea-dark);">
-                                            <?= htmlspecialchars($o['customer_name'], ENT_QUOTES, 'UTF-8') ?>
-                                            <?php if ((int)$o['is_trusted'] === 1): ?>
-                                                <span style="font-size: 0.65rem; background: #E6F3E6; color: #2D5A27; padding: 2px 5px; border-radius: 4px; font-weight: normal;">Bạn quen</span>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div style="font-size: 0.72rem; color: var(--text-muted-warm);"><?= htmlspecialchars($o['customer_phone'], ENT_QUOTES, 'UTF-8') ?></div>
-                                        <?php if (!empty($o['customer_note'])): ?>
-                                            <div style="font-size: 0.7rem; color: #8C7A6B; font-style: italic; margin-top: 2px;">"<?= htmlspecialchars($o['customer_note'], ENT_QUOTES, 'UTF-8') ?>"</div>
-                                        <?php endif; ?>
-
-                                        <!-- Nút liên lạc Zalo trực tiếp với khách (Issue #10) -->
-                                        <div style="margin-top: 5px; display: flex; align-items: center; gap: 5px;">
-                                            <a href="https://zalo.me/<?= htmlspecialchars($cleanPhone, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
-                                               style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; background: #0068FF; color: #FFFFFF; font-size: 0.7rem; font-weight: 600; text-decoration: none;">
-                                                <svg width="12" height="12" viewBox="0 0 48 48" fill="none"><path fill="#fff" d="M24 4C12.95 4 4 12.95 4 24c0 3.73 1.02 7.22 2.79 10.22L4 44l10.15-2.67C17.06 43.04 20.44 44 24 44c11.05 0 20-8.95 20-20S35.05 4 24 4z"/></svg>
-                                                <span>Nhắn Zalo</span>
-                                            </a>
-                                            <button type="button" class="copy-pill" style="margin-left: 0; padding: 2px 6px; font-size: 0.68rem;" 
-                                                    onclick="copyCustomerZaloTemplate('<?= htmlspecialchars(addslashes((string)$o['customer_name']), ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars((string)$o['order_code'], ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars((string)($o['slot_time'] ?? ''), ENT_QUOTES, 'UTF-8') ?>')">
-                                                Mẫu nhắn
-                                            </button>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <?= $o['order_type'] === 'dine_in' ? '🍵 Tại chỗ' : '🥡 Ship về' ?>
-                                    </td>
-                                    <td>
-                                        <?php foreach ($o['items'] as $it): ?>
-                                            <div><?= htmlspecialchars($it['item_name'], ENT_QUOTES, 'UTF-8') ?> x<?= (int)$it['quantity'] ?></div>
-                                        <?php endforeach; ?>
-                                    </td>
-                                    <td><strong><?= number_format((int)$o['total_amount'], 0, ',', '.') ?>đ</strong></td>
-                                    <td>
-                                        <form method="POST">
-                                            <input type="hidden" name="admin_action" value="update_payment_status">
-                                            <input type="hidden" name="order_id" value="<?= (int)$o['id'] ?>">
-                                            <select name="payment_status" onchange="this.form.submit()" style="font-size: 0.75rem; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--brand-border-soft);">
-                                                <option value="pending" <?= $o['payment_status'] === 'pending' ? 'selected' : '' ?>>Chờ thanh toán</option>
-                                                <option value="paid" <?= $o['payment_status'] === 'paid' ? 'selected' : '' ?>>Đã thanh toán (Paid)</option>
-                                                <option value="pay_later" <?= $o['payment_status'] === 'pay_later' ? 'selected' : '' ?>>Trả sau tại bếp</option>
-                                                <option value="refunded" <?= $o['payment_status'] === 'refunded' ? 'selected' : '' ?>>Hoàn tiền</option>
-                                            </select>
-                                        </form>
-                                    </td>
-                                    <td>
-                                        <form method="POST">
-                                            <input type="hidden" name="admin_action" value="update_order_status">
-                                            <input type="hidden" name="order_id" value="<?= (int)$o['id'] ?>">
-                                            <select name="order_status" onchange="this.form.submit()" style="font-size: 0.75rem; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--brand-border-soft);">
-                                                <option value="confirmed" <?= $o['order_status'] === 'confirmed' ? 'selected' : '' ?>>Đã xác nhận</option>
-                                                <option value="completed" <?= $o['order_status'] === 'completed' ? 'selected' : '' ?>>Đã hoàn thành</option>
-                                                <option value="cancelled" <?= $o['order_status'] === 'cancelled' ? 'selected' : '' ?>>Hủy đơn</option>
-                                            </select>
-                                        </form>
+                                    <td colspan="8" style="text-align: center; color: var(--brand-tea-green); padding: 32px 16px;">
+                                        🌿 <strong>Tuyệt vời!</strong> Toàn bộ các đơn hàng đã được đối soát và thanh toán đầy đủ, không có khoản tồn đọng.
                                     </td>
                                 </tr>
-                            <?php endforeach; ?>
+                            <?php else: ?>
+                                <?php foreach ($pendingReconcileOrders as $po): 
+                                    $pPhone = preg_replace('/[^0-9]/', '', (string)$po['customer_phone']);
+                                ?>
+                                    <tr>
+                                        <td>
+                                            <strong style="color: #D97706;"><?= htmlspecialchars($po['order_code'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                        </td>
+                                        <td style="font-size: 0.72rem; color: var(--text-muted-warm);">
+                                            <?= date('H:i d/m/Y', strtotime($po['created_at'])) ?>
+                                        </td>
+                                        <td>
+                                            <strong><?= htmlspecialchars((string)($po['slot_time'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <div style="font-size: 0.7rem; color: var(--text-muted-warm);"><?= htmlspecialchars((string)($po['slot_date'] ?? ''), ENT_QUOTES, 'UTF-8') ?></div>
+                                        </td>
+                                        <td>
+                                            <div style="font-weight: 600;"><?= htmlspecialchars($po['customer_name'], ENT_QUOTES, 'UTF-8') ?></div>
+                                            <div style="font-size: 0.72rem; color: var(--text-muted-warm);"><?= htmlspecialchars($po['customer_phone'], ENT_QUOTES, 'UTF-8') ?></div>
+                                            <a href="https://zalo.me/<?= htmlspecialchars($pPhone, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
+                                               style="display: inline-block; margin-top: 2px; font-size: 0.68rem; color: #0068FF; text-decoration: underline;">
+                                                Nhắn Zalo khách ↗
+                                            </a>
+                                        </td>
+                                        <td style="font-size: 0.75rem;">
+                                            <?php foreach ($po['items'] as $it): ?>
+                                                <div><?= htmlspecialchars($it['item_name'], ENT_QUOTES, 'UTF-8') ?> x<?= (int)$it['quantity'] ?></div>
+                                            <?php endforeach; ?>
+                                        </td>
+                                        <td>
+                                            <strong style="color: #B45309; font-size: 0.9rem;"><?= number_format((int)$po['total_amount'], 0, ',', '.') ?>đ</strong>
+                                        </td>
+                                        <td>
+                                            <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; <?= $po['payment_method'] === 'vietqr' ? 'background: #FEF3C7; color: #92400E;' : 'background: #E0E7FF; color: #3730A3;' ?>">
+                                                <?= $po['payment_method'] === 'vietqr' ? 'VietQR' : 'Tại bếp' ?>
+                                            </span>
+                                            <div style="font-size: 0.68rem; color: #DC2626; margin-top: 2px;">
+                                                <?= $po['payment_status'] === 'pay_later' ? 'Trả sau' : 'Chờ TT' ?>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <form method="POST" onsubmit="return confirm('Xác nhận bạn đã nhận đủ <?= number_format((int)$po['total_amount'], 0, ',', '.') ?>đ cho đơn <?= htmlspecialchars($po['order_code'], ENT_QUOTES, 'UTF-8') ?>?')">
+                                                <input type="hidden" name="admin_action" value="reconcile_payment">
+                                                <input type="hidden" name="order_code" value="<?= htmlspecialchars($po['order_code'], ENT_QUOTES, 'UTF-8') ?>">
+                                                <input type="hidden" name="paid_amount" value="<?= (int)$po['total_amount'] ?>">
+                                                <input type="hidden" name="transaction_ref" value="ADMIN_MANUAL_MATCH">
+                                                <button type="submit" class="action-btn" style="background: #ECFDF5; color: #065F46; border-color: #A7F3D0; font-weight: 700; padding: 4px 8px;">
+                                                    ✓ Đã Nhận Tiền
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+            <?php elseif ($orderScope === 'daily_closing'): ?>
+                <!-- CHẾ ĐỘ XEM: BÁO CÁO CHỐT SỔ NGÀY (Issue #16) -->
+                <div class="zen-card" style="margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                        <h2 style="font-size: 0.95rem; font-weight: 700; color: var(--brand-tea-green); margin: 0;">
+                            📊 Báo Cáo Chốt Sổ & Kết Quả Phục Vụ Trong Ngày
+                        </h2>
+                        <form method="GET" style="display: flex; gap: 6px; align-items: center;">
+                            <input type="hidden" name="tab" value="orders">
+                            <input type="hidden" name="scope" value="daily_closing">
+                            <label style="font-size: 0.75rem; color: var(--text-muted-warm);">Chọn ngày:</label>
+                            <input type="date" name="closing_date" class="zen-input" value="<?= htmlspecialchars($closingReportDate, ENT_QUOTES, 'UTF-8') ?>" onchange="this.form.submit()" style="padding: 5px 8px; font-size: 0.8rem;">
+                        </form>
+                    </div>
+
+                    <!-- 4 Thẻ chỉ số tổng kết ngày -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                        <div style="background: #ECFDF5; border: 1px solid #A7F3D0; padding: 12px 14px; border-radius: 12px;">
+                            <div style="font-size: 0.72rem; color: #065F46; font-weight: 600;">DOANH THU THỰC TẾ (ĐÃ THU)</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; color: #047857; margin-top: 4px;">
+                                <?= number_format((int)($dailyClosingReport['paid_amount'] ?? 0), 0, ',', '.') ?>đ
+                            </div>
+                        </div>
+
+                        <div style="background: #FFFBEB; border: 1px solid #FDE68A; padding: 12px 14px; border-radius: 12px;">
+                            <div style="font-size: 0.72rem; color: #92400E; font-weight: 600;">DOANH THU TỒN ĐỌNG (CHỜ THU)</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; color: #D97706; margin-top: 4px;">
+                                <?= number_format((int)($dailyClosingReport['pending_amount'] ?? 0), 0, ',', '.') ?>đ
+                            </div>
+                        </div>
+
+                        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; padding: 12px 14px; border-radius: 12px;">
+                            <div style="font-size: 0.72rem; color: #166534; font-weight: 600;">TỔNG SUẤT MÓN ĐÃ NẤU / PHỤC VỤ</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; color: #15803D; margin-top: 4px;">
+                                <?= (int)($dailyClosingReport['total_items_served'] ?? 0) ?> <span style="font-size: 0.85rem; font-weight: normal;">suất</span>
+                            </div>
+                        </div>
+
+                        <div style="background: #F3F4F6; border: 1px solid #E5E7EB; padding: 12px 14px; border-radius: 12px;">
+                            <div style="font-size: 0.72rem; color: #374151; font-weight: 600;">ĐƠN HOÀN TẤT / TỔNG ĐƠN</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; color: #1F2937; margin-top: 4px;">
+                                <?= (int)($dailyClosingReport['completed_orders'] ?? 0) ?> / <?= (int)($dailyClosingReport['total_orders'] ?? 0) ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Nút chốt sổ toàn bộ ngày -->
+                    <div style="background: #FAF7F2; padding: 12px 16px; border-radius: 12px; border: 1px dashed var(--brand-border-soft); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <strong style="font-size: 0.85rem; color: var(--brand-tea-dark);">Chốt Sổ Toàn Bộ Ngày <?= date('d/m/Y', strtotime($closingReportDate)) ?>:</strong>
+                            <div style="font-size: 0.75rem; color: var(--text-muted-warm); margin-top: 2px;">
+                                Khóa toàn bộ các ca trong ngày thành lịch sử đã qua, không còn hiện ở ca đang phục vụ.
+                            </div>
+                        </div>
+                        <form method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn chốt sổ toàn bộ các ca trong ngày <?= date('d/m/Y', strtotime($closingReportDate)) ?>? Các ca sẽ được đánh dấu đóng và các đơn đã xác nhận sẽ hoàn tất.')">
+                            <input type="hidden" name="admin_action" value="close_day">
+                            <input type="hidden" name="close_date" value="<?= htmlspecialchars($closingReportDate, ENT_QUOTES, 'UTF-8') ?>">
+                            <label style="font-size: 0.75rem; color: var(--brand-tea-dark); margin-right: 8px;">
+                                <input type="checkbox" name="complete_orders" value="1" checked> Hoàn tất các đơn đã xác nhận
+                            </label>
+                            <button type="submit" class="action-btn" style="background: #1F2937; color: #FFFFFF; font-weight: 700; padding: 6px 14px;">
+                                🔒 Chốt Sổ Ngày Này
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Danh sách đơn hàng trong ngày được chốt -->
+                <div class="zen-card" style="padding: 0; overflow-x: auto;">
+                    <div style="padding: 10px 16px; border-bottom: 1px solid var(--brand-border-soft);">
+                        <strong style="font-size: 0.85rem; color: var(--brand-tea-dark);">Chi tiết tất cả đơn trong ngày <?= date('d/m/Y', strtotime($closingReportDate)) ?></strong>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mã Đơn</th>
+                                <th>Khung Giờ</th>
+                                <th>Khách Hàng</th>
+                                <th>Chi Tiết Món</th>
+                                <th>Tổng Tiền</th>
+                                <th>Thanh Toán</th>
+                                <th>Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($slotOrders)): ?>
+                                <tr><td colspan="7" style="text-align: center; color: var(--text-muted-warm); padding: 24px;">Không có đơn hàng nào trong ngày này.</td></tr>
+                            <?php else: ?>
+                                <?php foreach ($slotOrders as $o): ?>
+                                    <tr>
+                                        <td><strong><?= htmlspecialchars($o['order_code'], ENT_QUOTES, 'UTF-8') ?></strong></td>
+                                        <td><?= htmlspecialchars((string)($o['slot_time'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                                        <td><?= htmlspecialchars($o['customer_name'], ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($o['customer_phone'], ENT_QUOTES, 'UTF-8') ?>)</td>
+                                        <td>
+                                            <?php foreach ($o['items'] as $it): ?>
+                                                <div><?= htmlspecialchars($it['item_name'], ENT_QUOTES, 'UTF-8') ?> x<?= (int)$it['quantity'] ?></div>
+                                            <?php endforeach; ?>
+                                        </td>
+                                        <td><strong><?= number_format((int)$o['total_amount'], 0, ',', '.') ?>đ</strong></td>
+                                        <td>
+                                            <span style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; <?= $o['payment_status'] === 'paid' ? 'background:#ECFDF5; color:#065F46;' : 'background:#FEF3C7; color:#92400E;' ?>">
+                                                <?= $o['payment_status'] === 'paid' ? 'Đã TT' : ($o['payment_status'] === 'pay_later' ? 'Trả sau' : 'Chờ TT') ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; <?= $o['order_status'] === 'completed' ? 'background:#EFF6FF; color:#1E40AF;' : 'background:#F3F4F6; color:#374151;' ?>">
+                                                <?= $o['order_status'] === 'completed' ? 'Đã hoàn tất' : $o['order_status'] ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+            <?php else: ?>
+                <!-- CHẾ ĐỘ XEM MẶC ĐỊNH: BẢNG BẾP HÔM NAY HOẶC THEO TỪNG CA -->
+
+                <?php 
+                $activeSlotInfo = null;
+                if ($selectedSlotId > 0) {
+                    foreach ($allUpcomingAndTodaySlots as $sl) {
+                        if ((int)$sl['id'] === $selectedSlotId) {
+                            $activeSlotInfo = $sl;
+                            break;
+                        }
+                    }
+                }
+                ?>
+
+                <?php if ($activeSlotInfo): ?>
+                    <!-- Thông tin ca đang chọn và nút Chốt Ca (Issue #16) -->
+                    <div class="zen-card" style="margin-bottom: 14px; background: #FAF7F2; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: var(--brand-tea-green); font-weight: 600;">ĐANG XEM CHI TIẾT CA:</div>
+                            <h3 style="font-size: 1.05rem; color: var(--brand-tea-dark); margin: 2px 0;">
+                                <?= htmlspecialchars($activeSlotInfo['slot_date'] . ' • ' . $activeSlotInfo['slot_time'], ENT_QUOTES, 'UTF-8') ?>
+                                <?php if (!empty($activeSlotInfo['is_closed'])): ?>
+                                    <span style="font-size: 0.72rem; background: #E5E7EB; color: #374151; padding: 2px 8px; border-radius: 6px; font-weight: normal; margin-left: 6px;">🔒 Đã Chốt Ca (Lịch sử)</span>
+                                <?php else: ?>
+                                    <span style="font-size: 0.72rem; background: #ECFDF5; color: #065F46; padding: 2px 8px; border-radius: 6px; font-weight: normal; margin-left: 6px;">🟢 Đang Phục Vụ</span>
+                                <?php endif; ?>
+                            </h3>
+                            <div style="font-size: 0.75rem; color: var(--text-muted-warm);">
+                                Đã đặt: <strong><?= (int)$activeSlotInfo['booked_count'] ?></strong> / <?= (int)$activeSlotInfo['max_capacity'] ?> suất
+                            </div>
+                        </div>
+
+                        <?php if (empty($activeSlotInfo['is_closed'])): ?>
+                            <form method="POST" onsubmit="return confirm('Bạn muốn chốt ca này? Các đơn hàng đã xác nhận trong ca sẽ được đánh dấu hoàn thành và ca sẽ đóng lại.')">
+                                <input type="hidden" name="admin_action" value="close_slot">
+                                <input type="hidden" name="slot_id" value="<?= (int)$activeSlotInfo['id'] ?>">
+                                <input type="hidden" name="complete_orders" value="1">
+                                <button type="submit" class="action-btn" style="background: #1F2937; color: #FFFFFF; font-weight: 700; padding: 7px 14px;">
+                                    🔒 Chốt Ca Này (Hoàn tất)
+                                </button>
+                            </form>
                         <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Tổng hợp bếp cần nấu (Kitchen Prep Sheet) -->
+                <div class="zen-card" style="background-color: var(--brand-sage-light); margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--brand-tea-dark); margin: 0;">
+                            🍲 <?= $orderScope === 'today_all' ? 'Bảng Chuẩn Bị Bếp Toàn Bộ Hôm Nay (' . date('d/m/Y') . ')' : 'Bảng Chuẩn Bị Bếp Cho Ca Này' ?>
+                        </h3>
+                        <span style="font-size: 0.78rem; color: var(--brand-tea-green); font-weight: 700;">
+                            Tổng: <?= (int)array_sum(array_column($kitchenSummary, 'total_qty')) ?> suất món
+                        </span>
+                    </div>
+
+                    <?php if (empty($kitchenSummary)): ?>
+                        <p style="font-size: 0.8rem; color: var(--text-muted-warm); margin-top: 4px;">Chưa có món nào được đặt cho mục này.</p>
+                    <?php else: ?>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px;">
+                            <?php foreach ($kitchenSummary as $ks): ?>
+                                <div style="background: #FFFFFF; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--brand-border-soft); font-size: 0.82rem; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+                                    <strong><?= htmlspecialchars($ks['name'], ENT_QUOTES, 'UTF-8') ?>:</strong> 
+                                    <span style="font-size: 1.05rem; color: var(--brand-tea-green); font-weight: 700;"><?= (int)$ks['total_qty'] ?></span> suất
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Danh sách đơn hàng trong ca / ngày -->
+                <div class="zen-card" style="padding: 0; overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mã Đơn</th>
+                                <th>Khung Giờ</th>
+                                <th>Khách Hàng & Zalo</th>
+                                <th>Hình Thức</th>
+                                <th>Chi Tiết Món</th>
+                                <th>Tổng Tiền</th>
+                                <th>Thanh Toán</th>
+                                <th>Trạng Thái Đơn</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($slotOrders)): ?>
+                                <tr><td colspan="8" style="text-align: center; color: var(--text-muted-warm); padding: 24px;">Chưa có đơn đặt nào trong mục này.</td></tr>
+                            <?php else: ?>
+                                <?php foreach ($slotOrders as $o): 
+                                    $cleanPhone = preg_replace('/[^0-9]/', '', (string)$o['customer_phone']);
+                                ?>
+                                    <tr>
+                                        <td>
+                                            <strong><?= htmlspecialchars($o['order_code'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <div style="font-size: 0.7rem; color: var(--text-muted-warm);"><?= date('H:i d/m', strtotime($o['created_at'])) ?></div>
+                                        </td>
+                                        <td>
+                                            <strong style="color: var(--brand-tea-dark); font-size: 0.82rem;"><?= htmlspecialchars((string)($o['slot_time'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <div style="font-size: 0.7rem; color: var(--text-muted-warm);"><?= htmlspecialchars((string)($o['slot_date'] ?? ''), ENT_QUOTES, 'UTF-8') ?></div>
+                                        </td>
+                                        <td>
+                                            <div style="font-weight: 700; color: var(--brand-tea-dark);">
+                                                <?= htmlspecialchars($o['customer_name'], ENT_QUOTES, 'UTF-8') ?>
+                                                <?php if ((int)$o['is_trusted'] === 1): ?>
+                                                    <span style="font-size: 0.65rem; background: #E6F3E6; color: #2D5A27; padding: 2px 5px; border-radius: 4px; font-weight: normal;">Bạn quen</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div style="font-size: 0.72rem; color: var(--text-muted-warm);"><?= htmlspecialchars($o['customer_phone'], ENT_QUOTES, 'UTF-8') ?></div>
+                                            <?php if (!empty($o['customer_note'])): ?>
+                                                <div style="font-size: 0.7rem; color: #8C7A6B; font-style: italic; margin-top: 2px;">"<?= htmlspecialchars($o['customer_note'], ENT_QUOTES, 'UTF-8') ?>"</div>
+                                            <?php endif; ?>
+
+                                            <!-- Nút liên lạc Zalo trực tiếp với khách (Issue #10) -->
+                                            <div style="margin-top: 5px; display: flex; align-items: center; gap: 5px;">
+                                                <a href="https://zalo.me/<?= htmlspecialchars($cleanPhone, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
+                                                   style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; background: #0068FF; color: #FFFFFF; font-size: 0.7rem; font-weight: 600; text-decoration: none;">
+                                                    <svg width="12" height="12" viewBox="0 0 48 48" fill="none"><path fill="#fff" d="M24 4C12.95 4 4 12.95 4 24c0 3.73 1.02 7.22 2.79 10.22L4 44l10.15-2.67C17.06 43.04 20.44 44 24 44c11.05 0 20-8.95 20-20S35.05 4 24 4z"/></svg>
+                                                    <span>Nhắn Zalo</span>
+                                                </a>
+                                                <button type="button" class="copy-pill" style="margin-left: 0; padding: 2px 6px; font-size: 0.68rem;" 
+                                                        onclick="copyCustomerZaloTemplate('<?= htmlspecialchars(addslashes((string)$o['customer_name']), ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars((string)$o['order_code'], ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars((string)($o['slot_time'] ?? ''), ENT_QUOTES, 'UTF-8') ?>')">
+                                                    Mẫu nhắn
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <?= $o['order_type'] === 'dine_in' ? '🍵 Tại chỗ' : '🥡 Ship về' ?>
+                                        </td>
+                                        <td>
+                                            <?php foreach ($o['items'] as $it): ?>
+                                                <div><?= htmlspecialchars($it['item_name'], ENT_QUOTES, 'UTF-8') ?> x<?= (int)$it['quantity'] ?></div>
+                                            <?php endforeach; ?>
+                                        </td>
+                                        <td><strong><?= number_format((int)$o['total_amount'], 0, ',', '.') ?>đ</strong></td>
+                                        <td>
+                                            <form method="POST">
+                                                <input type="hidden" name="admin_action" value="update_payment_status">
+                                                <input type="hidden" name="order_id" value="<?= (int)$o['id'] ?>">
+                                                <select name="payment_status" onchange="this.form.submit()" style="font-size: 0.75rem; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--brand-border-soft);">
+                                                    <option value="pending" <?= $o['payment_status'] === 'pending' ? 'selected' : '' ?>>Chờ thanh toán</option>
+                                                    <option value="paid" <?= $o['payment_status'] === 'paid' ? 'selected' : '' ?>>Đã thanh toán (Paid)</option>
+                                                    <option value="pay_later" <?= $o['payment_status'] === 'pay_later' ? 'selected' : '' ?>>Trả sau tại bếp</option>
+                                                    <option value="refunded" <?= $o['payment_status'] === 'refunded' ? 'selected' : '' ?>>Hoàn tiền</option>
+                                                </select>
+                                            </form>
+                                        </td>
+                                        <td>
+                                            <form method="POST">
+                                                <input type="hidden" name="admin_action" value="update_order_status">
+                                                <input type="hidden" name="order_id" value="<?= (int)$o['id'] ?>">
+                                                <select name="order_status" onchange="this.form.submit()" style="font-size: 0.75rem; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--brand-border-soft);">
+                                                    <option value="confirmed" <?= $o['order_status'] === 'confirmed' ? 'selected' : '' ?>>Đã xác nhận</option>
+                                                    <option value="completed" <?= $o['order_status'] === 'completed' ? 'selected' : '' ?>>Đã hoàn thành</option>
+                                                    <option value="cancelled" <?= $o['order_status'] === 'cancelled' ? 'selected' : '' ?>>Hủy đơn</option>
+                                                </select>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
 
         <?php elseif ($currentTab === 'customers'): ?>
             <!-- TAB 3: Quản lý Khách Quen -->
@@ -1223,6 +1720,20 @@ $notifStats = $notificationService->getStats();
                 alert('Đã sao chép tin nhắn mẫu gửi cho ' + name + ':\n\n' + text);
             }).catch(() => {
                 prompt('Bạn hãy copy tin nhắn dưới đây để gửi cho khách:', text);
+            });
+        }
+
+        function setSlotWeekdays(type) {
+            const checkboxes = document.querySelectorAll('#slotWeekdayGroup input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                const val = parseInt(cb.value);
+                if (type === 'all') {
+                    cb.checked = true;
+                } else if (type === 'weekdays') {
+                    cb.checked = (val >= 1 && val <= 5);
+                } else if (type === 'weekends') {
+                    cb.checked = (val === 6 || val === 0);
+                }
             });
         }
     </script>

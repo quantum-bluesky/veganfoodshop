@@ -56,15 +56,18 @@ $shopTagline = $configService->get('shop_tagline', 'Chốn dừng chân thanh t�
 $shopQuote = $configService->get('shop_quote', 'Một bát canh thanh ngọt, vỗ về những bộn bề ngày thường');
 $noticeText = $configService->get('notice_text', 'Lịch bếp hôm nay: Ca trưa 11:30 - 13:30 (Chỉ nhận tối đa 12 suất)');
 $orderNoteShipping = (string)($zaloConfig['order_note_shipping'] ?? '');
+$sellerZaloUrl = (string)($zaloConfig['seller_zalo_url'] ?? 'https://zalo.me/0987862241');
+$minLeadTimeHours = (int)$configService->get('min_lead_time_hours', '3');
+$advanceBookingDays = (int)$configService->get('advance_booking_days', '7');
 $requireZaloLogin = (bool)($zaloConfig['require_zalo_login'] ?? false);
 
 $today = date('Y-m-d');
-$availableDates = $slotService->getAvailableDates();
+$availableDates = $slotService->getAvailableDates($advanceBookingDays);
 if (empty($availableDates)) {
     $availableDates = [$today];
 }
 $selectedDate = $availableDates[0];
-$slots = $slotService->getSlotsByDate($selectedDate, true);
+$slots = $slotService->getSlotsByDate($selectedDate, true, $minLeadTimeHours);
 $menuItems = $menuService->getActiveMenu();
 ?>
 <!DOCTYPE html>
@@ -208,19 +211,57 @@ $menuItems = $menuService->getActiveMenu();
                             Hôm nay bếp chưa mở ca nhận đặt, bạn thương ghé lại sau nhé.
                         </p>
                     <?php else: ?>
-                        <?php foreach ($slots as $index => $slot): 
-                            $isFull = $slot['is_full'];
-                            $isChecked = ($index === 0 && !$isFull);
+                        <?php 
+                        $hasPastCutoff = false;
+                        $firstChecked = false;
+                        foreach ($slots as $slot): 
+                            $isFull = (bool)($slot['is_full'] ?? false);
+                            $isPastSlot = (bool)($slot['is_past_slot'] ?? false);
+                            $isPastCutoff = (bool)($slot['is_past_cutoff'] ?? false);
+                            $isUnavailable = ($isFull || $isPastCutoff);
+
+                            if ($isPastCutoff) {
+                                $hasPastCutoff = true;
+                            }
+
+                            $statusText = 'Còn ' . (int)$slot['remaining_capacity'] . ' chỗ';
+                            if ($isPastSlot) {
+                                $statusText = 'Đã qua giờ';
+                            } elseif ($isPastCutoff) {
+                                $statusText = 'Quá giờ đặt (trước ' . (int)($slot['cutoff_hours'] ?? $minLeadTimeHours) . 'h)';
+                            } elseif ($isFull) {
+                                $statusText = 'Đã hết suất';
+                            }
+
+                            $shouldCheck = (!$firstChecked && !$isUnavailable);
+                            if ($shouldCheck) {
+                                $firstChecked = true;
+                            }
                         ?>
-                            <label class="zen-option <?= $isChecked ? 'is-checked' : '' ?> <?= $isFull ? 'is-disabled' : '' ?>">
-                                <input type="radio" name="slot_id" value="<?= (int)$slot['id'] ?>" <?= $isChecked ? 'checked' : '' ?> <?= $isFull ? 'disabled' : '' ?>>
+                            <label class="zen-option <?= $shouldCheck ? 'is-checked' : '' ?> <?= $isUnavailable ? 'is-disabled' : '' ?>">
+                                <input type="radio" name="slot_id" value="<?= (int)$slot['id'] ?>" <?= $shouldCheck ? 'checked' : '' ?> <?= $isUnavailable ? 'disabled' : '' ?>>
                                 <p style="font-weight: 600; font-size: 0.85rem;"><?= htmlspecialchars($slot['slot_time'], ENT_QUOTES, 'UTF-8') ?></p>
                                 <p style="font-size: 0.7rem; opacity: 0.8; margin-top: 2px;">
-                                    <?= $isFull ? 'Đã hết suất' : 'Còn ' . (int)$slot['remaining_capacity'] . ' chỗ' ?>
+                                    <?= htmlspecialchars($statusText, ENT_QUOTES, 'UTF-8') ?>
                                 </p>
                             </label>
                         <?php endforeach; ?>
                     <?php endif; ?>
+                </div>
+
+                <!-- Thông báo liên hệ Zalo khi không kịp giờ đặt trước -->
+                <div id="urgentZaloNote" style="display: <?= !empty($hasPastCutoff) ? 'block' : 'none' ?>; background: #FAF7F2; border: 1px dashed var(--brand-border-soft); border-radius: 12px; padding: 10px 14px; margin-top: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <div style="font-size: 0.74rem; color: var(--text-muted-warm); line-height: 1.45;">
+                            🌿 Ca cần đặt trước <?= $minLeadTimeHours ?>h để bếp kịp ninh nước dùng. Bạn cần đặt gấp xin vui lòng nhắn Zalo Bếp nhé.
+                        </div>
+                        <?php if (!empty($sellerZaloUrl)): ?>
+                            <a href="<?= htmlspecialchars($sellerZaloUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
+                               style="flex-shrink: 0; background: #0068FF; color: #FFFFFF; font-size: 0.72rem; padding: 6px 10px; border-radius: 8px; text-decoration: none; font-weight: 600; white-space: nowrap;">
+                                Nhắn Zalo ↗
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </section>
 

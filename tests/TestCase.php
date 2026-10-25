@@ -57,11 +57,19 @@ abstract class TestCase
             (3, 'Trà Sen Tuyết Búp Nhẹ', 'Ướp hoa sen', 25000, 'drink', 1, 3);
         ");
 
-        // Ca phục vụ mẫu
+        // Ca phục vụ mẫu (ngày mai để đảm bảo luôn hợp lệ thời gian đặt)
+        $futureDate = date('Y-m-d', strtotime('+1 day'));
         $this->db->exec("
             INSERT INTO time_slots (id, slot_date, slot_time, max_capacity, is_active) VALUES 
-            (1, '2026-10-25', '11:30 - 12:15', 10, 1),
-            (2, '2026-10-25', '12:30 - 13:15', 12, 1);
+            (1, '$futureDate', '11:30 - 12:15', 10, 1),
+            (2, '$futureDate', '12:30 - 13:15', 12, 1);
+        ");
+
+        // Cấu hình mẫu
+        $this->db->exec("
+            INSERT INTO system_config (config_key, config_value) VALUES 
+            ('min_lead_time_hours', '3'),
+            ('advance_booking_days', '7');
         ");
     }
 

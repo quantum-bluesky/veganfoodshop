@@ -36,6 +36,10 @@ return [
         'callback_url' => '', // Ví dụ: 'https://qts-home.duckdns.org/chaytt/api/public/zalo-callback'
         'seller_zalo_url' => 'https://zalo.me/0987862241',
         'order_note_shipping' => 'Chưa bao gồm chi phí vận chuyển',
-        'zalo_confirm_template' => 'Chào shop, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!',
+        'zalo_confirm_template' => 'Chào Bếp, mình vừa đặt đơn trên web. Mã đơn: {order_id}. Nhờ bếp kiểm tra và xác nhận giúp mình nhé!',
+    ],
+    'booking' => [
+        'min_lead_time_hours' => 3,     // Đặt trước tối thiểu N giờ trong ngày (mặc định 3h)
+        'advance_booking_days' => 7,    // Cho phép đặt trước tối đa 1 tuần trở lại (mặc định 7 ngày)
     ],
 ];

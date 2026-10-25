@@ -12,14 +12,18 @@ use App\Exceptions\ValidationException;
 
 class OrderService
 {
+    private ConfigService $configService;
+
     public function __construct(
         private ?PDO $db = null,
         private ?CustomerService $customerService = null,
-        private ?SlotService $slotService = null
+        private ?SlotService $slotService = null,
+        ?ConfigService $configService = null
     ) {
         $this->db = $db ?? Connection::getInstance();
         $this->customerService = $customerService ?? new CustomerService($this->db);
         $this->slotService = $slotService ?? new SlotService($this->db);
+        $this->configService = $configService ?? new ConfigService($this->db);
     }
 
     /**
@@ -42,7 +46,8 @@ class OrderService
      *    order_type: string,
      *    payment_method: string,
      *    items: array<int, int>, // [menu_item_id => quantity]
-     *    customer_note?: ?string
+     *    customer_note?: ?string,
+     *    current_time?: ?int
      * } $data
      * @return array
      * @throws SlotFullException
@@ -110,6 +115,19 @@ class OrderService
 
             if (!$slot || (int)$slot['is_active'] !== 1) {
                 throw new DomainException('Khung giờ phục vụ này hiện không khả dụng.');
+            }
+
+            // Kiểm tra thời gian đặt trước tối thiểu (Cut-off lead time)
+            $currentTime = isset($data['current_time']) ? (int)$data['current_time'] : time();
+            $minLeadTimeHours = (int)$this->configService->get('min_lead_time_hours', '3');
+            $slotStart = $this->slotService->parseSlotStartTime((string)$slot['slot_date'], (string)$slot['slot_time']);
+            $cutoff = $slotStart - ($minLeadTimeHours * 3600);
+
+            if ($currentTime > $cutoff) {
+                if ($currentTime >= $slotStart) {
+                    throw new ValidationException(sprintf('Khung giờ %s (%s) đã qua rồi. Xin bạn vui lòng chọn ca khác nhé.', $slot['slot_time'], $slot['slot_date']));
+                }
+                throw new ValidationException(sprintf('Khung giờ %s cần đặt trước ít nhất %d tiếng để bếp kịp ninh nước dùng. Nếu bạn cần đặt gấp, xin vui lòng nhắn trực tiếp Zalo với Bếp nhé.', $slot['slot_time'], $minLeadTimeHours));
             }
 
             $maxCapacity = (int)$slot['max_capacity'];

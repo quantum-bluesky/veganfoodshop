@@ -161,26 +161,57 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!slotContainer) return;
         slotContainer.innerHTML = '';
 
+        const urgentZaloNote = document.getElementById('urgentZaloNote');
+        let hasPastCutoff = false;
+        let firstChecked = false;
+
         if (!slots || slots.length === 0) {
             slotContainer.innerHTML = '<p class="text-xs text-gray-500 text-center py-3 col-span-2">Hôm nay bếp chưa mở ca, xin bạn quay lại sau nhé.</p>';
+            if (urgentZaloNote) urgentZaloNote.style.display = 'none';
             return;
         }
 
-        slots.forEach((slot, idx) => {
-            const isFull = slot.is_full;
+        slots.forEach((slot) => {
+            const isFull = Boolean(slot.is_full);
+            const isPastSlot = Boolean(slot.is_past_slot);
+            const isPastCutoff = Boolean(slot.is_past_cutoff);
+            const isUnavailable = isFull || isPastCutoff;
+
+            if (isPastCutoff) {
+                hasPastCutoff = true;
+            }
+
+            let statusText = `Còn ${slot.remaining_capacity} chỗ`;
+            if (isPastSlot) {
+                statusText = 'Đã qua giờ';
+            } else if (isPastCutoff) {
+                statusText = `Quá giờ đặt (trước ${slot.cutoff_hours || 3}h)`;
+            } else if (isFull) {
+                statusText = 'Đã hết suất';
+            }
+
+            const shouldCheck = !firstChecked && !isUnavailable;
+            if (shouldCheck) {
+                firstChecked = true;
+            }
+
             const label = document.createElement('label');
-            label.className = `zen-option ${isFull ? 'is-disabled' : ''} ${idx === 0 && !isFull ? 'is-checked' : ''}`;
+            label.className = `zen-option ${isUnavailable ? 'is-disabled' : ''} ${shouldCheck ? 'is-checked' : ''}`;
 
             label.innerHTML = `
-                <input type="radio" name="slot_id" value="${slot.id}" ${idx === 0 && !isFull ? 'checked' : ''} ${isFull ? 'disabled' : ''}>
+                <input type="radio" name="slot_id" value="${slot.id}" ${shouldCheck ? 'checked' : ''} ${isUnavailable ? 'disabled' : ''}>
                 <p style="font-weight: 600; font-size: 0.85rem;">${slot.slot_time}</p>
                 <p style="font-size: 0.7rem; opacity: 0.8; margin-top: 2px;">
-                    ${isFull ? 'Đã hết suất' : `Còn ${slot.remaining_capacity} chỗ`}
+                    ${statusText}
                 </p>
             `;
 
             slotContainer.appendChild(label);
         });
+
+        if (urgentZaloNote) {
+            urgentZaloNote.style.display = hasPastCutoff ? 'block' : 'none';
+        }
 
         setupRadioGroup('slot_id');
     }

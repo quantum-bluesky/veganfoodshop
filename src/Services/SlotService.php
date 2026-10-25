@@ -8,10 +8,25 @@ use App\Database\Connection;
 
 class SlotService
 {
+    private ConfigService $configService;
+
     public function __construct(
-        private ?PDO $db = null
+        private ?PDO $db = null,
+        ?ConfigService $configService = null
     ) {
         $this->db = $db ?? Connection::getInstance();
+        $this->configService = $configService ?? new ConfigService($this->db);
+    }
+
+    /**
+     * Tách và phân tích thời điểm bắt đầu của ca (timestamp)
+     */
+    public function parseSlotStartTime(string $slotDate, string $slotTime): int
+    {
+        $parts = explode('-', $slotTime);
+        $startTimeStr = trim($parts[0]);
+        $dt = strtotime($slotDate . ' ' . $startTimeStr);
+        return $dt !== false ? $dt : strtotime($slotDate . ' 00:00:00');
     }
 
     /**
@@ -59,10 +74,13 @@ class SlotService
     }
 
     /**
-     * Lấy danh sách ca theo ngày kèm số suất còn lại
+     * Lấy danh sách ca theo ngày kèm số suất còn lại và kiểm tra hạn cut-off đặt trước
      */
-    public function getSlotsByDate(string $date, bool $activeOnly = true): array
+    public function getSlotsByDate(string $date, bool $activeOnly = true, ?int $minLeadTimeHours = null, ?int $currentTime = null): array
     {
+        $leadHours = $minLeadTimeHours ?? (int)$this->configService->get('min_lead_time_hours', '3');
+        $now = $currentTime ?? time();
+
         $sql = 'SELECT id, slot_date, slot_time, max_capacity, is_active FROM time_slots WHERE slot_date = :slot_date';
         if ($activeOnly) {
             $sql .= ' AND is_active = 1';
@@ -79,9 +97,19 @@ class SlotService
             $max = (int)$slot['max_capacity'];
             $remaining = max(0, $max - $booked);
 
+            $slotStart = $this->parseSlotStartTime((string)$slot['slot_date'], (string)$slot['slot_time']);
+            $cutoff = $slotStart - ($leadHours * 3600);
+
+            $isPastSlot = ($now >= $slotStart);
+            $isPastCutoff = ($now > $cutoff);
+
             $slot['booked_count'] = $booked;
             $slot['remaining_capacity'] = $remaining;
             $slot['is_full'] = ($remaining <= 0);
+            $slot['is_past_slot'] = $isPastSlot;
+            $slot['is_past_cutoff'] = $isPastCutoff;
+            $slot['cutoff_hours'] = $leadHours;
+            $slot['is_bookable'] = (!$slot['is_full'] && !$isPastCutoff && (int)$slot['is_active'] === 1);
         }
         unset($slot);
 
@@ -89,18 +117,26 @@ class SlotService
     }
 
     /**
-     * Lấy danh sách các ngày có mở ca (sắp xếp tăng dần)
+     * Lấy danh sách các ngày có mở ca (sắp xếp tăng dần, trong khoảng advance_booking_days)
      */
-    public function getAvailableDates(): array
+    public function getAvailableDates(?int $advanceBookingDays = null): array
     {
-        $stmt = $this->db->query('
+        $days = $advanceBookingDays ?? (int)$this->configService->get('advance_booking_days', '7');
+        $today = date('Y-m-d');
+        $maxDate = date('Y-m-d', strtotime("+{$days} days"));
+
+        $stmt = $this->db->prepare('
             SELECT DISTINCT slot_date 
             FROM time_slots 
             WHERE is_active = 1 
-              AND slot_date >= date(\'now\', \'localtime\')
-            ORDER BY slot_date ASC 
-            LIMIT 7
+              AND slot_date >= :today
+              AND slot_date <= :max_date
+            ORDER BY slot_date ASC
         ');
+        $stmt->execute([
+            ':today' => $today,
+            ':max_date' => $maxDate,
+        ]);
         return $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
     }
 

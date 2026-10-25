@@ -75,6 +75,34 @@ $availableDates = $slotService->getAvailableDates($advanceBookingDays);
 $reqDate = (string)($_GET['date'] ?? '');
 $selectedDate = ($reqDate !== '' && in_array($reqDate, $availableDates, true)) ? $reqDate : (!empty($availableDates) ? $availableDates[0] : $today);
 
+// Kiểm tra nếu hôm nay không đủ điều kiện chọn giờ đặt (hết suất / quá giờ) để tự động gợi ý ngày tiếp theo (Issue #33)
+$isTodayAllUnavailable = false;
+$firstAvailableFutureDate = null;
+if (!empty($availableDates)) {
+    $todaySlots = $slotService->getSlotsByDate($today, true, $minLeadTimeHours);
+    $hasBookableToday = false;
+    foreach ($todaySlots as $tslot) {
+        if (!empty($tslot['is_bookable'])) {
+            $hasBookableToday = true;
+            break;
+        }
+    }
+    if (!$hasBookableToday) {
+        $isTodayAllUnavailable = true;
+        foreach ($availableDates as $ad) {
+            if ($ad > $today) {
+                $firstAvailableFutureDate = $ad;
+                break;
+            }
+        }
+        // Nếu khách vào trang lần đầu chưa chọn ngày và hôm nay đã hết ca:
+        // Tự động chuyển selectedDate sang ngày tiếp theo còn ca để khách không bị cụt
+        if ($reqDate === '' && $firstAvailableFutureDate !== null) {
+            $selectedDate = $firstAvailableFutureDate;
+        }
+    }
+}
+
 $datesWithLunar = [];
 $datesWithPromos = [];
 foreach ($availableDates as $d) {
@@ -416,40 +444,57 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                     </span>
                 </div>
 
-                <!-- Thanh Lịch Ngang Trượt (Horizontal Date Strip - Issue #19 & #20) -->
+                <!-- Thanh Lịch Ngang Trượt Slider (Horizontal Date Slider - Issue #33) -->
                 <?php if (count($availableDates) > 1): ?>
-                    <div class="date-strip-container" role="tablist" aria-label="Chọn ngày phục vụ">
-                        <?php foreach ($availableDates as $d): 
-                            $lunar = $datesWithLunar[$d] ?? null;
-                            $ts = strtotime($d);
-                            $dow = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][(int)date('w', $ts)];
-                            if ($d === $today) {
-                                $dow = 'Hôm nay';
-                            } elseif ($d === date('Y-m-d', strtotime('+1 day'))) {
-                                $dow = 'Ngày mai';
-                            }
-                            $isActive = ($d === $selectedDate);
-                            $hasPromoOnDate = !empty($datesWithPromos[$d]);
-                        ?>
-                            <a href="index.php?date=<?= urlencode($d) ?>" 
-                               class="date-chip <?= $isActive ? 'is-active' : '' ?>"
-                               role="tab" 
-                               aria-selected="<?= $isActive ? 'true' : 'false' ?>">
-                                <span class="date-chip-dow"><?= $dow ?></span>
-                                <span class="date-chip-solar"><?= date('d/m', $ts) ?></span>
-                                <span class="date-chip-lunar"><?= $lunar ? $lunar['lunar_text'] : '' ?></span>
-                                <?php if ($lunar && !empty($lunar['badge'])): ?>
-                                    <span class="badge-lunar-chip <?= htmlspecialchars($lunar['badge']['class'], ENT_QUOTES, 'UTF-8') ?>">
-                                        <?= htmlspecialchars($lunar['badge']['icon'] . ' ' . ($lunar['is_first_day'] ? 'M1' : ($lunar['is_full_moon'] ? 'Rằm' : 'Lễ')), ENT_QUOTES, 'UTF-8') ?>
-                                    </span>
-                                <?php endif; ?>
-                                <?php if ($hasPromoOnDate): ?>
-                                    <span class="badge-lunar-chip" style="background: #FFEDD5; color: #C2410C; border: 1px solid #FDBA74;">
-                                        🔥 KM
-                                    </span>
-                                <?php endif; ?>
-                            </a>
-                        <?php endforeach; ?>
+                    <div class="date-slider-wrapper" id="dateSliderWrapper">
+                        <button type="button" class="date-slider-btn btn-prev is-disabled" id="btnDateSliderPrev" aria-label="Trượt xem ngày trước" title="Xem ngày trước">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                        </button>
+                        <div class="date-strip-container" id="dateStripContainer" role="tablist" aria-label="Chọn ngày phục vụ">
+                            <?php foreach ($availableDates as $d): 
+                                $lunar = $datesWithLunar[$d] ?? null;
+                                $ts = strtotime($d);
+                                $dow = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][(int)date('w', $ts)];
+                                if ($d === $today) {
+                                    $dow = 'Hôm nay';
+                                } elseif ($d === date('Y-m-d', strtotime('+1 day'))) {
+                                    $dow = 'Ngày mai';
+                                }
+                                $isActive = ($d === $selectedDate);
+                                $hasPromoOnDate = !empty($datesWithPromos[$d]);
+                                $isEndedToday = ($d === $today && $isTodayAllUnavailable);
+                            ?>
+                                <a href="index.php?date=<?= urlencode($d) ?>" 
+                                   class="date-chip <?= $isActive ? 'is-active' : '' ?> <?= $isEndedToday ? 'is-ended' : '' ?>"
+                                   data-date="<?= htmlspecialchars($d, ENT_QUOTES, 'UTF-8') ?>"
+                                   role="tab" 
+                                   aria-selected="<?= $isActive ? 'true' : 'false' ?>">
+                                    <span class="date-chip-dow"><?= $dow ?></span>
+                                    <span class="date-chip-solar"><?= date('d/m', $ts) ?></span>
+                                    <span class="date-chip-lunar"><?= $lunar ? $lunar['lunar_text'] : '' ?></span>
+                                    <?php if ($lunar && !empty($lunar['badge'])): ?>
+                                        <span class="badge-lunar-chip <?= htmlspecialchars($lunar['badge']['class'], ENT_QUOTES, 'UTF-8') ?>">
+                                            <?= htmlspecialchars($lunar['badge']['icon'] . ' ' . ($lunar['is_first_day'] ? 'M1' : ($lunar['is_full_moon'] ? 'Rằm' : 'Lễ')), ENT_QUOTES, 'UTF-8') ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if ($hasPromoOnDate): ?>
+                                        <span class="badge-lunar-chip" style="background: #FFEDD5; color: #C2410C; border: 1px solid #FDBA74;">
+                                            🔥 KM
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if ($isEndedToday): ?>
+                                        <span class="badge-ended-chip">Hết ca</span>
+                                    <?php endif; ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                        <button type="button" class="date-slider-btn btn-next" id="btnDateSliderNext" aria-label="Trượt xem ngày tiếp theo" title="Xem ngày tiếp theo">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
                     </div>
                 <?php endif; ?>
 
@@ -524,7 +569,13 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                     <div id="urgentZaloNoteText" style="font-size: 0.78rem; color: var(--text-charcoal); line-height: 1.55;">
                         <?= $slotNoticeContext['notice_html'] ?: '🌿 <strong>Thông báo từ Bếp:</strong> Khung giờ cần đặt trước ' . $minLeadTimeHours . 'h để bếp kịp ninh nước dùng tươi mới.' ?>
                     </div>
-                    <div id="urgentZaloBtnWrapper" style="display: <?= !empty($sellerZaloUrl) ? 'flex' : 'none' ?>; justify-content: flex-end; margin-top: 8px;">
+                    <div id="urgentZaloBtnWrapper" style="display: <?= (!empty($sellerZaloUrl) || ($selectedDate === $today && $isTodayAllUnavailable && !empty($firstAvailableFutureDate))) ? 'flex' : 'none' ?>; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                        <?php if ($selectedDate === $today && $isTodayAllUnavailable && !empty($firstAvailableFutureDate)): ?>
+                            <a id="btnNextAvailableDate" href="index.php?date=<?= urlencode($firstAvailableFutureDate) ?>" 
+                               style="background: #5B7065; color: #FFFFFF; font-size: 0.72rem; padding: 7px 12px; border-radius: 8px; text-decoration: none; font-weight: 600; white-space: nowrap; box-shadow: 0 1px 4px rgba(91, 112, 101, 0.2); display: inline-flex; align-items: center; gap: 4px;">
+                                📅 Đặt cho ngày <?= date('d/m', strtotime($firstAvailableFutureDate)) ?> ➔
+                            </a>
+                        <?php endif; ?>
                         <?php if (!empty($sellerZaloUrl)): ?>
                             <a id="btnUrgentZalo" href="<?= htmlspecialchars($sellerZaloUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener noreferrer" 
                                style="background: #0068FF; color: #FFFFFF; font-size: 0.72rem; padding: 7px 12px; border-radius: 8px; text-decoration: none; font-weight: 600; white-space: nowrap; box-shadow: 0 1px 4px rgba(0, 104, 255, 0.2); display: inline-flex; align-items: center; gap: 4px;">

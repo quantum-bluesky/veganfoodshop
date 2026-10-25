@@ -237,6 +237,18 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       - *Giờ muộn sắp đóng cửa (21:00 - 22:00):* Cảnh báo bếp chuẩn bị đóng cửa (nhận đơn trước 22:00). Món cần 30 - 45 phút chuẩn bị & ship. Bắt buộc khách tick xác nhận: `Tôi xác nhận có thể nhận món trước 22:00 và đồng ý thời gian chuẩn bị & ship của bếp (30 - 45 phút).`
       - *Giờ bình thường ban ngày (trước 21:00):* Thông báo thời gian chuẩn bị & ship 30 - 45 phút, kèm hộp checkbox xác nhận: `Tôi đồng ý với thời gian chuẩn bị món & ship của bếp (khoảng 30 - 45 phút).`
       - Client-side (`app.js`) và backend (`OrderService.php`) kiểm tra đồng bộ, đảm bảo khách luôn xác nhận trước khi gửi đơn mang về.
+26. **Nới Rộng Lịch Đặt & Slide Thanh Trượt Ngang Chọn Ngày (v1.15.1 - Issue #33):**
+    - **Nới Rộng Lịch Đặt Tự Động Sang Các Ngày Tiếp Theo:**
+      - Khi không đủ điều kiện chọn giờ đặt vào hôm nay (hết chỗ, quá giờ cutoff hoặc đóng cửa đêm), hệ thống tự động chuẩn bị và nới rộng lịch đặt sẵn cho các ngày tiếp theo trong phạm vi `advance_booking_days` (mặc định 7 ngày).
+      - Phương thức `ensureSlotsForUpcomingDays()` trong `SlotService.php` tự động chuẩn bị các ca tiêu chuẩn cho các ngày tới, không ghi đè lên các ca đã được quản trị viên tùy biến và tôn trọng cấu hình ngày nghỉ `is_shop_closed`.
+      - Khi hôm nay hết ca khả dụng, hệ thống tự động nhận diện `$isTodayAllUnavailable = true`, gắn huy hiệu `Hết ca` trên thẻ ngày hôm nay, tự động ưu tiên gợi ý và chọn ngày kế tiếp còn chỗ (`$firstAvailableFutureDate`) để khách không bị cụt trải nghiệm đặt món.
+      - Khung thông báo `#urgentZaloNote` bổ sung nút chuyển nhanh: `[ 📅 Đặt cho ngày dd/mm ➔ ]` giúp khách chuyển ngày chỉ bằng 1 chạm.
+    - **Slide Thanh Trượt Ngang Chọn Ngày (Horizontal Date Slider):**
+      - Thêm bộ điều khiển thanh trượt ngang bọc ngoài dải ngày: `.date-slider-wrapper` gồm 2 nút điều hướng Trái (`#btnDateSliderPrev`) và Phải (`#btnDateSliderNext`).
+      - Tự động kiểm tra độ rộng màn hình: Nếu số lượng ngày vượt quá bề rộng màn hình (bị che khuất trên mobile hoặc desktop), hai nút trượt sẽ hiển thị mượt mà; nếu không bị tràn, nút tự động ẩn để tối ưu diện tích.
+      - Trạng thái nút trượt thông minh: Nút Prev tự động mờ/disabled (`.is-disabled`) khi ở đầu danh sách, nút Next tự động disabled khi cuộn tới mép cuối.
+      - **Auto-scroll tâm điểm:** Tự động cuộn mượt đưa thẻ ngày đang chọn (`.date-chip.is-active`) vào ngay trung tâm tầm nhìn của khách khi tải trang hoặc khi đổi ngày.
+      - Hỗ trợ cuộn mượt (`scroll-behavior: smooth`), kéo chuột tự nhiên (drag-to-scroll trên Desktop) và chạm lướt (`touch swipe`, `scroll-snap` trên Mobile) mang đúng phong cách Zen / Ghibli.
 
 ---
 

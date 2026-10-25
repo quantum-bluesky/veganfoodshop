@@ -40,6 +40,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const fsIcon = document.getElementById('fsIcon');
     const fsLabel = document.getElementById('fsLabel');
 
+    // Quản lý Slide Thanh Trượt Ngang Chọn Ngày (Issue #33)
+    const dateSliderWrapper = document.getElementById('dateSliderWrapper');
+    const dateStripContainer = document.getElementById('dateStripContainer');
+    const btnDateSliderPrev = document.getElementById('btnDateSliderPrev');
+    const btnDateSliderNext = document.getElementById('btnDateSliderNext');
+
     function applyFontSizeMode(isLarge) {
         if (isLarge) {
             document.body.classList.add('zen-font-large');
@@ -78,6 +84,98 @@ document.addEventListener('DOMContentLoaded', function () {
                     localStorage.removeItem('vegan_font_size_large');
                 }
             } catch (e) {}
+        });
+    }
+
+    // ====================================================================
+    // Quản lý Slide Thanh Trượt Ngang Chọn Ngày (Issue #33)
+    // ====================================================================
+    function updateDateSliderButtons() {
+        if (!dateStripContainer || !btnDateSliderPrev || !btnDateSliderNext) return;
+        const scrollLeft = dateStripContainer.scrollLeft;
+        const maxScrollLeft = dateStripContainer.scrollWidth - dateStripContainer.clientWidth;
+
+        // Nếu toàn bộ các ngày hiển thị vừa vặn không bị che khuất
+        if (maxScrollLeft <= 2) {
+            btnDateSliderPrev.classList.add('is-disabled');
+            btnDateSliderNext.classList.add('is-disabled');
+            btnDateSliderPrev.style.display = 'none';
+            btnDateSliderNext.style.display = 'none';
+            return;
+        } else {
+            btnDateSliderPrev.style.display = 'flex';
+            btnDateSliderNext.style.display = 'flex';
+        }
+
+        if (scrollLeft <= 2) {
+            btnDateSliderPrev.classList.add('is-disabled');
+        } else {
+            btnDateSliderPrev.classList.remove('is-disabled');
+        }
+
+        if (scrollLeft >= maxScrollLeft - 2) {
+            btnDateSliderNext.classList.add('is-disabled');
+        } else {
+            btnDateSliderNext.classList.remove('is-disabled');
+        }
+    }
+
+    if (btnDateSliderPrev && dateStripContainer) {
+        btnDateSliderPrev.addEventListener('click', function () {
+            dateStripContainer.scrollBy({ left: -200, behavior: 'smooth' });
+        });
+    }
+
+    if (btnDateSliderNext && dateStripContainer) {
+        btnDateSliderNext.addEventListener('click', function () {
+            dateStripContainer.scrollBy({ left: 200, behavior: 'smooth' });
+        });
+    }
+
+    if (dateStripContainer) {
+        dateStripContainer.addEventListener('scroll', updateDateSliderButtons, { passive: true });
+        window.addEventListener('resize', updateDateSliderButtons);
+
+        // Cuộn mượt để ngày đang chọn (is-active) luôn nằm ở vị trí trung tâm tầm nhìn
+        const activeChip = dateStripContainer.querySelector('.date-chip.is-active');
+        if (activeChip) {
+            setTimeout(function () {
+                const targetScrollLeft = activeChip.offsetLeft - (dateStripContainer.clientWidth / 2) + (activeChip.clientWidth / 2);
+                dateStripContainer.scrollTo({ left: Math.max(0, targetScrollLeft), behavior: 'smooth' });
+                updateDateSliderButtons();
+            }, 100);
+        } else {
+            updateDateSliderButtons();
+        }
+
+        // Hỗ trợ kéo chuột tự nhiên (drag-to-scroll) trên trình duyệt Desktop
+        let isDown = false;
+        let startX = 0;
+        let scrollStart = 0;
+
+        dateStripContainer.addEventListener('mousedown', function (e) {
+            isDown = true;
+            dateStripContainer.style.cursor = 'grabbing';
+            startX = e.pageX - dateStripContainer.offsetLeft;
+            scrollStart = dateStripContainer.scrollLeft;
+        });
+
+        dateStripContainer.addEventListener('mouseleave', function () {
+            isDown = false;
+            dateStripContainer.style.cursor = '';
+        });
+
+        dateStripContainer.addEventListener('mouseup', function () {
+            isDown = false;
+            dateStripContainer.style.cursor = '';
+        });
+
+        dateStripContainer.addEventListener('mousemove', function (e) {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - dateStripContainer.offsetLeft;
+            const walk = (x - startX) * 1.5;
+            dateStripContainer.scrollLeft = scrollStart - walk;
         });
     }
 

@@ -340,11 +340,57 @@ class SlotService
     }
 
     /**
+     * Tự động đảm bảo có ca phục vụ cho các ngày tiếp theo trong khoảng advance_booking_days (Issue #33)
+     */
+    public function ensureSlotsForUpcomingDays(?int $advanceBookingDays = null): void
+    {
+        $days = $advanceBookingDays ?? (int)$this->configService->get('advance_booking_days', '7');
+        $defaultSlots = [
+            '11:30 - 12:15' => 12,
+            '12:30 - 13:15' => 12,
+            '18:00 - 18:45' => 12,
+            '19:00 - 19:45' => 12,
+        ];
+
+        $today = date('Y-m-d');
+        $stmtCheck = $this->db->prepare('SELECT COUNT(*) FROM time_slots WHERE slot_date = :d');
+        $stmtInsert = $this->db->prepare('
+            INSERT INTO time_slots (slot_date, slot_time, max_capacity, is_active)
+            VALUES (:d, :t, :cap, 1)
+        ');
+
+        for ($i = 0; $i <= $days; $i++) {
+            $targetDate = date('Y-m-d', strtotime("+{$i} days"));
+            $closedStatus = $this->configService->getShopClosedStatus($targetDate);
+            if ($closedStatus['is_closed']) {
+                continue;
+            }
+
+            $stmtCheck->execute([':d' => $targetDate]);
+            $count = (int)$stmtCheck->fetchColumn();
+
+            // Nếu ngày này chưa có ca nào trong hệ thống, tự động sinh ca chuẩn
+            if ($count === 0) {
+                foreach ($defaultSlots as $slotTime => $capacity) {
+                    $stmtInsert->execute([
+                        ':d' => $targetDate,
+                        ':t' => $slotTime,
+                        ':cap' => $capacity,
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
      * Lấy danh sách các ngày có mở ca (sắp xếp tăng dần, trong khoảng advance_booking_days)
      */
     public function getAvailableDates(?int $advanceBookingDays = null): array
     {
         $days = $advanceBookingDays ?? (int)$this->configService->get('advance_booking_days', '7');
+        // Nới rộng lịch đặt: Đảm bảo các ngày tiếp theo luôn có ca khả dụng trong lịch (Issue #33)
+        $this->ensureSlotsForUpcomingDays($days);
+
         $today = date('Y-m-d');
         $maxDate = date('Y-m-d', strtotime("+{$days} days"));
 

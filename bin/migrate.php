@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * CLI Migration Runner cho VeganFoodShop (Bếp Chay An Yên)
+ * CLI Migration Runner cho VeganFoodShop (Bếp Chay An Lành)
  * 
  * Cách chạy:
  * php bin/migrate.php           (Thực thi các migration đang chờ)
@@ -15,7 +15,7 @@ use App\Database\Connection;
 use App\Services\MigrationService;
 
 echo "\n======================================================\n";
-echo "   VEGAN FOOD SHOP (BẾP CHAY AN YÊN) - MIGRATIONS     \n";
+echo "   VEGAN FOOD SHOP (Bếp Chay An Lành) - MIGRATIONS     \n";
 echo "======================================================\n\n";
 
 try {

@@ -1,4 +1,4 @@
-# Hướng Dẫn Cấu Hình URL Rewrite (Bỏ Đuôi .php) - Bếp Chay An Yên
+# Hướng Dẫn Cấu Hình URL Rewrite (Bỏ Đuôi .php) - Bếp Chay An Lành
 
 Tài liệu này hướng dẫn cách cấu hình Web Server để hỗ trợ truy cập các trang không cần gõ đuôi `.php` (ví dụ: gõ `/admin` thay vì `/admin.php`, `/process_order` thay vì `/process_order.php`).
 

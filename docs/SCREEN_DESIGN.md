@@ -1,6 +1,6 @@
 # SCREEN_DESIGN.md - Thiết Kế Giao Diện & Trải Nghiệm Người Dùng (Ghibli & Zen UI/UX)
 
-Tài liệu này quy chuẩn hệ thống Design System, bảng màu, font chữ, bố cục màn hình và các thành phần giao diện di động (Mobile-First) cho hệ thống **VeganFoodShop (Bếp Chay An Yên)**.
+Tài liệu này quy chuẩn hệ thống Design System, bảng màu, font chữ, bố cục màn hình và các thành phần giao diện di động (Mobile-First) cho hệ thống **VeganFoodShop (Bếp Chay An Lành)**.
 
 ---
 
@@ -49,7 +49,7 @@ Giao diện được bố trí theo dạng **dòng chảy cuộn dọc (Story-te
 
 ```text
 +------------------------------------------+
-|          [BẾP CHAY AN YÊN]               |
+|          [Bếp Chay An Lành]               |
 |      Chốn dừng chân thanh tĩnh           |
 | "Một bát canh thanh ngọt, vỗ về bộn bề"  |
 +------------------------------------------+
@@ -77,7 +77,7 @@ Giao diện được bố trí theo dạng **dòng chảy cuộn dọc (Story-te
 | (•) Quét mã VietQR chuyển khoản          |
 | ( ) Thanh toán khi dùng bữa (Khách quen) |
 +------------------------------------------+
-|     [ GỬI ĐẶT BẾP AN YÊN (45.000đ) ]     |
+|     [ GỬI ĐẶT Bếp An Lành (45.000đ) ]     |
 +------------------------------------------+
 ```
 

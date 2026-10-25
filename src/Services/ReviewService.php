@@ -116,7 +116,7 @@ class ReviewService
 
         // Nếu không cho phép khách vãng lai và không có đơn đã đặt
         if (!$this->isAnonymousAllowed() && $isVerifiedBuyer === 0) {
-            throw new ValidationException('Bếp An Yên chỉ nhận đánh giá từ những bạn đã có đơn đặt trước. Xin bạn vui lòng nhập mã đơn hàng của mình nhé!');
+            throw new ValidationException('Bếp An Lành chỉ nhận đánh giá từ những bạn đã có đơn đặt trước. Xin bạn vui lòng nhập mã đơn hàng của mình nhé!');
         }
 
         // Chống gửi trùng đánh giá cho cùng 1 đơn hàng
@@ -159,8 +159,8 @@ class ReviewService
             'status' => $status,
             'is_verified_buyer' => $isVerifiedBuyer,
             'message' => $status === 'pending'
-                ? 'Bếp Chay An Yên đã nhận lời nhắn gửi yêu thương của bạn. Bếp sẽ kiểm duyệt và sớm hiển thị lên trang nhé! 🌸'
-                : 'Cảm ơn bạn đã gửi đánh giá! Cảm nhận của bạn đã được hiển thị trên trang Bếp An Yên. 🌸',
+                ? 'Bếp Chay An Lành đã nhận lời nhắn gửi yêu thương của bạn. Bếp sẽ kiểm duyệt và sớm hiển thị lên trang nhé! 🌸'
+                : 'Cảm ơn bạn đã gửi đánh giá! Cảm nhận của bạn đã được hiển thị trên trang Bếp An Lành. 🌸',
         ];
     }
 

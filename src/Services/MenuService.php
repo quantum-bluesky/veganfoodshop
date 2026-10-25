@@ -688,7 +688,7 @@ class MenuService
 
             // Mẫu tin nhắn Zalo thân thương gửi khách
             $zaloText = sprintf(
-                "Chào bạn %s, Bếp Chay An Yên xin phép nhắn bạn về đơn %s (Khung giờ %s ngày %s): %s. Bếp mong bạn thông cảm cho sự bất tiện này nhé! 🍃",
+                "Chào bạn %s, Bếp Chay An Lành xin phép nhắn bạn về đơn %s (Khung giờ %s ngày %s): %s. Bếp mong bạn thông cảm cho sự bất tiện này nhé! 🍃",
                 $custName,
                 $orderCode,
                 $slotTime,

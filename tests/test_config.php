@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 return [
     'app' => [
-        'name' => 'Bếp Chay An Yên',
+        'name' => 'Bếp Chay An Lành',
         'phone' => '0987862241',
         'email' => 'bepchayan@gmail.com',
         'address' => 'Số 12 ngõ An Yên, phố Chùa Láng, Đống Đa, Hà Nội',

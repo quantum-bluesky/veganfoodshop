@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Trang Đánh Giá & Cảm Nhận Của Khách Hàng (Issue #18 & Issue #21)
- * VeganFoodShop - Bếp Chay An Yên
+ * VeganFoodShop - Bếp Chay An Lành
  * UTF-8 No BOM, chuẩn PHP 8.4+
  */
 
@@ -19,7 +19,7 @@ use App\Exceptions\ValidationException;
 
 $db = Connection::getInstance();
 $configService = new ConfigService($db);
-$shopName = $configService->get('shop_name', 'Bếp Chay An Yên');
+$shopName = $configService->get('shop_name', 'Bếp Chay An Lành');
 $shopQuote = $configService->get('shop_quote', 'Bình an trong từng bữa ăn thanh tịnh');
 $reviewService = new ReviewService($db, $configService);
 $customerService = new CustomerService($db);
@@ -74,22 +74,22 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Yên</title>
-    <meta name="description" content="Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua tại Bếp Chay An Yên.">
+    <title>Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Lành</title>
+    <meta name="description" content="Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua tại Bếp Chay An Lành.">
 
     <!-- Các thẻ Open Graph cơ bản (Issue #31) -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="<?= htmlspecialchars($fullCurrentUrl, ENT_QUOTES, 'UTF-8') ?>">
-    <meta property="og:site_name" content="Bếp Chay An Yên">
-    <meta property="og:title" content="Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Yên">
-    <meta property="og:description" content="Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua tại Bếp Chay An Yên.">
+    <meta property="og:site_name" content="Bếp Chay An Lành">
+    <meta property="og:title" content="Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Lành">
+    <meta property="og:description" content="Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua tại Bếp Chay An Lành.">
     <meta property="og:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
-    <meta property="og:image:alt" content="Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Yên">
+    <meta property="og:image:alt" content="Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Lành">
 
     <!-- Thẻ hỗ trợ riêng cho Twitter / X -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Yên">
-    <meta name="twitter:description" content="Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua tại Bếp Chay An Yên.">
+    <meta name="twitter:title" content="Cảm Nhận & Lưu Bút Kỷ Niệm - Bếp Chay An Lành">
+    <meta name="twitter:description" content="Giữ lại chút hương thơm của nấm, vị ngọt lành của củ quả và những ấm áp của tấm lòng người ghé qua tại Bếp Chay An Lành.">
     <meta name="twitter:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
 
     <!-- Google Fonts: Lora (Tiêu đề thiền vị, sâu lắng) & Quicksand (Mộc mạc) -->
@@ -299,7 +299,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
             </a>
             <span style="color: #D1D5DB;">•</span>
             <a href="about.php" class="zen-nav-link">
-                🌿 Về Bếp An Yên
+                🌿 Về Bếp An Lành
             </a>
             <span style="color: #D1D5DB;">•</span>
             <span style="font-weight: 700; color: var(--brand-tea-green);">
@@ -387,7 +387,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                         <?php if (!empty($t['kitchen_reply'])): ?>
                             <div class="testimonial-kitchen-reply">
                                 <span style="font-weight: 600; color: var(--brand-tea-green); font-style: normal;">
-                                    🌸 Bếp Chay An Yên tri ân:
+                                    🌸 Bếp Chay An Lành tri ân:
                                 </span>
                                 <?= nl2br(htmlspecialchars($t['kitchen_reply'], ENT_QUOTES, 'UTF-8')) ?>
                             </div>
@@ -573,7 +573,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                             <?php if (!empty($rev['kitchen_reply'])): ?>
                                 <div class="kitchen-reply-box">
                                     <div style="font-weight: 700; color: var(--brand-tea-green); margin-bottom: 2px; font-size: 0.75rem;">
-                                        🌿 Bếp Chay An Yên phản hồi:
+                                        🌿 Bếp Chay An Lành phản hồi:
                                     </div>
                                     <div>
                                         <?= nl2br(htmlspecialchars($rev['kitchen_reply'], ENT_QUOTES, 'UTF-8')) ?>
@@ -592,7 +592,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
             <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 6px;">
                 <a href="index.php" style="color: var(--brand-tea-green); text-decoration: none;">Trang Chủ Đặt Món</a>
                 <span>•</span>
-                <a href="about.php" style="color: var(--brand-tea-green); text-decoration: none;">Về Bếp An Yên</a>
+                <a href="about.php" style="color: var(--brand-tea-green); text-decoration: none;">Về Bếp An Lành</a>
                 <span>•</span>
                 <a href="admin.php" style="color: #9CA3AF; text-decoration: none;">Quản Trị Bếp</a>
             </div>

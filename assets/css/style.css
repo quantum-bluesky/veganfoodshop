@@ -1,5 +1,5 @@
 /* ====================================================================
-   DESIGN SYSTEM: Bếp Chay An Yên
+   DESIGN SYSTEM: Bếp Chay An Lành
    Triết lý: Hơi thở Ghibli & Thiền Vị (Zen)
    ==================================================================== */
 
@@ -185,7 +185,7 @@ body {
     font-size: 1.1rem;
     border-radius: 10px;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     transition: all 0.15s ease;
 }
 
@@ -265,8 +265,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Mobile responsive fixes */
@@ -716,9 +723,11 @@ body.zen-font-large .zen-hub-events .zen-event-item {
 body.zen-font-large .date-chip-dow {
     font-size: 0.82rem !important;
 }
+
 body.zen-font-large .date-chip-solar {
     font-size: 0.95rem !important;
 }
+
 body.zen-font-large .date-chip-lunar {
     font-size: 0.78rem !important;
 }
@@ -742,4 +751,3 @@ body.zen-font-large .zen-btn-primary {
     font-size: 1.05rem !important;
     padding: 16px 20px !important;
 }
-

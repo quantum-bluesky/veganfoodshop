@@ -8,7 +8,7 @@ Trước khi sửa code hoặc chạy test, Agent phải đọc kỹ [AGENT_RULE
 
 ## 1. Mục tiêu & Định vị dự án
 
-**VeganFoodShop (Bếp Chay An Yên)** là hệ thống web cá nhân phục vụ việc **Đặt Chỗ & Đặt Món Trước (Slot & Batch Pre-order)** cho quán ẩm thực chay, hoạt động linh hoạt theo từng khung giờ và số lượng suất giới hạn trong ngày/tuần.
+**VeganFoodShop (Bếp Chay An Lành)** là hệ thống web cá nhân phục vụ việc **Đặt Chỗ & Đặt Món Trước (Slot & Batch Pre-order)** cho quán ẩm thực chay, hoạt động linh hoạt theo từng khung giờ và số lượng suất giới hạn trong ngày/tuần.
 
 ### Các mục tiêu cốt lõi:
 1. **Tinh gọn & Nhẹ tênh (Lightweight):**

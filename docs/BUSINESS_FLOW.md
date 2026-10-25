@@ -1,6 +1,6 @@
 # BUSINESS_FLOW.md - Luồng Nghiệp Vụ & Quy Trình Vận Hành VeganFoodShop
 
-Tài liệu này mô tả chi tiết các luồng nghiệp vụ thực tế, tương tác giữa các tác nhân, trạng thái chứng từ và các tình huống xử lý biên cho hệ thống **VeganFoodShop (Bếp Chay An Yên)** theo mô hình **Khung giờ & Suất ăn giới hạn (Slot & Batch Pre-order)**.
+Tài liệu này mô tả chi tiết các luồng nghiệp vụ thực tế, tương tác giữa các tác nhân, trạng thái chứng từ và các tình huống xử lý biên cho hệ thống **VeganFoodShop (Bếp Chay An Lành)** theo mô hình **Khung giờ & Suất ăn giới hạn (Slot & Batch Pre-order)**.
 
 ---
 
@@ -24,7 +24,7 @@ flowchart TD
     F --> G{Kiểm tra SĐT qua AJAX}
     G -- "is_trusted == 1 (Khách quen)" --> H[Hiện chào mừng & Mở tùy chọn Trả sau]
     G -- "is_trusted == 0 (Khách mới)" --> I[Mặc định Quét mã VietQR thanh toán/cọc]
-    H --> J[Bấm Gửi Đặt Bếp An Yên]
+    H --> J[Bấm Gửi Đặt Bếp An Lành]
     I --> J
     J --> K{Kiểm tra khóa suất Transaction}
     K -- "Đủ suất" --> L[Thông báo ca đã đầy, gợi ý ca khác]
@@ -48,7 +48,7 @@ flowchart TD
      - **Nếu là Khách quen (`is_trusted == 1`):** Hệ thống hiển thị badge xanh ấm áp: *"🌿 Chào bạn quen trở lại! Bếp ghi nhận đơn ngay, bạn có thể thanh toán sau khi ghé quán nhé."* và mở thêm lựa chọn radio *"Thanh toán khi dùng bữa (Dành cho khách quen)"*.
      - **Nếu là Khách mới:** Chỉ hiển thị phương thức *"Quét mã VietQR chuyển khoản"* để tránh tình trạng bùng đơn khi bếp đã hầm xong nước dùng.
 7. **Xác nhận đặt đơn:**
-   - Bấm nút *"Gửi Đặt Bếp An Yên"*.
+   - Bấm nút *"Gửi Đặt Bếp An Lành"*.
    - Hệ thống thực hiện giao dịch an toàn (Transaction `IMMEDIATE`), kiểm tra lại số suất còn lại của ca:
      - Nếu còn suất: Đơn được ghi nhận, mã đơn hàng được tạo (ví dụ `AY-20261025-001`). Màn hình hiển thị mã VietQR động (nếu chọn chuyển khoản) kèm số tiền và lời cảm ơn an lành.
      - Nếu đúng lúc đó có người khác vừa đặt hết suất: Hệ thống thông báo nhẹ nhàng và mời khách chọn sang ca kế tiếp mà không làm mất thông tin món đã chọn.

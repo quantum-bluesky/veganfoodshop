@@ -1,6 +1,6 @@
 # DB_DESIGN.md - Thiết Kế Cơ Sở Dữ Liệu VeganFoodShop
 
-Tài liệu này định nghĩa chi tiết cấu trúc bảng, kiểu dữ liệu, ràng buộc, chỉ mục (indexes) và quy trình giao dịch cho cơ sở dữ liệu **SQLite3** của hệ thống **VeganFoodShop (Bếp Chay An Yên)**.
+Tài liệu này định nghĩa chi tiết cấu trúc bảng, kiểu dữ liệu, ràng buộc, chỉ mục (indexes) và quy trình giao dịch cho cơ sở dữ liệu **SQLite3** của hệ thống **VeganFoodShop (Bếp Chay An Lành)**.
 
 ---
 

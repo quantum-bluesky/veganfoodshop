@@ -6,7 +6,7 @@ namespace App\Services;
 use Throwable;
 
 /**
- * Dịch Vụ Gửi Email Thông Báo - Bếp Chay An Yên
+ * Dịch Vụ Gửi Email Thông Báo - Bếp Chay An Lành
  * Thuần PHP (Zero External Dependencies), hỗ trợ SMTP chuẩn (TLS/SSL) hoặc PHP mail()
  */
 class EmailService
@@ -30,7 +30,7 @@ class EmailService
         }
 
         $orderCode = (string)($order['order_code'] ?? 'UNKNOWN');
-        $subject = sprintf('[%s] Có đơn hàng mới #%s', $this->configService->get('shop_name', 'Bếp Chay An Yên'), $orderCode);
+        $subject = sprintf('[%s] Có đơn hàng mới #%s', $this->configService->get('shop_name', 'Bếp Chay An Lành'), $orderCode);
 
         $htmlBody = $this->buildNewOrderHtml($order);
         $textBody = $this->buildNewOrderText($order);
@@ -57,7 +57,7 @@ class EmailService
         $smtpPass = trim($this->configService->get('smtp_password', ''));
         $smtpEncryption = strtolower(trim($this->configService->get('smtp_encryption', 'tls'))); // tls, ssl, none
         $fromEmail = trim($this->configService->get('smtp_from_email', $smtpUser ?: 'bepchay@anyen.local'));
-        $fromName = trim($this->configService->get('smtp_from_name', 'Bếp Chay An Yên'));
+        $fromName = trim($this->configService->get('smtp_from_name', 'Bếp Chay An Lành'));
 
         try {
             return $this->sendViaSmtpSocket(
@@ -237,7 +237,7 @@ class EmailService
         $payment = ($order['payment_method'] ?? '') === 'pay_later' ? 'Thanh toán sau tại bếp (Khách quen)' : 'Quét mã VietQR chuyển khoản';
 
         $lines = [];
-        $lines[] = "BẾP CHAY AN YÊN - CÓ ĐƠN HÀNG MỚI #{$orderCode}";
+        $lines[] = "Bếp Chay An Lành - CÓ ĐƠN HÀNG MỚI #{$orderCode}";
         $lines[] = "==========================================";
         $lines[] = "Khung giờ phục vụ: {$slotDate} ({$slotTime})";
         $lines[] = "Hình thức: {$orderType}";
@@ -306,7 +306,7 @@ class EmailService
         <!-- Header -->
         <tr>
             <td style="background-color: #5B7065; padding: 22px 24px; text-align: center; color: #FFFFFF;">
-                <p style="margin: 0 0 4px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.9;">Bếp Chay An Yên</p>
+                <p style="margin: 0 0 4px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.9;">Bếp Chay An Lành</p>
                 <h1 style="margin: 0; font-size: 20px; font-weight: 600;">🌿 Có Đơn Đặt Món Mới #{$orderCode}</h1>
             </td>
         </tr>

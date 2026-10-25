@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Xử lý tiếp nhận đơn & Hiển thị màn hình xác nhận / VietQR
- * Bếp Chay An Yên
+ * Bếp Chay An Lành
  */
 
 header('Content-Type: text/html; charset=UTF-8');
@@ -22,7 +22,7 @@ $orderService = new OrderService();
 $zaloService = new \App\Services\ZaloAuthService();
 $zaloConfig = $zaloService->getConfig();
 
-$shopName = $configService->get('shop_name', 'Bếp Chay An Yên');
+$shopName = $configService->get('shop_name', 'Bếp Chay An Lành');
 $bankId = $configService->get('bank_id', '970422');
 $bankName = $configService->get('bank_name', 'MBBank');
 $accountNo = $configService->get('account_no', '0987654321');
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Kiểm tra bắt buộc đăng nhập Zalo nếu shop bật cấu hình
         if ($zaloService->isRequireLogin() && trim($zaloId) === '') {
-            throw new ValidationException('Bếp An Yên yêu cầu đăng nhập tài khoản Zalo trước khi gửi đơn để đảm bảo kết nối giữ chỗ.');
+            throw new ValidationException('Bếp An Lành yêu cầu đăng nhập tài khoản Zalo trước khi gửi đơn để đảm bảo kết nối giữ chỗ.');
         }
 
         $order = $orderService->createOrder([
@@ -237,7 +237,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                         Đơn Hàng Đã Hoàn Tất
                     </h2>
                     <p style="font-size: 0.82rem; color: #15803D; line-height: 1.5;">
-                        Bếp An Yên xin gửi lời tri ân sâu sắc vì bạn đã ghé thăm và thưởng thức bữa chay an lành!
+                        Bếp An Lành xin gửi lời tri ân sâu sắc vì bạn đã ghé thăm và thưởng thức bữa chay an lành!
                     </p>
                 </section>
 
@@ -249,7 +249,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                         Đã Nhận Chuyển Khoản Thành Công!
                     </h2>
                     <p style="font-size: 0.82rem; color: #047857; line-height: 1.5;">
-                        Bếp An Yên đã nhận được thanh toán <strong><?= number_format((int)$order['total_amount'], 0, ',', '.') ?>đ</strong> từ bạn.
+                        Bếp An Lành đã nhận được thanh toán <strong><?= number_format((int)$order['total_amount'], 0, ',', '.') ?>đ</strong> từ bạn.
                     </p>
                     <p style="font-size: 0.76rem; color: #059669; margin-top: 6px;">
                         Nồi nước dùng đang sôi liu riu chờ bạn ghé vào khung giờ <strong><?= htmlspecialchars((string)$order['slot_time'], ENT_QUOTES, 'UTF-8') ?></strong> nhé.
@@ -444,10 +444,10 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
             <div style="display: flex; gap: 8px; flex-direction: column;">
                 <a href="reviews.php?order_code=<?= urlencode((string)$order['order_code']) ?>&name=<?= urlencode((string)$order['customer_name']) ?>&phone=<?= urlencode((string)$order['customer_phone']) ?>" 
                    style="text-decoration: none; text-align: center; padding: 12px; border-radius: 12px; background: #FAF7F2; border: 1px solid var(--brand-border-soft); color: var(--brand-tea-dark); font-size: 0.84rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <span>🌸</span> Gửi cảm nhận & lưu bút đến Bếp An Yên
+                    <span>🌸</span> Gửi cảm nhận & lưu bút đến Bếp An Lành
                 </a>
                 <a href="index.php" class="zen-btn-primary" style="text-decoration: none; text-align: center; background-color: #606C5D;">
-                    Về trang chủ Bếp An Yên
+                    Về trang chủ Bếp An Lành
                 </a>
             </div>
 

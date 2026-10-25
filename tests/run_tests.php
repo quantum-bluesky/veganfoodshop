@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Trình chạy kiểm thử tự động độc lập cho VeganFoodShop (Bếp Chay An Yên)
+ * Trình chạy kiểm thử tự động độc lập cho VeganFoodShop (Bếp Chay An Lành)
  * Đảm bảo 100% CÔ LẬP DATABASE (chỉ chạy SQLite :memory:)
  */
 
@@ -80,7 +80,7 @@ $testSuites = [
 ];
 
 echo "\n======================================================\n";
-echo "   VEGAN FOOD SHOP (BẾP CHAY AN YÊN) - TEST RUNNER    \n";
+echo "   VEGAN FOOD SHOP (Bếp Chay An Lành) - TEST RUNNER    \n";
 echo "======================================================\n\n";
 
 $passedCount = 0;

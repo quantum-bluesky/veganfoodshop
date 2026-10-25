@@ -111,7 +111,7 @@ Hệ thống tuân thủ kiến trúc phân tầng rõ ràng, không viết code
 - Tuyệt đối tuân thủ bảng màu và typographic rules trong `docs/SCREEN_DESIGN.md`:
   - Nền Washi kem ấm (`#FAF7F2`), màu xanh trà dịu (`#5B7065`), chữ nâu than mờ (`#2C2A29`).
   - Không dùng các hiệu ứng giật cục, pop-up quảng cáo gây khó chịu. Trải nghiệm nhẹ nhàng, an tĩnh.
-- Kiểm tra bàn phím ảo trên điện thoại: đảm bảo khi người dùng gõ số điện thoại hoặc tên, bàn phím không che lấp nút "Gửi Đặt Bếp An Yên".
+- Kiểm tra bàn phím ảo trên điện thoại: đảm bảo khi người dùng gõ số điện thoại hoặc tên, bàn phím không che lấp nút "Gửi Đặt Bếp An Lành".
 
 ---
 

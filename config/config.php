@@ -2,16 +2,16 @@
 declare(strict_types=1);
 
 /**
- * Cấu hình tổng thể hệ thống VeganFoodShop (Bếp Chay An Yên)
+ * Cấu hình tổng thể hệ thống VeganFoodShop (Bếp Chay An Lành)
  * Chuẩn PHP 8.4+, mã hóa UTF-8 No BOM
  */
 
 $baseConfig = [
     'app' => [
-        'name' => 'Bếp Chay An Yên',
+        'name' => 'Bếp Chay An Lànhh',
         'phone' => '0987862241',
         'email' => 'bepchayan@gmail.com',
-        'address' => 'Số 12 ngõ An Yên, phố Chùa Láng, Đống Đa, Hà Nội',
+        'address' => 'Số 2 ngõ Thịnh Hào 1, phố Khâm Thiên, Đống Đa, Hà Nội',
         'quote' => 'Một bát canh thanh ngọt, vỗ về những bộn bề ngày thường',
         'env' => 'development',
         'debug' => true,

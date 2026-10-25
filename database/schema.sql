@@ -1,11 +1,9 @@
 -- ====================================================================
--- SCHEMA DEFINITION: VeganFoodShop (Bếp Chay An Yên)
+-- SCHEMA DEFINITION: VeganFoodShop (Bếp Chay An Lành)
 -- Database Engine: SQLite 3
 -- Character Encoding: UTF-8
 -- ====================================================================
-
 PRAGMA foreign_keys = ON;
-
 -- 1. Bảng Khách Hàng (Nhận diện khách quen, Zalo OAuth & trả sau)
 CREATE TABLE IF NOT EXISTS customers (
     phone TEXT PRIMARY KEY,
@@ -17,7 +15,6 @@ CREATE TABLE IF NOT EXISTS customers (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 -- 2. Bảng Khung Giờ Phục Vụ (Time Slots & Capacity)
 CREATE TABLE IF NOT EXISTS time_slots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,21 +25,23 @@ CREATE TABLE IF NOT EXISTS time_slots (
     is_closed INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 -- 3. Bảng Thực Đơn Món Ăn & Thức Uống
 CREATE TABLE IF NOT EXISTS menu_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     description TEXT NULL,
     price INTEGER NOT NULL CHECK(price >= 0),
-    category TEXT NOT NULL CHECK(category IN ('food', 'drink', 'extra', 'feast_combo')),
+    category TEXT NOT NULL CHECK(
+        category IN ('food', 'drink', 'extra', 'feast_combo')
+    ),
     image_url TEXT NULL,
-    service_scope TEXT NOT NULL DEFAULT 'both' CHECK(service_scope IN ('both', 'dine_in_only', 'takeaway_only')),
+    service_scope TEXT NOT NULL DEFAULT 'both' CHECK(
+        service_scope IN ('both', 'dine_in_only', 'takeaway_only')
+    ),
     is_feast_combo INTEGER NOT NULL DEFAULT 0,
     is_available INTEGER NOT NULL DEFAULT 1,
     sort_order INTEGER NOT NULL DEFAULT 0
 );
-
 -- 3.1. Bảng Bộ Thực Đơn Mẫu (Menu Suites)
 CREATE TABLE IF NOT EXISTS menu_suites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +50,6 @@ CREATE TABLE IF NOT EXISTS menu_suites (
     is_default INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 -- 3.2. Bảng Món thuộc Bộ Thực Đơn (Suite Items)
 CREATE TABLE IF NOT EXISTS menu_suite_items (
     suite_id INTEGER NOT NULL,
@@ -61,7 +59,6 @@ CREATE TABLE IF NOT EXISTS menu_suite_items (
     FOREIGN KEY (suite_id) REFERENCES menu_suites(id) ON DELETE CASCADE,
     FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE
 );
-
 -- 3.3. Bảng Phân Bổ Lịch Thực Đơn Theo Ngày (Menu Schedules)
 CREATE TABLE IF NOT EXISTS menu_schedules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,7 +68,6 @@ CREATE TABLE IF NOT EXISTS menu_schedules (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (suite_id) REFERENCES menu_suites(id) ON DELETE CASCADE
 );
-
 -- 4. Bảng Đơn Hàng & Đặt Chỗ
 CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,9 +76,15 @@ CREATE TABLE IF NOT EXISTS orders (
     slot_id INTEGER NOT NULL,
     order_type TEXT NOT NULL CHECK(order_type IN ('dine_in', 'takeaway')),
     total_amount INTEGER NOT NULL DEFAULT 0,
-    payment_method TEXT NOT NULL CHECK(payment_method IN ('vietqr', 'pay_later', 'cash')),
-    payment_status TEXT NOT NULL DEFAULT 'pending' CHECK(payment_status IN ('pending', 'paid', 'pay_later', 'refunded')),
-    order_status TEXT NOT NULL DEFAULT 'confirmed' CHECK(order_status IN ('pending', 'confirmed', 'completed', 'cancelled')),
+    payment_method TEXT NOT NULL CHECK(
+        payment_method IN ('vietqr', 'pay_later', 'cash')
+    ),
+    payment_status TEXT NOT NULL DEFAULT 'pending' CHECK(
+        payment_status IN ('pending', 'paid', 'pay_later', 'refunded')
+    ),
+    order_status TEXT NOT NULL DEFAULT 'confirmed' CHECK(
+        order_status IN ('pending', 'confirmed', 'completed', 'cancelled')
+    ),
     customer_note TEXT NULL,
     admin_note TEXT NULL,
     paid_at DATETIME NULL,
@@ -91,7 +93,6 @@ CREATE TABLE IF NOT EXISTS orders (
     FOREIGN KEY (customer_phone) REFERENCES customers(phone) ON UPDATE CASCADE,
     FOREIGN KEY (slot_id) REFERENCES time_slots(id) ON DELETE RESTRICT
 );
-
 -- 5. Bảng Chi Tiết Món Ăn Của Đơn Hàng (Order Items)
 CREATE TABLE IF NOT EXISTS order_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +105,6 @@ CREATE TABLE IF NOT EXISTS order_items (
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE RESTRICT
 );
-
 -- 6. Bảng Cấu Hình Hệ Thống Runtime (System Config)
 CREATE TABLE IF NOT EXISTS system_config (
     config_key TEXT PRIMARY KEY,
@@ -112,7 +112,6 @@ CREATE TABLE IF NOT EXISTS system_config (
     description TEXT NULL,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 -- 7. Bảng Hàng Đợi Thông Báo (Notification Outbox)
 CREATE TABLE IF NOT EXISTS notification_outbox (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -128,30 +127,34 @@ CREATE TABLE IF NOT EXISTS notification_outbox (
     sent_at TEXT,
     payload_json TEXT
 );
-
 -- 8. Bảng Đánh Giá & Cảm Nhận Của Khách Hàng (Customer Reviews - Issue #18)
 CREATE TABLE IF NOT EXISTS customer_reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     customer_phone TEXT NULL,
     customer_name TEXT NOT NULL,
     order_id INTEGER NULL,
-    rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+    rating INTEGER NOT NULL CHECK(
+        rating >= 1
+        AND rating <= 5
+    ),
     title TEXT NULL,
     comment TEXT NOT NULL,
     kitchen_reply TEXT NULL,
-    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'hidden'
+    status TEXT NOT NULL DEFAULT 'pending',
+    -- 'pending', 'approved', 'hidden'
     is_verified_buyer INTEGER NOT NULL DEFAULT 0,
     is_featured INTEGER NOT NULL DEFAULT 0,
     testimonial_note TEXT NULL,
-    type TEXT NOT NULL DEFAULT 'review', -- 'review', 'testimonial'
+    type TEXT NOT NULL DEFAULT 'review',
+    -- 'review', 'testimonial'
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     replied_at DATETIME NULL,
-    FOREIGN KEY (customer_phone) REFERENCES customers(phone) ON UPDATE CASCADE ON DELETE SET NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
+    FOREIGN KEY (customer_phone) REFERENCES customers(phone) ON UPDATE CASCADE ON DELETE
+    SET NULL,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE
+    SET NULL
 );
-
 CREATE INDEX IF NOT EXISTS idx_customer_reviews_featured ON customer_reviews(is_featured);
-
 -- 9. Bảng Chương Trình Khuyến Mại & Giảm Giá (Promotions - Issue #20)
 CREATE TABLE IF NOT EXISTS promotions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -161,7 +164,9 @@ CREATE TABLE IF NOT EXISTS promotions (
     discount_type TEXT NOT NULL CHECK(discount_type IN ('percentage', 'fixed_amount')),
     discount_value INTEGER NOT NULL CHECK(discount_value > 0),
     min_order_amount INTEGER NOT NULL DEFAULT 0,
-    applies_to TEXT NOT NULL DEFAULT 'all' CHECK(applies_to IN ('all', 'category', 'item', 'feast_combo')),
+    applies_to TEXT NOT NULL DEFAULT 'all' CHECK(
+        applies_to IN ('all', 'category', 'item', 'feast_combo')
+    ),
     target_id INTEGER NULL,
     target_category TEXT NULL,
     start_date TEXT NOT NULL,
@@ -176,11 +181,9 @@ CREATE TABLE IF NOT EXISTS promotions (
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 -- ====================================================================
 -- INDEXES TỐI ƯU HIỆU NĂNG TRUY VẤN
 -- ====================================================================
-
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
 CREATE INDEX IF NOT EXISTS idx_customers_zalo_id ON customers(zalo_id);
 CREATE INDEX IF NOT EXISTS idx_time_slots_date_active ON time_slots(slot_date, is_active);
@@ -193,5 +196,3 @@ CREATE INDEX IF NOT EXISTS idx_customer_reviews_status ON customer_reviews(statu
 CREATE INDEX IF NOT EXISTS idx_customer_reviews_phone ON customer_reviews(customer_phone);
 CREATE INDEX IF NOT EXISTS idx_customer_reviews_order ON customer_reviews(order_id);
 CREATE INDEX IF NOT EXISTS idx_promotions_dates ON promotions(start_date, end_date, is_active);
-
-

@@ -261,7 +261,7 @@ class ConfigService
         $targetDate = $date ?? date('Y-m-d');
         $fromDate = $this->get('closed_from_date', '');
         $toDate = $this->get('closed_to_date', '');
-        $reason = $this->get('closed_reason', 'Bếp An Yên xin phép tạm nghỉ đi hái trà & chuẩn bị nguyên liệu mới. Hẹn sớm gặp lại bạn thương nhé! 🍃');
+        $reason = $this->get('closed_reason', 'Bếp An Lành xin phép tạm nghỉ đi hái trà & chuẩn bị nguyên liệu mới. Hẹn sớm gặp lại bạn thương nhé! 🍃');
 
         // Nếu không cài ngày cụ thể -> Tạm nghỉ vô thời hạn
         if ($fromDate === '' && $toDate === '') {

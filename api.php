@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Endpoint xử lý AJAX cho VeganFoodShop (Bếp Chay An Yên)
+ * Endpoint xử lý AJAX cho VeganFoodShop (Bếp Chay An Lành)
  */
 
 header('Content-Type: application/json; charset=UTF-8');
@@ -74,7 +74,7 @@ try {
                 'success' => true,
                 'date' => $date,
                 'order_type' => $orderType,
-                'suite_name' => $scheduledSuite['name'] ?? 'Thực đơn Bếp An Yên',
+                'suite_name' => $scheduledSuite['name'] ?? 'Thực đơn Bếp An Lành',
                 'suite_desc' => $scheduledSuite['description'] ?? '',
                 'items' => $items,
             ], JSON_UNESCAPED_UNICODE);

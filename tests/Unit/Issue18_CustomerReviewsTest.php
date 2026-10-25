@@ -215,7 +215,7 @@ class Issue18_CustomerReviewsTest extends TestCase
 
         // Bếp hồi đáp đánh giá đầu tiên
         $firstRevId = (int)$adminAll[0]['id'];
-        $replySuccess = $this->reviewService->replyToReview($firstRevId, 'Bếp An Yên xin chân thành cảm ơn bạn đã ghé thăm và gửi lời động viên ấm lòng! 🍃');
+        $replySuccess = $this->reviewService->replyToReview($firstRevId, 'Bếp An Lành xin chân thành cảm ơn bạn đã ghé thăm và gửi lời động viên ấm lòng! 🍃');
         $this->assert($replySuccess === true, 'Bếp phản hồi thành công');
 
         $approvedList = $this->reviewService->getApprovedReviews();

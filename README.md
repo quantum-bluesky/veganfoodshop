@@ -1,4 +1,4 @@
-# VeganFoodShop - Bếp Chay An Yên 🍵
+# VeganFoodShop - Bếp Chay An Lành 🍵
 
 Hệ thống web cá nhân phục vụ việc **Đặt Chỗ & Đặt Món Trước (Slot & Batch Pre-order)** cho quán ẩm thực chay, hoạt động linh hoạt theo từng khung giờ và số lượng suất giới hạn trong ngày/tuần.
 
@@ -146,7 +146,7 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
       3. 🕊️ *Nuôi dưỡng lòng từ & An yên (Compassion & Mindful Living):* Mỗi bữa ăn chay là một nhịp thở chậm, tri ân đất mẹ và thương yêu muôn loài.
       4. 🍵 *Đón tiếp như người thân quen trở về (Warm & Welcoming):* Tạo cảm giác thân thuộc, không gian trà thơm chuông gió, tin cậy tuyệt đối.
     - **Điều Hướng Xuyên Suốt Hệ Thống:**
-      - Thanh điều hướng tối giản kết nối mượt mà giữa **Đặt Chỗ (`index.php`)** • **Về Bếp An Yên (`about.php`)** • **Cảm Nhận (`reviews.php`)**.
+      - Thanh điều hướng tối giản kết nối mượt mà giữa **Đặt Chỗ (`index.php`)** • **Về Bếp An Lành (`about.php`)** • **Cảm Nhận (`reviews.php`)**.
       - Hỗ trợ Clean URL chuẩn (`/about`, `/reviews`, `/admin`).
 18. **Giải Pháp Thanh Toán Mobile VietQR - Mở Trực Tiếp App & Quét Từ Thư Viện Ảnh (v1.11.0):**
     - **Giải quyết Rào cản Mobile Web:**
@@ -174,7 +174,7 @@ Dự án mang phong cách giao diện **"Hơi thở Ghibli & Thiền Vị (Zen U
     - **Khắc Phục Lỗi Trang Cảm Nhận (`reviews.php` - Issue #25):**
       - Sửa lỗi Fatal Error `Call to undefined method ZaloAuthService::getCurrentCustomer()` bằng cách bổ sung hàm `getCurrentCustomer(?string $phone)` hỗ trợ truy xuất linh hoạt qua SĐT, session hoặc cookie.
       - Tích hợp JavaScript tự động điền (autofill) thông tin tên và số điện thoại từ `localStorage` khi khách đã từng đăng nhập Zalo hoặc đặt hàng trước đó.
-      - Bổ sung nút liên kết từ màn hình xác nhận đơn (`process_order.php`) chuyển sang gửi cảm nhận/lưu bút đến Bếp An Yên.
+      - Bổ sung nút liên kết từ màn hình xác nhận đơn (`process_order.php`) chuyển sang gửi cảm nhận/lưu bút đến Bếp An Lành.
 20. **Thiết Lập Khuyến Mại Đa Chiều Theo Khách Hàng & Đơn Hàng (v1.13.0 - Issue #26):**
     - **Phân Khúc Khuyến Mại Linh Hoạt (Targeting Engine):**
       - **Theo từng khách hàng cụ thể (`target_customer_phone`):** Đặt mã ưu đãi hoặc quà tặng giảm giá tri ân riêng cho từng số điện thoại thực khách.

@@ -35,7 +35,7 @@ try {
             <p style="font-size: 0.85rem; color: var(--text-muted-warm); margin-bottom: 18px;">
                 <?= htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') ?>
             </p>
-            <a href="index.php" class="zen-btn-primary" style="text-decoration: none;">Quay về Bếp An Yên</a>
+            <a href="index.php" class="zen-btn-primary" style="text-decoration: none;">Quay về Bếp An Lành</a>
         </div>
     </body>
     </html>

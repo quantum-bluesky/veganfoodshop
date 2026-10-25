@@ -81,7 +81,7 @@ class OrderService
         if ($this->zaloAuthService->isRequireLogin()) {
             $zaloId = isset($data['zalo_id']) ? trim((string)$data['zalo_id']) : '';
             if ($zaloId === '') {
-                throw new ValidationException('Bếp An Yên yêu cầu đăng nhập tài khoản Zalo trước khi gửi đơn để đảm bảo kết nối giữ chỗ.');
+                throw new ValidationException('Bếp An Lành yêu cầu đăng nhập tài khoản Zalo trước khi gửi đơn để đảm bảo kết nối giữ chỗ.');
             }
         }
 
@@ -139,7 +139,7 @@ class OrderService
             // Kiểm tra trạng thái Bếp tạm nghỉ (Issue #12)
             $closedStatus = $this->configService->getShopClosedStatus((string)$slot['slot_date']);
             if ($closedStatus['is_closed']) {
-                throw new ValidationException($closedStatus['reason'] ?: 'Bếp An Yên hiện đang tạm nghỉ vào ngày này. Mong bạn thông cảm nhé.');
+                throw new ValidationException($closedStatus['reason'] ?: 'Bếp An Lành hiện đang tạm nghỉ vào ngày này. Mong bạn thông cảm nhé.');
             }
 
             // Kiểm tra thời gian đặt trước tối thiểu (Cut-off lead time & Giờ nhận đơn Issue #32)
@@ -154,7 +154,7 @@ class OrderService
                 if ($isToday) {
                     $minuteOfDay = (int)date('G', $currentTime) * 60 + (int)date('i', $currentTime);
                     if ($minuteOfDay >= 1320) {
-                        throw new ValidationException('Dạ Bếp An Yên xin thông báo: Sau 22:00 bếp đã vào giờ nghỉ ngơi và không giao ngay trong đêm. Bạn thương vui lòng đặt trước để giao vào ngày mai nhé.');
+                        throw new ValidationException('Dạ Bếp An Lành xin thông báo: Sau 22:00 bếp đã vào giờ nghỉ ngơi và không giao ngay trong đêm. Bạn thương vui lòng đặt trước để giao vào ngày mai nhé.');
                     }
                 }
                 // Chỉ chặn đơn mang về khi ca đã qua thời gian bắt đầu hơn 30 phút
@@ -173,7 +173,7 @@ class OrderService
 
                     // Tìm ca tiếp theo khả dụng để gợi ý lịch sự cho khách
                     $nextSlot = $this->slotService->getNextAvailableSlot((string)$slot['slot_date'], (int)$slot['id'], $currentTime);
-                    $shopName = (string)$this->configService->get('shop_name', 'Bếp Chay An Yên');
+                    $shopName = (string)$this->configService->get('shop_name', 'Bếp Chay An Lành');
                     $sellerPhone = (string)$this->configService->get('seller_phone', '');
 
                     $nextSuggestion = '';

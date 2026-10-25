@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Trang Quản Trị Bếp An Yên - admin.php
+ * Trang Quản Trị Bếp An Lành - admin.php
  * Phong cách Zen tối giản, gọn gàng, thao tác mượt mà trên Mobile & Desktop
  */
 
@@ -64,7 +64,7 @@ if (!$isAuthenticated) {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Quản trị Bếp Chay An Yên</title>
+        <title>Quản trị Bếp Chay An Lành</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;1,400&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
@@ -73,7 +73,7 @@ if (!$isAuthenticated) {
     <body style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
         <div class="zen-card" style="width: 100%; max-width: 360px; text-align: center; margin: 20px;">
             <div style="font-size: 2.2rem; margin-bottom: 8px;">🏮</div>
-            <h1 class="font-serif-zen" style="font-size: 1.4rem; color: var(--brand-tea-dark); margin-bottom: 4px;">Quản Trị Bếp An Yên</h1>
+            <h1 class="font-serif-zen" style="font-size: 1.4rem; color: var(--brand-tea-dark); margin-bottom: 4px;">Quản Trị Bếp An Lành</h1>
             <p style="font-size: 0.78rem; color: var(--text-muted-warm); margin-bottom: 20px;">Nhập mật khẩu nội bộ để vào bếp</p>
             
             <?php if ($loginError): ?>
@@ -356,7 +356,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $smtpPassword = (string)($_POST['smtp_password'] ?? '');
             $smtpEncryption = trim((string)($_POST['smtp_encryption'] ?? 'tls'));
             $smtpFromEmail = trim((string)($_POST['smtp_from_email'] ?? ''));
-            $smtpFromName = trim((string)($_POST['smtp_from_name'] ?? 'Bếp Chay An Yên'));
+            $smtpFromName = trim((string)($_POST['smtp_from_name'] ?? 'Bếp Chay An Lành'));
             $smtpMockMode = isset($_POST['smtp_mock_mode']) ? '1' : '0';
 
             $configService->set('notification_email_to', $notifEmailTo);
@@ -671,7 +671,7 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bảng Quản Trị - Bếp Chay An Yên</title>
+    <title>Bảng Quản Trị - Bếp Chay An Lành</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;1,400&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
@@ -741,7 +741,7 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
         <header style="display: flex; justify-content: space-between; align-items: center;">
             <div>
                 <h1 class="font-serif-zen" style="font-size: 1.5rem; color: var(--brand-tea-dark); margin-bottom: 2px;">
-                    Bếp Chay An Yên • Vận Hành
+                    Bếp Chay An Lành • Vận Hành
                 </h1>
                 <p style="font-size: 0.78rem; color: var(--text-muted-warm);">Hệ thống quản lý lịch ca, đơn đặt trước và khách quen</p>
             </div>
@@ -1984,11 +1984,11 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                                 <input type="hidden" name="from_date" value="<?= date('Y-m-d') ?>">
                                 <div style="margin-bottom: 10px;">
                                     <label style="font-size: 0.72rem; color: #78350F; display: block; margin-bottom: 4px;">Tiêu đề thông báo:</label>
-                                    <input type="text" name="change_title" class="zen-input" value="Bếp An Yên: Thông báo thay đổi món <?= htmlspecialchars($impactData['item']['name'], ENT_QUOTES, 'UTF-8') ?>" required>
+                                    <input type="text" name="change_title" class="zen-input" value="Bếp An Lành: Thông báo thay đổi món <?= htmlspecialchars($impactData['item']['name'], ENT_QUOTES, 'UTF-8') ?>" required>
                                 </div>
                                 <div style="margin-bottom: 10px;">
                                     <label style="font-size: 0.72rem; color: #78350F; display: block; margin-bottom: 4px;">Nội dung nhắn gửi khách:</label>
-                                    <textarea name="change_message" class="zen-input" rows="3" required>Dạ chào bạn, Bếp Chay An Yên xin phép thông báo về món [<?= htmlspecialchars($impactData['item']['name'], ENT_QUOTES, 'UTF-8') ?>] trong đơn đặt của bạn. Bếp xin được điều chỉnh/đổi món tương đương giúp bạn hoặc hoàn tiền chênh lệch nhé ạ!</textarea>
+                                    <textarea name="change_message" class="zen-input" rows="3" required>Dạ chào bạn, Bếp Chay An Lành xin phép thông báo về món [<?= htmlspecialchars($impactData['item']['name'], ENT_QUOTES, 'UTF-8') ?>] trong đơn đặt của bạn. Bếp xin được điều chỉnh/đổi món tương đương giúp bạn hoặc hoàn tiền chênh lệch nhé ạ!</textarea>
                                 </div>
                                 <button type="submit" class="zen-btn-primary" style="background: #D97706; padding: 10px 18px; border-radius: 8px; font-size: 0.85rem;">
                                     📤 Xếp Lịch Gửi Thông Báo Cho Khách
@@ -2013,7 +2013,7 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                                     <?php foreach ($impactData['affected_orders'] as $ord): ?>
                                         <?php 
                                         $cleanPhone = preg_replace('/\D+/', '', (string)$ord['customer_phone']);
-                                        $zaloMsg = "Chào bạn " . ($ord['customer_name'] ?? 'bạn') . ", Bếp Chay An Yên xin liên hệ về đơn #" . $ord['order_id'] . " (ca " . $ord['slot_time'] . " ngày " . date('d/m', strtotime($ord['slot_date'])) . "). Về món " . $impactData['item']['name'] . " bạn đặt, bếp xin phép được thông báo điều chỉnh nhé ạ!";
+                                        $zaloMsg = "Chào bạn " . ($ord['customer_name'] ?? 'bạn') . ", Bếp Chay An Lành xin liên hệ về đơn #" . $ord['order_id'] . " (ca " . $ord['slot_time'] . " ngày " . date('d/m', strtotime($ord['slot_date'])) . "). Về món " . $impactData['item']['name'] . " bạn đặt, bếp xin phép được thông báo điều chỉnh nhé ạ!";
                                         ?>
                                         <tr>
                                             <td><strong>#<?= (int)$ord['order_id'] ?></strong></td>
@@ -2722,7 +2722,7 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                                 <!-- Phản hồi từ Bếp (nếu có) -->
                                 <?php if (!empty($rev['kitchen_reply'])): ?>
                                     <div style="background: #F0FDF4; border-left: 3px solid #10B981; padding: 8px 12px; border-radius: 6px; font-size: 0.78rem; color: #065F46;">
-                                        <strong>🌿 Bếp An Yên phản hồi (<?= !empty($rev['replied_at']) ? date('d/m/Y', strtotime($rev['replied_at'])) : '' ?>):</strong>
+                                        <strong>🌿 Bếp An Lành phản hồi (<?= !empty($rev['replied_at']) ? date('d/m/Y', strtotime($rev['replied_at'])) : '' ?>):</strong>
                                         <div style="margin-top: 2px;">
                                             <?= nl2br(htmlspecialchars($rev['kitchen_reply'], ENT_QUOTES, 'UTF-8')) ?>
                                         </div>
@@ -2811,7 +2811,7 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
                         <div>
                             <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-charcoal); display: block; margin-bottom: 4px;">Tên quán / Bếp:</label>
-                            <input type="text" name="shop_name" class="zen-input" value="<?= htmlspecialchars($currentConfig['shop_name'] ?? 'Bếp Chay An Yên', ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="text" name="shop_name" class="zen-input" value="<?= htmlspecialchars($currentConfig['shop_name'] ?? 'Bếp Chay An Lành', ENT_QUOTES, 'UTF-8') ?>">
                         </div>
                         <div>
                             <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-charcoal); display: block; margin-bottom: 4px;">Châm ngôn / Slogan:</label>
@@ -2880,7 +2880,7 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
 
                             <div>
                                 <label style="font-size: 0.75rem; color: #78350F; display: block; margin-bottom: 4px;">Lời nhắn gửi bạn thương khi vào web:</label>
-                                <textarea name="closed_reason" class="zen-input" rows="2" style="background: #FFFFFF; resize: vertical;" placeholder="Bếp An Yên xin phép tạm nghỉ đi hái trà & chuẩn bị nguyên liệu mới. Hẹn sớm gặp lại bạn thương nhé! 🍃"><?= htmlspecialchars($currentConfig['closed_reason'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                                <textarea name="closed_reason" class="zen-input" rows="2" style="background: #FFFFFF; resize: vertical;" placeholder="Bếp An Lành xin phép tạm nghỉ đi hái trà & chuẩn bị nguyên liệu mới. Hẹn sớm gặp lại bạn thương nhé! 🍃"><?= htmlspecialchars($currentConfig['closed_reason'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
                                 <p style="font-size: 0.7rem; color: #92400E; margin-top: 4px; line-height: 1.4;">
                                     💡 <em>Ghi chú:</em> Nếu để trống ngày bắt đầu & kết thúc, bếp sẽ tạm nghỉ ngay lập tức vô thời hạn cho tới khi bạn bỏ chọn ô kích hoạt. Nếu cài khoảng ngày cụ thể, hệ thống sẽ tự động khóa ca và hiển thị thông báo trong khoảng thời gian đó.
                                 </p>
@@ -2984,7 +2984,7 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
                                 </div>
                                 <div>
                                     <label style="font-size: 0.75rem; color: #166534; display: block; margin-bottom: 4px;">Tên người gửi (From Name):</label>
-                                    <input type="text" name="smtp_from_name" class="zen-input" value="<?= htmlspecialchars($currentConfig['smtp_from_name'] ?? 'Bếp Chay An Yên', ENT_QUOTES, 'UTF-8') ?>" style="background: #FFFFFF;">
+                                    <input type="text" name="smtp_from_name" class="zen-input" value="<?= htmlspecialchars($currentConfig['smtp_from_name'] ?? 'Bếp Chay An Lành', ENT_QUOTES, 'UTF-8') ?>" style="background: #FFFFFF;">
                                 </div>
                             </div>
 
@@ -3075,7 +3075,7 @@ $isReviewsEnabled = $reviewService->isReviewsEnabled();
     <script>
         function copyCustomerZaloTemplate(name, code, slotTime) {
             const timeDesc = slotTime ? ' (khung giờ ' + slotTime + ')' : '';
-            const text = 'Chào bạn ' + name + ', Bếp Chay An Yên nhắn bạn về đơn ' + code + timeDesc + ': Món thanh tịnh của bạn đang được bếp chuẩn bị chu đáo nhé! 🍃';
+            const text = 'Chào bạn ' + name + ', Bếp Chay An Lành nhắn bạn về đơn ' + code + timeDesc + ': Món thanh tịnh của bạn đang được bếp chuẩn bị chu đáo nhé! 🍃';
             navigator.clipboard.writeText(text).then(() => {
                 alert('Đã sao chép tin nhắn mẫu gửi cho ' + name + ':\n\n' + text);
             }).catch(() => {

@@ -54,7 +54,7 @@ class Issue22_AboutPageTest
         $this->assert(str_contains($content, 'Đón Tiếp Như Người Thân Quen Trở Về'), "Tôn chỉ 4: Đón Tiếp Như Người Thân Quen Trở Về");
 
         // 3. Lời ngỏ từ người đứng bếp
-        $this->assert(str_contains($content, 'Người Đứng Bếp An Yên'), "Có lời ngỏ ký tên Người Đứng Bếp An Yên");
+        $this->assert(str_contains($content, 'Người Đứng Bếp An Lành'), "Có lời ngỏ ký tên Người Đứng Bếp An Lành");
 
         // 4. Các nút hành động CTA
         $this->assert(str_contains($content, 'index.php'), "Có link dẫn tới trang đặt món (index.php)");

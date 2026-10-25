@@ -1,4 +1,4 @@
-# Kế Hoạch Triển Khai Hệ Thống VeganFoodShop (Bếp Chay An Yên)
+# Kế Hoạch Triển Khai Hệ Thống VeganFoodShop (Bếp Chay An Lành)
 
 Hệ thống được phát triển theo mô hình **Khung giờ & Suất ăn giới hạn (Slot & Batch Pre-order)**, tuân thủ nghiêm ngặt các quy định tại [AGENTS.md](../AGENTS.md), [AGENT_RULES.md](../AGENT_RULES.md), [DB_DESIGN.md](DB_DESIGN.md), [BUSINESS_FLOW.md](BUSINESS_FLOW.md), và [SCREEN_DESIGN.md](SCREEN_DESIGN.md).
 

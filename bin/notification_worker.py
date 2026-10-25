@@ -3,7 +3,7 @@
 """
 Worker Xử Lý Hàng Đợi Thông Báo SQLite (Notification Outbox Worker)
 Ngôn ngữ: Python 3 (Thư viện chuẩn, zero pip external packages)
-VeganFoodShop (Bếp Chay An Yên)
+VeganFoodShop (Bếp Chay An Lành)
 
 Cách dùng:
   python3 bin/notification_worker.py --run-once
@@ -59,7 +59,7 @@ def send_email_notification(config: dict, payload: dict) -> bool:
     mock_mode = config.get("smtp_mock_mode", "0") == "1"
 
     order_code = payload.get("order_code", "UNKNOWN")
-    shop_name = config.get("shop_name", "Bếp Chay An Yên")
+    shop_name = config.get("shop_name", "Bếp Chay An Lành")
     subject = f"[{shop_name}] Có đơn hàng mới #{order_code}"
 
     # Text summary
@@ -69,7 +69,7 @@ def send_email_notification(config: dict, payload: dict) -> bool:
     slot_time = payload.get("slot_time", "")
     slot_date = payload.get("slot_date", "")
 
-    body_text = f"""BẾP CHAY AN YÊN - CÓ ĐƠN HÀNG MỚI #{order_code}
+    body_text = f"""Bếp Chay An Lành - CÓ ĐƠN HÀNG MỚI #{order_code}
 Khung giờ: {slot_date} ({slot_time})
 Khách hàng: {cust_name} ({cust_phone})
 Tổng tiền: {total_amount}

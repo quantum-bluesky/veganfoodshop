@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 /**
- * Trang Giới Thiệu - Nguồn Gốc, Sự Hình Thành & Tôn Chỉ Bếp Chay An Yên (Issue #22)
- * VeganFoodShop - Bếp Chay An Yên
+ * Trang Giới Thiệu - Nguồn Gốc, Sự Hình Thành & Tôn Chỉ Bếp Chay An Lành (Issue #22)
+ * VeganFoodShop - Bếp Chay An Lành
  * UTF-8 No BOM, chuẩn PHP 8.4+
  */
 
@@ -15,7 +15,7 @@ use App\Services\ConfigService;
 
 $db = Connection::getInstance();
 $configService = new ConfigService($db);
-$shopName = $configService->get('shop_name', 'Bếp Chay An Yên');
+$shopName = $configService->get('shop_name', 'Bếp Chay An Lành');
 $brandName = $shopName;
 $sellerAddress = $configService->get('shop_address', 'Số 12 ngõ An Yên, phố Chùa Láng, Hà Nội');
 $sellerPhone = $configService->get('seller_phone', '');
@@ -33,22 +33,22 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Về Bếp Chay An Yên - Nguồn Gốc & Tôn Chỉ Thuần Chay</title>
-    <meta name="description" content="Khám phá câu chuyện khởi nguồn và 4 tôn chỉ ẩm thực thuần chay thanh tịnh tại Bếp Chay An Yên: Thuần khiết tự nhiên, nấu theo ca giới hạn suất, nuôi dưỡng lòng từ và trân quý từng thực khách.">
+    <title>Về Bếp Chay An Lành - Nguồn Gốc & Tôn Chỉ Thuần Chay</title>
+    <meta name="description" content="Khám phá câu chuyện khởi nguồn và 4 tôn chỉ ẩm thực thuần chay thanh tịnh tại Bếp Chay An Lành: Thuần khiết tự nhiên, nấu theo ca giới hạn suất, nuôi dưỡng lòng từ và trân quý từng thực khách.">
 
     <!-- Các thẻ Open Graph cơ bản (Issue #31) -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="<?= htmlspecialchars($fullCurrentUrl, ENT_QUOTES, 'UTF-8') ?>">
     <meta property="og:site_name" content="<?= htmlspecialchars($brandName, ENT_QUOTES, 'UTF-8') ?>">
-    <meta property="og:title" content="Về Bếp Chay An Yên - Nguồn Gốc & Bốn Tôn Chỉ Thuần Chay">
-    <meta property="og:description" content="Khám phá câu chuyện khởi nguồn và 4 tôn chỉ ẩm thực thuần chay thanh tịnh tại Bếp Chay An Yên: Thuần khiết tự nhiên, nấu theo ca giới hạn suất, nuôi dưỡng lòng từ và trân quý từng thực khách.">
+    <meta property="og:title" content="Về Bếp Chay An Lành - Nguồn Gốc & Bốn Tôn Chỉ Thuần Chay">
+    <meta property="og:description" content="Khám phá câu chuyện khởi nguồn và 4 tôn chỉ ẩm thực thuần chay thanh tịnh tại Bếp Chay An Lành: Thuần khiết tự nhiên, nấu theo ca giới hạn suất, nuôi dưỡng lòng từ và trân quý từng thực khách.">
     <meta property="og:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
-    <meta property="og:image:alt" content="Về Bếp Chay An Yên - Nguồn Gốc & Tôn Chỉ Thuần Chay">
+    <meta property="og:image:alt" content="Về Bếp Chay An Lành - Nguồn Gốc & Tôn Chỉ Thuần Chay">
 
     <!-- Thẻ hỗ trợ riêng cho Twitter / X -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Về Bếp Chay An Yên - Nguồn Gốc & Bốn Tôn Chỉ Thuần Chay">
-    <meta name="twitter:description" content="Khám phá câu chuyện khởi nguồn và 4 tôn chỉ ẩm thực thuần chay thanh tịnh tại Bếp Chay An Yên: Thuần khiết tự nhiên, nấu theo ca giới hạn suất, nuôi dưỡng lòng từ và trân quý từng thực khách.">
+    <meta name="twitter:title" content="Về Bếp Chay An Lành - Nguồn Gốc & Bốn Tôn Chỉ Thuần Chay">
+    <meta name="twitter:description" content="Khám phá câu chuyện khởi nguồn và 4 tôn chỉ ẩm thực thuần chay thanh tịnh tại Bếp Chay An Lành: Thuần khiết tự nhiên, nấu theo ca giới hạn suất, nuôi dưỡng lòng từ và trân quý từng thực khách.">
     <meta name="twitter:image" content="<?= htmlspecialchars($previewImageUrl, ENT_QUOTES, 'UTF-8') ?>">
 
     <!-- Google Fonts: Lora (Tiêu đề thiền vị) & Quicksand (Nội dung mộc mạc) -->
@@ -211,7 +211,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
             </a>
             <span style="color: #D1D5DB;">•</span>
             <span style="font-weight: 700; color: var(--brand-tea-green);">
-                🌿 Về Bếp An Yên
+                🌿 Về Bếp An Lành
             </span>
             <span style="color: #D1D5DB;">•</span>
             <a href="reviews.php" class="zen-nav-link">
@@ -223,7 +223,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
         <header style="text-align: center; padding: 12px 0 6px 0;">
             <div style="font-size: 2.4rem; margin-bottom: 6px;">🍵</div>
             <h1 class="font-serif-zen" style="font-size: 1.65rem; color: var(--brand-tea-dark); margin-bottom: 6px;">
-                Bếp Chay An Yên
+                Bếp Chay An Lành
             </h1>
             <p style="font-size: 0.88rem; color: var(--brand-tea-green); font-family: 'Lora', serif; font-style: italic; max-width: 360px; margin: 0 auto;">
                 "Một bát canh thanh ngọt, vỗ về những bộn bề ngày thường"
@@ -236,10 +236,10 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                 <span>🌱</span> Khởi Nguồn & Sự Hình Thành
             </h2>
             <p>
-                <strong>Bếp Chay An Yên</strong> được nhen nhóm từ một gian bếp nhỏ nép mình trong con ngõ tĩnh lặng giữa lòng thành phố tất bật. Những người sáng lập bếp là những người con tìm về với nếp sống thuần thực vật, thấu hiểu cảm giác thèm một bữa ăn thanh lành sau những chuỗi ngày làm việc căng thẳng.
+                <strong>Bếp Chay An Lành</strong> được nhen nhóm từ một gian bếp nhỏ nép mình trong con ngõ tĩnh lặng giữa lòng thành phố tất bật. Những người sáng lập bếp là những người con tìm về với nếp sống thuần thực vật, thấu hiểu cảm giác thèm một bữa ăn thanh lành sau những chuỗi ngày làm việc căng thẳng.
             </p>
             <p>
-                Giữa nhịp sống hiện đại, khi bữa ăn ngoài hàng quán thường quá đậm vị bởi bột ngọt, hạt nêm hóa học và thức ăn nhanh chế biến sẵn, Bếp Chay An Yên ra đời như một <em>chốn quay về an yên</em> — nơi bạn có thể thong thả ngồi xuống, hít hà hương nấm thơm lừng và nhâm nhi một chén trà sen ngọt hậu.
+                Giữa nhịp sống hiện đại, khi bữa ăn ngoài hàng quán thường quá đậm vị bởi bột ngọt, hạt nêm hóa học và thức ăn nhanh chế biến sẵn, Bếp Chay An Lành ra đời như một <em>chốn quay về an yên</em> — nơi bạn có thể thong thả ngồi xuống, hít hà hương nấm thơm lừng và nhâm nhi một chén trà sen ngọt hậu.
             </p>
             <div style="background: #FAF7F2; padding: 12px 14px; border-radius: 12px; font-size: 0.82rem; border-left: 3px solid var(--brand-tea-green); font-style: italic;">
                 "Bếp không mong trở thành một nhà hàng công nghiệp tấp nập, mà mong là một gian bếp ấm cúng của người thân, nơi luôn chừa sẵn một phần cơm nóng cho bạn khi trở về."
@@ -322,7 +322,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                 Cảm ơn bạn đã hữu duyên ghé qua gian bếp nhỏ. Chúc bạn và gia đình luôn dồi dào sức khỏe, tâm an và vạn sự cát tường!"
             </p>
             <div style="text-align: right; margin-top: 14px; font-weight: 600; font-style: normal; font-size: 0.88rem; color: var(--brand-tea-dark);">
-                — Người Đứng Bếp An Yên —
+                — Người Đứng Bếp An Lành —
             </div>
         </section>
 

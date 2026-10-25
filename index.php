@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Trang Đặt Chỗ & Đặt Món Chính - Bếp Chay An Yên
+ * Trang Đặt Chỗ & Đặt Món Chính - Bếp Chay An Lành
  * Phong cách: Hơi thở Ghibli & Thiền Vị (Zen UI/UX)
  * Tương thích Mobile-First (375px - 430px)
  */
@@ -55,7 +55,7 @@ if (preg_match('#/(api/public/)?zalo-login/?$#', $requestPath)) {
     }
 }
 
-$shopName = $configService->get('shop_name', 'Bếp Chay An Yên');
+$shopName = $configService->get('shop_name', 'Bếp Chay An Lành');
 $shopTagline = $configService->get('shop_tagline', 'Chốn dừng chân thanh tĩnh');
 $shopQuote = $configService->get('shop_quote', 'Một bát canh thanh ngọt, vỗ về những bộn bề ngày thường');
 $noticeText = $configService->get('notice_text', 'Lịch bếp hôm nay: Ca trưa 11:30 - 13:30 (Chỉ nhận tối đa 12 suất)');
@@ -232,7 +232,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                 </span>
                 <span style="color: #D1D5DB;">•</span>
                 <a href="about.php" style="text-decoration: none; color: var(--brand-tea-dark); font-weight: 600;">
-                    🌿 Về Bếp An Yên
+                    🌿 Về Bếp An Lành
                 </a>
                 <span style="color: #D1D5DB;">•</span>
                 <a href="reviews.php" style="text-decoration: none; color: var(--brand-tea-dark); font-weight: 600;">
@@ -383,7 +383,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                 <span style="font-size: 1.4rem; line-height: 1;">🍃</span>
                 <div style="flex: 1;">
                     <p style="font-weight: 700; color: #8C4A26; font-size: 0.9rem; margin-bottom: 4px;">
-                        Bếp An Yên Tạm Nghỉ & Đi Vắng
+                        Bếp An Lành Tạm Nghỉ & Đi Vắng
                     </p>
                     <p style="font-size: 0.8rem; color: #5C4033; line-height: 1.45; margin-bottom: 6px;">
                         <?= nl2br(htmlspecialchars($shopClosedStatusToday['reason'], ENT_QUOTES, 'UTF-8')) ?>
@@ -593,7 +593,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                         <span class="badge-step">3</span> Món lành hôm nay
                     </h2>
                     <span id="menuSuiteBadge" style="font-size: 0.72rem; background: #EEF2E6; color: var(--brand-tea-green); padding: 3px 8px; border-radius: 6px; font-weight: 600;">
-                        🍱 <?= htmlspecialchars($scheduledSuite['name'] ?? 'Thực đơn Bếp An Yên', ENT_QUOTES, 'UTF-8') ?>
+                        🍱 <?= htmlspecialchars($scheduledSuite['name'] ?? 'Thực đơn Bếp An Lành', ENT_QUOTES, 'UTF-8') ?>
                     </span>
                 </div>
 
@@ -805,7 +805,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
                 </button>
             <?php else: ?>
                 <button type="submit" id="submitBtn" class="zen-btn-primary">
-                    <span>Gửi Đặt Bếp An Yên</span>
+                    <span>Gửi Đặt Bếp An Lành</span>
                     <span id="btnTotalText"></span>
                 </button>
             <?php endif; ?>
@@ -840,7 +840,7 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
         <footer style="text-align: center; font-size: 0.72rem; color: var(--text-muted-warm); margin-top: 10px; display: flex; flex-direction: column; gap: 6px; align-items: center;">
             <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 2px;">
                 <a href="about.php" style="color: var(--brand-tea-green); text-decoration: none; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;">
-                    <span>🌿</span> Về Bếp An Yên
+                    <span>🌿</span> Về Bếp An Lành
                 </a>
                 <span>•</span>
                 <a href="reviews.php" style="color: var(--brand-tea-green); text-decoration: none; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;">

@@ -1,6 +1,6 @@
 # TESTING.md - Chiến Lược & Hướng Dẫn Kiểm Thử VeganFoodShop
 
-Tài liệu này quy chuẩn toàn bộ chiến lược kiểm thử, cấu trúc test suite, nguyên tắc cô lập môi trường và hướng dẫn thực thi kiểm thử tự động cho hệ thống **VeganFoodShop (Bếp Chay An Yên)**.
+Tài liệu này quy chuẩn toàn bộ chiến lược kiểm thử, cấu trúc test suite, nguyên tắc cô lập môi trường và hướng dẫn thực thi kiểm thử tự động cho hệ thống **VeganFoodShop (Bếp Chay An Lành)**.
 
 ---
 

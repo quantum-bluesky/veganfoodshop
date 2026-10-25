@@ -306,7 +306,7 @@ class ZaloAuthService
 <body style="background: #FAF7F2; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; color: #5B7065;">
     <div style="text-align: center;">
         <p style="font-size: 1.1rem; font-weight: bold; margin-bottom: 8px;">🌿 Đã kết nối Zalo thành công!</p>
-        <p style="font-size: 0.85rem; color: #7D7871;">Đang chuyển hướng về Bếp An Yên...</p>
+        <p style="font-size: 0.85rem; color: #7D7871;">Đang chuyển hướng về Bếp An Lành...</p>
     </div>
     <script>
         const user = {$userJson};

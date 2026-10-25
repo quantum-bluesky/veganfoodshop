@@ -1,5 +1,5 @@
 /**
- * Bếp Chay An Yên - Client Interaction Logic
+ * Bếp Chay An Lành - Client Interaction Logic
  * Lightweight, Vanilla JS, Mobile-First
  */
 
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (savedFontSizeLarge) {
             applyFontSizeMode(true);
         }
-    } catch (e) {}
+    } catch (e) { }
 
     if (btnToggleFontSize) {
         btnToggleFontSize.addEventListener('click', function () {
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     localStorage.removeItem('vegan_font_size_large');
                 }
-            } catch (e) {}
+            } catch (e) { }
         });
     }
 
@@ -223,9 +223,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const isPromo = row.dataset.hasPromo === '1';
 
             // 1. Kiểm tra hình thức dùng món (Tại quán / Mang về)
-            let matchScope = (scope === 'both') || 
-                             (currentOrderType === 'dine_in' && scope === 'dine_in_only') ||
-                             (currentOrderType === 'takeaway' && scope === 'takeaway_only');
+            let matchScope = (scope === 'both') ||
+                (currentOrderType === 'dine_in' && scope === 'dine_in_only') ||
+                (currentOrderType === 'takeaway' && scope === 'takeaway_only');
 
             // 2. Kiểm tra danh mục
             let matchCategory = true;
@@ -576,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const isExceeded3M = opt.getAttribute('data-is-exceeded-3m') === '1';
             const slotTime = opt.getAttribute('data-slot-time') || '';
             if (isOverdue) {
-                const shopName = window.SHOP_NAME || 'Bếp An Yên';
+                const shopName = window.SHOP_NAME || 'Bếp An Lành';
                 const sellerPhone = window.SELLER_PHONE || '';
                 const contactInfo = sellerPhone ? ` qua số ${sellerPhone} / Zalo` : ' qua Zalo';
                 const reason = isExceeded3M ? 'đã vượt quá thời gian nhận đặt lịch' : 'đã qua thời gian nhận đặt trước';
@@ -636,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const isPaid = order.payment_status === 'paid';
                 const isPayLater = order.payment_status === 'pay_later';
                 const isCancelled = order.order_status === 'cancelled';
-                
+
                 let paymentBadge = '<span style="font-size: 0.7rem; background: #FEF3C7; color: #92400E; padding: 2px 6px; border-radius: 6px; font-weight: 600;">Chờ VietQR</span>';
                 if (isPaid) {
                     paymentBadge = '<span style="font-size: 0.7rem; background: #D1FAE5; color: #065F46; padding: 2px 6px; border-radius: 6px; font-weight: 600;">✓ Đã thanh toán</span>';
@@ -729,7 +729,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             upcomingBookingBanner.style.display = 'block';
 
                             if (btnViewUpcoming) {
-                                btnViewUpcoming.onclick = function() {
+                                btnViewUpcoming.onclick = function () {
                                     openMyBookingsModal();
                                 };
                             }
@@ -950,7 +950,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (selDate === todayStr && curMins >= 1320) {
                     e.preventDefault();
-                    alert('Dạ Bếp An Yên xin thông báo: Sau 22:00 bếp đã vào giờ nghỉ ngơi và không giao ngay trong đêm. Bạn thương vui lòng lựa chọn nhận món vào hôm sau hoặc nhắn Zalo trực tiếp với bếp nhé.');
+                    alert('Dạ Bếp An Lành xin thông báo: Sau 22:00 bếp đã vào giờ nghỉ ngơi và không giao ngay trong đêm. Bạn thương vui lòng lựa chọn nhận món vào hôm sau hoặc nhắn Zalo trực tiếp với bếp nhé.');
                     return false;
                 }
 

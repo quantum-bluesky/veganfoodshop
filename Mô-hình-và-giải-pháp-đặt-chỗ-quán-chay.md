@@ -239,7 +239,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_phone') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bếp Chay An Yên</title>
+    <title>Bếp Chay An Lành</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
@@ -268,7 +268,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_phone') {
         <!-- Header: Không gian an yên -->
         <header class="text-center space-y-2">
             <span class="text-xs uppercase tracking-widest text-[#5B7065] font-semibold">Chốn dừng chân thanh tĩnh</span>
-            <h1 class="text-3xl font-serif-soft text-[#344037] font-medium">Bếp Chay An Yên</h1>
+            <h1 class="text-3xl font-serif-soft text-[#344037] font-medium">Bếp Chay An Lành</h1>
             <p class="text-xs text-[#7D7871] italic">"Một bát canh thanh ngọt, vỗ về những bộn bề ngày thường"</p>
         </header>
 
@@ -370,7 +370,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_phone') {
 
             <!-- Nút gửi đơn -->
             <button type="submit" class="w-full py-4 bg-[#5B7065] hover:bg-[#4D5C4C] text-white font-medium rounded-2xl shadow-lg transition">
-                Gửi Đặt Bếp An Yên
+                Gửi Đặt Bếp An Lành
             </button>
         </form>
     </div>

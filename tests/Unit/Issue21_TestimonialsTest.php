@@ -151,7 +151,7 @@ class Issue21_TestimonialsTest
         $this->assert(str_contains($content, 'testimonial-card-zen'), "reviews.php chứa class testimonial-card-zen");
         $this->assert(str_contains($content, 'testimonial-quote'), "reviews.php chứa class testimonial-quote");
         $this->assert(str_contains($content, 'Lời Đề Tặng & Kỷ Niệm'), "reviews.php có tiêu đề Lời Đề Tặng & Kỷ Niệm");
-        $this->assert(str_contains($content, 'about.php'), "reviews.php có link liên kết sang trang Về Bếp An Yên (about.php)");
+        $this->assert(str_contains($content, 'about.php'), "reviews.php có link liên kết sang trang Về Bếp An Lành (about.php)");
     }
 
     private function assert(bool $condition, string $message): void

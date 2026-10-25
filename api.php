@@ -43,17 +43,22 @@ try {
 
         case 'get_slots':
             $date = (string)($_GET['date'] ?? date('Y-m-d'));
+            $orderType = (string)($_GET['order_type'] ?? 'dine_in');
             $slotService = new SlotService();
             $configService = new \App\Services\ConfigService();
             $closedStatus = $configService->getShopClosedStatus($date);
             $slots = $slotService->getSlotsByDate($date, true);
+            $zaloUrl = (string)$configService->get('seller_zalo_url', 'https://zalo.me/0901234567');
+            $noticeContext = $slotService->getSlotNoticeContext($date, $orderType, null, null, $zaloUrl);
 
             echo json_encode([
                 'success' => true,
                 'date' => $date,
+                'order_type' => $orderType,
                 'is_closed' => $closedStatus['is_closed'],
                 'closed_reason' => $closedStatus['reason'],
                 'slots' => $slots,
+                'notice' => $noticeContext,
             ], JSON_UNESCAPED_UNICODE);
             break;
 

@@ -17,7 +17,7 @@ return [
         'debug' => false,
     ],
     'admin' => [
-        'default_password' => 'abc@2026', // Mật khẩu quản trị Admin trên môi trường này
+        'default_password' => 'abc123', // Mật khẩu quản trị Admin trên môi trường này
     ],
     'vietqr' => [
         'api_url' => 'https://img.vietqr.io/image',

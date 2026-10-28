@@ -134,7 +134,9 @@ $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8008';
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 $fullCurrentUrl = $protocol . $host . $requestUri;
 $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
-$previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '/assets/images/preview.jpg';
+$hosUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') ;
+$previewImageUrl = $hosUrl . '/assets/images/preview.jpg';
+$favicon = $hosUrl . '/assets/images/favicon.ico';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -143,6 +145,8 @@ $previewImageUrl = $protocol . $host . ($scriptDir !== '' ? $scriptDir : '') . '
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title><?= htmlspecialchars($shopName, ENT_QUOTES, 'UTF-8') ?> - <?= htmlspecialchars($shopTagline, ENT_QUOTES, 'UTF-8') ?></title>
     <meta name="description" content="<?= htmlspecialchars($shopQuote, ENT_QUOTES, 'UTF-8') ?>. Đặt chỗ và đặt món chay thanh tịnh, nấu theo ca giới hạn suất.">
+
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars($favicon, ENT_QUOTES, 'UTF-8') ?>">
 
     <!-- Các thẻ Open Graph cơ bản (Issue #31) -->
     <meta property="og:type" content="website">
